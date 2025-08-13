@@ -48,6 +48,7 @@ globs: *
 *   The login/register page should support "forgot password" functionality.
 *   The login/register page must be accessible based on WCAG 2.1 guidelines.
 *   The login/register page must be mobile responsive.
+*   Develop register option to add possibility to choose username with tag and rebuild settings to block changing username, force only visible name and email (also private email).
 
 ### Dashboard Standards
 *   The user dashboard should display a feed of new posts.
@@ -70,7 +71,7 @@ globs: *
     *   Avatar image max size: 2MB.
     *   Cover image max size: 5MB.
 *   The settings page should:
-    *   Include form fields for: username, display_name, bio, pronouns, profile_visibility (public/friends/private), city, country, website, public email, social links (instagram/twitter/tiktok), and toggles for show_location and show_orientation and show_friends.
+    *   Include form fields for: username, display_name, bio, pronouns, profile_visibility (public/friends/private), city, country, website, public email, social links (instagram/twitter/tiktok), and toggles for show_location, show_orientation and show_friends.
     *   Load the current user's profile and reset defaults on page load.
     *   Update the `profiles` table with controlled inputs (null-safe) and a `social_links` JSON on save.
     *   Include a secondary button "Podgląd" to jump to /profile.
@@ -78,6 +79,10 @@ globs: *
     *   Support avatar and cover image file uploads to Supabase Storage.
     *   Avatar image max size: 2MB.
     *   Cover image max size: 5MB.
+    *   Build full functional user settings with options to change user details, accessibility settings, 2fa options, oauth connections, change password, privacy settings, delete account (with full clearing data).
+
+### Community Standards
+*   The header should include a "Społeczności" link.
 
 ## WORKFLOW & RELEASE RULES
 
@@ -131,3 +136,4 @@ globs: *
         1.  Verify you’re opening the running dev URL (usually http://localhost:3000/) and not a static file/old build tab.
         2.  Try a private window.
         3.  Check the DevTools Network tab (Disable cache) and reload—confirm /_next/* assets load and there’s no 404 for /_next/app-build-manifest.json.
+*   When encountering a "Multiple GoTrueClient instances detected" error, review the Supabase browser client helper (`supabase-browser.ts`) for potential multiple client instantiations. Use a singleton with storageKey "tecza-app-auth" to avoid this warning.

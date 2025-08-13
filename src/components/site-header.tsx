@@ -11,6 +11,7 @@ const nav = [
   { href: "#about", label: "O aplikacji" },
   { href: "#feed", label: "Publiczny feed" },
   { href: "#features", label: "Funkcje" },
+  { href: "/communities", label: "Społeczności" },
   { href: "#contribute", label: "Współtwórz" },
 ]
 

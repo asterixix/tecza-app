@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { z } from "zod"
+import { z, ZodType } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { getSupabase } from "@/lib/supabase-browser"
@@ -15,33 +15,37 @@ import { Toaster } from "@/components/ui/sonner"
 import { toast } from "sonner"
 import { UserPlus, Mail, Lock } from "lucide-react"
 
-const schema = z.object({
+type FormValues = { email: string; password: string; username: string; tag: number }
+const schema: ZodType<FormValues> = z.object({
   email: z.string().email("Podaj poprawny email"),
   password: z.string().min(8, "Min. 8 znaków"),
+  username: z.string().min(3, "Min. 3 znaki").max(30, "Max 30 znaków").regex(/^[a-z0-9_]+$/i, "Tylko litery, cyfry i _"),
+  tag: z.coerce.number().int().min(1).max(9999),
 })
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const supabase = getSupabase()
 
-  const form = useForm<z.infer<typeof schema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { email: "", password: "" },
+  defaultValues: { email: "", password: "", username: "", tag: Math.floor(Math.random() * 9999) + 1 },
     mode: "onBlur",
   })
 
-  async function onSubmit(values: z.infer<typeof schema>) {
+  async function onSubmit(values: FormValues) {
     if (!supabase) {
       toast.error("Brak konfiguracji Supabase")
       return
     }
     setLoading(true)
     try {
-      const { error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
         options: {
-          emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/login` : undefined,
+      emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/login` : undefined,
+      data: { username: values.username.trim(), tag: values.tag },
         },
       })
       if (error) throw error
@@ -65,6 +69,32 @@ export default function RegisterPage() {
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="mt-4 grid gap-3">
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nazwa użytkownika</FormLabel>
+                    <FormControl>
+                      <Input placeholder="nazwa" autoComplete="username" required {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="tag"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tag (1–9999)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={1} max={9999} placeholder="np. 1234" required value={field.value} onChange={(e) => field.onChange(Number(e.target.value))} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="email"

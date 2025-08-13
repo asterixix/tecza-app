@@ -74,7 +74,15 @@ export function UserHeader() {
               <DropdownMenuLabel className="truncate">{email || "Twoje konto"}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href={username ? `/u/${username}` : "/settings"} className="flex items-center gap-2"><User className="size-4" /> Profil</Link>
+                {username ? (
+                  <Link href={`/u/${encodeURIComponent(username)}`} className="flex items-center gap-2">
+                    <User className="size-4" /> Profil
+                  </Link>
+                ) : (
+                  <Link href="/settings" className="flex items-center gap-2" aria-label="Ustaw swój profil">
+                    <User className="size-4" /> Profil
+                  </Link>
+                )}
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/settings" className="flex items-center gap-2"><Settings className="size-4" /> Ustawienia</Link>

@@ -24,6 +24,7 @@ create table if not exists public.profiles (
 alter table public.profiles enable row level security;
 
 -- Friend-aware visibility (reuse is_friend from previous migration)
+drop policy if exists "Profiles select" on public.profiles;
 create policy "Profiles select" on public.profiles
 for select using (
   profile_visibility = 'public'
@@ -42,9 +43,11 @@ for select using (
   )
 );
 
+drop policy if exists "Profiles update own" on public.profiles;
 create policy "Profiles update own" on public.profiles
 for update using (id = auth.uid());
-
+ 
+drop policy if exists "Profiles insert own" on public.profiles;
 create policy "Profiles insert own" on public.profiles
 for insert with check (id = auth.uid());
 
