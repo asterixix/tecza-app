@@ -6,6 +6,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/site/theme-provider";
 import { HeaderSwitch } from "@/components/site/header-switch";
 import { FooterSwitch } from "@/components/site/footer-switch";
+import { CookieBanner } from "@/components/site/cookie-banner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -64,6 +65,7 @@ export default function RootLayout({
             {children}
           </main>
           <FooterSwitch />
+          <CookieBanner />
         </ThemeProvider>
       </body>
     </html>

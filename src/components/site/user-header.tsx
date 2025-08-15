@@ -10,13 +10,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Logo } from "./logo"
+import { MessagesPopover } from "@/components/messages/messages-popover"
 import { ThemeToggle } from "./theme-toggle"
 
 const nav = [
-  { href: "/dashboard", label: "Pulpit" },
-  { href: "/communities", label: "Społeczności" },
-  { href: "/events", label: "Wydarzenia" },
-  { href: "/messages", label: "Wiadomości" },
+  { href: "/d", label: "Pulpit" },
+  { href: "/c", label: "Społeczności" },
+  { href: "/w", label: "Wydarzenia" },
+  // Messages moved to header popover button
 ]
 
 export function UserHeader() {
@@ -59,7 +60,7 @@ export function UserHeader() {
       // Try finding profile by auth id first
       let prof = (await supabase
         .from("profiles")
-        .select("id,username,display_name,avatar_url")
+        .select("id,username,display_name,avatar_url,roles")
         .eq("id", u.id)
         .maybeSingle()).data as (null | { id: string; username: string | null; display_name: string | null; avatar_url: string | null })
 
@@ -67,7 +68,7 @@ export function UserHeader() {
       if (!prof && metaUsername) {
         const { data: byName } = await supabase
           .from("profiles")
-          .select("id,username,display_name,avatar_url")
+          .select("id,username,display_name,avatar_url,roles")
           .ilike("username", metaUsername)
           .maybeSingle()
         prof = byName as typeof prof
@@ -75,7 +76,7 @@ export function UserHeader() {
 
       if (isCancelled) return
 
-      if (prof) {
+  if (prof) {
         if (prof.avatar_url) setAvatar(prof.avatar_url)
         if (prof.username) setUsername(prof.username)
 
@@ -111,6 +112,18 @@ export function UserHeader() {
 
   const initial = useMemo(() => email?.trim().charAt(0).toUpperCase() || "U", [email])
 
+  const [isAdmin, setIsAdmin] = useState(false)
+  useEffect(() => {
+    (async () => {
+  if (!supabase) return
+  const { data } = await supabase.auth.getUser(); const u = data.user
+      if (!u) return
+  const { data: prof } = await supabase.from('profiles').select('roles').eq('id', u.id).maybeSingle()
+      const roles = (prof?.roles as string[] | undefined) || []
+      setIsAdmin(roles.some(r => ['moderator','administrator','super-administrator'].includes(r)))
+    })()
+  }, [supabase])
+
   async function signOut() {
     if (!supabase) return
     await supabase.auth.signOut()
@@ -132,6 +145,7 @@ export function UserHeader() {
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
+          <MessagesPopover />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-9 w-9 rounded-full p-0" aria-label="Menu użytkownika">
@@ -155,12 +169,17 @@ export function UserHeader() {
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                {<Link href={username ? `/u/${encodeURIComponent(username)}` : "/dashboard"} className="flex items-center gap-2">
+                {<Link href={username ? `/u/${encodeURIComponent(username)}` : "/d"} className="flex items-center gap-2">
                     <User className="size-4" /> Profil
                   </Link>}
               </DropdownMenuItem>
+              {isAdmin && (
+                <DropdownMenuItem asChild>
+                  <Link href="/admin" className="flex items-center gap-2"><Settings className="size-4" /> Panel</Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem asChild>
-                <Link href="/settings" className="flex items-center gap-2"><Settings className="size-4" /> Ustawienia</Link>
+                <Link href="/s" className="flex items-center gap-2"><Settings className="size-4" /> Ustawienia</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={signOut} className="text-red-600 focus:text-red-700">

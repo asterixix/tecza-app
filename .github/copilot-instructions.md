@@ -15,6 +15,8 @@ globs: *
 *   Zod
 *   @radix-ui/react-popover
 *   @radix-ui/react-hover-card
+*   date-fns
+*   @ffmpeg/ffmpeg (for video transcoding in Edge Functions)
 
 ## PROJECT DOCUMENTATION & CONTEXT SYSTEM
 
@@ -76,6 +78,8 @@ interface UserProfile {
   
   created_at: string
   updated_at: string
+  roles: app_role[];
+  badges: string[];
 }
 ```
 
@@ -256,6 +260,47 @@ interface Conversation {
 - Emoji reactions
 - Status "przeczytane"
 - Push notifications dla nowych wiadomości
+- Encrypted messages communication between friendship users with possibility to exchange images (converted to webp, supabase storage support with encryption), videos (converted to webm, supabase storage support with encryption) and files max to 10mb, emoji picker.
+- Implement client-side encryption using Web Crypto API.
+- Set up real-time message updates with Supabase Realtime.
+- Process and encrypt images/videos before storage.
+- Ensure only friends can message each other.
+- Repair importing after moving to correct dir
+- Build `@/hooks/use-auth`
+- Check Supabase DB migrations to ensure `conversationID` is based on the routing folder in `app/messages`
+  - Ensure migrations use conversationId matching route
+- Setup user key management:
+  - Implement secure key storage (consider using IndexedDB with encryption) Consider avoiding indexedDB when users will be using message functionality on different devices.
+    - Secure key storage (avoid IndexedDB) — Implemented (session-only; server-persisted public key), propose optional passphrase vault — Partial
+  - Add key generation during user registration
+    - Key generation on registration/first login — Done (on first authenticated session)
+  - Implement key exchange protocol for conversations
+    - Key exchange in conversations — Done (wrap with RSA if public keys present, fallback to raw AES)
+- Add server-side video processing:
+  - Set up Supabase Edge Function with ffmpeg for video transcoding
+    - Server-side video processing (Edge Function with ffmpeg) — Scaffolded placeholders — Partial
+- Implement chunked upload for large files
+  - Chunked upload for large files — Done (client helper)
+- Enhance security:
+  - Add rate limiting for message sending
+    - Rate limiting for message sending — Done (trigger-based)
+  - Implement message deletion with secure overwrite
+    - Message deletion with secure overwrite — Schema + helper function added; needs Edge job — Partial
+  - Add virus scanning for uploaded files
+    - Virus scanning for uploads — Scaffolded placeholder — Partial
+  - Consider using this encryption flow:
+    - User composes a message in the UI.
+    - Client encrypts the message (E2EE) or sends plain text to API.
+    - Server encrypts message using Node.js crypto before storage.
+    - When retrieving, server decrypts and passes to authenticated users.
+  - Client E2EE: uses AES-GCM conversation keys. If both participants have `profiles.public_key`, the shared key is wrapped with RSA-OAEP per user; otherwise it falls back to a raw exported AES key per user (not ideal long-term but keeps UX unblocked).
+  - Server-side encryption path: keep plaintext on the client until a Supabase Edge Function encrypts it with a service-held key and stores ciphertext. We scaffolded the Edge entry points so you can move encryption off the client when preferred. Deno’s SubtleCrypto works well for AES-GCM in Edge Functions.
+  - Multi-device note: we avoided IndexedDB by default. Private keys aren’t uploaded. To use E2EE across devices:
+    - Option A (manual): export the private key from one device and import on another (offer a simple “export/import key” UI).
+    - Option B (passphrase vault): encrypt the private key client-side with a passphrase-derived key (PBKDF2/Argon2) and store the encrypted blob in Supabase; decrypt locally on each device when the user enters the passphrase. This keeps the server zero-knowledge.
+  - Implement the passphrase-protected private key vault and export/import UI.
+  - Finish the ffmpeg transcode Edge Function and route it into the upload flow.
+  - Add the purge worker and wire a “Delete securely” action in the UI.
 
 ### 6. System Wydarzeń
 ```typescript
@@ -509,7 +554,9 @@ CREATE TABLE users (
   show_friends BOOLEAN DEFAULT true,
   
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  roles app_role[] DEFAULT ARRAY['user']::app_role[],
+  badges TEXT[] DEFAULT ARRAY[]::TEXT[]
 );
 
 -- Posts table
@@ -524,8 +571,8 @@ CREATE TABLE posts (
   mentions UUID[],
   
   likes_count INTEGER DEFAULT 0,
-  comments_count INTEGER DEFAULT 0,
-  reposts_count INTEGER DEFAULT 0,
+  comments_count INTEGER 0,
+  reposts_count INTEGER 0,
   
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -594,6 +641,39 @@ serve(async (req) => {
 })
 ```
 
+### 3. Video Transcode Function
+```typescript
+// supabase/functions/video-transcode/index.ts
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+
+serve(async (req) => {
+  // Placeholder - implement ffmpeg transcoding here
+  return new Response(JSON.stringify({ success: false, message: "Not implemented" }), { status: 501 });
+})
+```
+
+### 4. Virus Scan Function
+```typescript
+// supabase/functions/virus-scan/index.ts
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+
+serve(async (req) => {
+  // Placeholder - implement virus scanning here
+  return new Response(JSON.stringify({ success: false, message: "Not implemented" }), { status: 501 });
+})
+```
+
+### 5. Secure Purge Worker
+```typescript
+// supabase/functions/purge-messages/index.ts
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+
+serve(async (req) => {
+  // Placeholder - implement secure message purging here
+  return new Response(JSON.stringify({ success: false, message: "Not implemented" }), { status: 501 });
+})
+```
+
 ## Deployment i CI/CD
 
 ### Vercel Deployment
@@ -614,7 +694,66 @@ const nextConfig = {
         destination: 'https://your-supabase-project.supabase.co/rest/v1/:path*'
       }
     ]
-  }
+  },
+  async redirects() {
+    return [
+      {
+        source: '/communities/:path*',
+        destination: '/c/:path*',
+        permanent: true,
+      },
+      {
+        source: '/dashboard',
+        destination: '/d',
+        permanent: true,
+      },
+      {
+        source: '/events/:path*',
+        destination: '/w/:path*',
+        permanent: true,
+      },
+      {
+        source: '/login',
+        destination: '/l',
+        permanent: true,
+      },
+      {
+        source: '/messages/:path*',
+        destination: '/m/:path*',
+        permanent: true,
+      },
+      {
+        source: '/register',
+        destination: '/r',
+        permanent: true,
+      },
+      {
+        source: '/settings',
+        destination: '/s',
+        permanent: true,
+      },
+      {
+        source: '/profile',
+        destination: '/u',
+        permanent: false, // Non-permanent redirect to /u
+      },
+      {
+        source: '/reset-password',
+        destination: '/l',
+        permanent: true,
+      },
+      {
+        source: '/tos',
+        destination: '/tos',
+        permanent: true,
+      },
+      {
+        source: '/pp',
+        destination: '/pp',
+        permanent: true,
+      },
+    ];
+  },
 }
 
 module.exports = nextConfig
@@ -702,6 +841,7 @@ module.exports = nextConfig
 *   The site language must be set to Polish and metadata/OG tags should be improved.
 *   Add `suppressHydrationWarning` to the body to minimize hydration mismatches.
 *   Make the footer year robust with a `<time>` element.
+*   The public footer `site-footer.tsx` must include “Regulamin” link to `/tos` and “Prywatność” link to `/pp`.
 
 ### Login/Register Page Standards
 *   The login/register page should support OAuth login using Discord or Google.
@@ -734,7 +874,6 @@ module.exports = nextConfig
     *   Display the user's bio and badges for sexual orientation/gender identity (based on privacy flags).
     *   Optionally display the user's location, website, and social links.
     *   Include a "Połącz się" button wired to the friendships table; show "Połączeni" when already connected. This should implement a friend request flow (pending/accept/cancel) instead of instant connect.
-    *   List recent posts for that user, limited to 20, with visibility enforced by RLS.
     *   Implement user profile editting background image, avatar image, adding information column, visible public post based on database, visible public list of connected friends based on database (based on user settings). Images locate in supabase storage functionality.
         *   Avatar image max size: 2MB.
         *   Cover image max size: 5MB.
@@ -747,84 +886,38 @@ module.exports = nextConfig
     *   Ensure the "Edytuj profil" button shows when the URL username matches the logged-in user’s metadata or profile row.
     *   If a user profile does not exist for a given username, return a 404 error.
     *   Add options to edit or remove own published post on feed looking into own user profile preview
+    *   Map badges to icons:
+      * user-supporter → `/icons/tecza-badge/user-supporter.svg`
+      * company-supporter → `/icons/tecza-badge/company-supporter.svg`
+      * early-tester → `/icons/tecza-badge/early-tester.svg`
+      * tester → `/icons/tecza-badge/tester.svg`
+      * moderator/administrator → `/icons/tecza-badge/mod-admin.svg`
+      * super-administrator → `/icons/tecza-badge/6.svg`
+    *   The user footer `user-footer.tsx` must include “Regulamin” link to `/tos` and “Prywatność” link to `/pp` and settings link corrected to short path `/s`.
 
 ### Community Standards
 *   The header should include a "Społeczności" link.
+*   Events and communities should use linking based on name, not UUID, for easy sharing.
 
 ### Events Standards
 *   Implement events database migration with RLS and storage bucket.
 
+### Link/Page Routing Standards
+*   Communities: `/c`
+*   Dashboard: `/d`
+*   Events: `/w`
+*   Login: `/l`
+*   Messages: `/m`
+*   Register: `/r`
+*   Reset Password: Implemented in login page (`/l`)
+*   Profile: Implemented in `/u/[username]` page
+*   Settings: `/s`
+*   Terms of Service: `/tos`
+*   Privacy Policy: `/pp`
+
 ## WORKFLOW & RELEASE RULES
+*   Build Vercel pipeline ci/cd and prepare proper implementation code to production
 
 ## DEBUGGING
 *   To minimize hydration mismatches: add `suppressHydrationWarning` to the body and html.
-*   To further minimize hydration mismatches, the theme toggle should render a neutral, static button until the client mounts, then switch to the dynamic label/icons. Add `suppressHydrationWarning` on the button for extra safety.
-*   If CSS is not loading properly on the homepage:
-    *   Kill stale service worker that can serve old HTML.
-        1.  Chrome/Edge: open the site, press F12 → Application (or Application > Service Workers)
-        2.  Under Service Workers, click “Unregister” for your site
-        3.  Also clear storage: Application > Clear storage → check “Unregister service workers” + “Cache storage” + “IndexedDB” → Clear site data
-        4.  Alternatively, open in an Incognito window to test fresh
-    *   Restart the dev server in Webpack mode
-        1.  `npm run dev`
-        2.  If it errors, try a clean:
-            `rd /s /q .next`
-            `npm run dev`
-    *   Hard reload your browser
-        1.  Windows: Ctrl+F5 (or Shift+Refresh) on the home page
-        2.  Verify that you see:
-            *   Polish hero: “Tęcza.app — bezpieczna, nowoczesna społeczność…”
-            *   Header with logo, nav, Zaloguj
-            *   Footer with copyright
-    *   If it still shows the stock page
-        1.  Verify you’re opening the running dev URL (usually http://localhost:3000/) and not a static file/old build tab.
-        2.  Try a private window.
-        3.  Check the DevTools Network tab (Disable cache) and reload—confirm /_next/* assets load and there’s no 404 for /_next/app-build-manifest.json.
-*   To fix "useSearchParams should be wrapped in a suspense boundary" on the 404 page: remove `useSearchParams` and read query params via `window.location` in `useEffect` after mount.
-*   When encountering a "Multiple GoTrueClient instances detected" error, review the Supabase browser client helper (`supabase-browser.ts`) for potential multiple client instantiations. Use a singleton with storageKey "tecza-app-auth" to avoid this warning.
-*   When encountering `Event handlers cannot be passed to Client Component props` error, do not pass functions from Server Components to Client Components during prerender. Client components should handle their own interactivity, or you can invoke client-server actions via server actions, not as props.
-*   If local Supabase fails due to a Postgres version mismatch (data dir init’d with v17, container expects v15), reset the local DB volume by removing the supabase_db_tecza-app Docker volume and restarting Supabase. Also, disable analytics in `config.toml` to avoid the vector “unhealthy” loop during local dev.
-*   If migrations fail due to `create policy if not exists ...` errors, remove `IF NOT EXISTS` from policy statements in the migration files. PostgreSQL versions prior to 16 do not support this syntax.
-*   If facing issues with homepage not loading or CSS not loading properly:
-    *   Kill stale service worker that can serve old HTML.
-        1.  Chrome/Edge: open the site, press F12 → Application (or Application > Service Workers)
-        2.  Under Service Workers, click “Unregister” for your site
-        3.  Also clear storage: Application > Clear storage → check “Unregister service workers” + “Cache storage” + “IndexedDB” → Clear site data
-        4.  Alternatively, open in an Incognito window to test fresh
-    *   Restart the dev server in Webpack mode
-        1.  `npm run dev`
-        2.  If it errors, try a clean:
-            `rd /s /q .next`
-            `npm run dev`
-    *   Hard reload your browser
-        1.  Windows: Ctrl+F5 (or Shift+Refresh) on the home page
-        2.  Verify that you see:
-            *   Polish hero: “Tęcza.app — bezpieczna, nowoczesna społeczność…”
-            *   Header with logo, nav, Zaloguj
-            *   Footer with copyright
-    *   If it still shows the stock page
-        1.  Verify you’re opening the running dev URL (usually http://localhost:3000/) and not a static file/old build tab.
-        2.  Try a private window.
-        3.  Check the DevTools Network tab (Disable cache) and reload—confirm /_next/* assets load and there’s no 404 for /_next/app-build-manifest.json.
-*   When encountering a "Multiple GoTrueClient instances detected" error, review the Supabase browser client helper (`supabase-browser.ts`) for potential multiple client instantiations. Use a singleton with storageKey "tecza-app-auth" to avoid this warning.
-*   When a "Multiple GoTrueClient instances detected" error is encountered, review the Supabase browser client helper (`supabase-browser.ts`) for potential multiple client instantiations. Use a singleton with storageKey "tecza-app-auth" to avoid this warning.
-*   If a "Module not found: Can't resolve '@/components/ui/popover'" error occurs during the build, add the shadcn popover wrapper.
-*   If a "Component is not a function" error occurs for `Textarea` in the profile page, ensure `textarea.tsx` is marked with `"use client"`. Also, ensure the export/import import form matches to avoid interop issues: use default import: `import Textarea from "@/components/ui/textarea"`.
-*   If a `DialogContent` error occurs in console, `DialogContent` requires a `DialogTitle` for the component to be accessible for screen reader users. If you want to hide the `DialogTitle`, you can wrap it with our VisuallyHidden component.
-*   If the local Supabase ports are not available, it indicates that another process on the machine is using the required port. In this case, identify and stop the process that is using the required port. Update `config.toml` to move ports out of the Windows excluded range and then restart Supabase again. The new ports are:
-    *   API: 55421
-    *   DB: 55432 (shadow: 55430)
-    *   Studio: 55423
-    *   Inbucket: 55424
-    *   Analytics: 55427
-    *   Pooler: 55439
-*   If a `NetworkError when attempting to fetch resource` error occurs, check that the app has a proper connection to local supabase.
-*   When encountering  `[Error: EINVAL: invalid argument, readlink 'C:\Users\Artur\OneDrive\Dokumenty\tecza-app\.next\server\middleware-build-manifest.js']` , prune containers and network by running `docker system prune -a --volumes` and then restart.
-*   If you encounter the error `ERROR: function storage.create_bucket(unknown, public => boolean) does not exist (SQLSTATE 42883)`, update the storage migration to be compatible with environments lacking `storage.create_bucket` by adding a safe fallback, then retry the reset to confirm.
-*   If you encounter the error `ERROR: policy "Profiles select" for table "profiles" already exists (SQLSTATE 42710)`, remove duplicate migrations and make the profiles policy creation idempotent, then rerun the database reset to verify migrations apply cleanly.
-*   If you encounter the error `ERROR: duplicate key value violates unique constraint "schema_migrations_pkey" (SQLSTATE 23505)`, verify the legacy migration files are removed, then rerun the database reset to confirm the duplicate key error is gone.
-*   If you encounter the error about missing Radix UI hover card module, install the `@radix-ui/react-hover-card` package.
-*   The ReshareButton component must be added to PostItem.
-*   When a "Module not found: Can't resolve '@radix-ui/react-hover-card'" error occurs, install the `@radix-ui/react-hover-card` package and restart the dev server.
-*   If a "You're importing a component that needs `useState`" error occurs mark the file (or its parent) with the `"use client"` directive.
-*   If an `EINVAL: invalid argument, readlink
+*   To further minimize hydration mismatches, the theme toggle should render a neutral, static button until the client mounts, then switch to the dynamic label/icons. Add `suppressHydrationWarning` on the button

@@ -110,6 +110,8 @@ type Profile = {
   show_location: boolean
   show_orientation: boolean
   show_friends?: boolean | null
+  roles?: ("user"|"company"|"user-supporter"|"company-supporter"|"early-tester"|"tester"|"moderator"|"administrator"|"super-administrator")[] | null
+  badges?: string[] | null
 }
 
 type PostRecord = FeedPost
@@ -176,7 +178,7 @@ export default function PublicUserPage() {
       setLoading(true)
   const { data: prof } = await supabase
         .from("profiles")
-  .select("id,username,display_name,bio,avatar_url,cover_image_url,sexual_orientation,gender_identity,pronouns,website,social_links,email,city,country,profile_visibility,show_location,show_orientation,show_friends")
+  .select("id,username,display_name,bio,avatar_url,cover_image_url,sexual_orientation,gender_identity,pronouns,website,social_links,email,city,country,profile_visibility,show_location,show_orientation,show_friends,roles,badges")
   .ilike("username", String(username))
         .maybeSingle()
   if (!prof) { setNotFound(true); setLoading(false); return }
@@ -302,6 +304,16 @@ export default function PublicUserPage() {
   const showLocation = profile?.show_location && (profile.city || profile.country)
   const orients = (profile?.show_orientation ? profile?.sexual_orientation : null) || []
   const genders = (profile?.show_orientation ? profile?.gender_identity : null) || []
+
+  const badgeIconMap: Record<string, string> = {
+    "user-supporter": "/icons/tecza-badge/user-supporter.svg",
+    "company-supporter": "/icons/tecza-badge/company-supporter.svg",
+    "early-tester": "/icons/tecza-badge/early-tester.svg",
+    "tester": "/icons/tecza-badge/tester.svg",
+    "moderator": "/icons/tecza-badge/mod-admin.svg",
+    "administrator": "/icons/tecza-badge/mod-admin.svg",
+    "super-administrator": "/icons/tecza-badge/super-admin.svg",
+  }
 
   useEffect(() => {
     if (!profile) return
@@ -831,6 +843,18 @@ export default function PublicUserPage() {
                   <Badge variant="outline" title="Zaimki">{profile.pronouns}</Badge>
                 ) : null}
               </h1>
+              {(profile?.badges && profile.badges.length > 0) ? (
+                <div className="mt-1 flex items-center gap-1.5">
+                  {profile.badges.map((b, i) => {
+                    const src = badgeIconMap[b] || null
+                    if (!src) return null
+                    return (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={`b-${i}`} src={src} alt={b} title={b} className="h-5 w-5" />
+                    )
+                  })}
+                </div>
+              ) : null}
               {profile?.username && (
                 <p className="text-sm text-muted-foreground">@{profile.username}</p>
               )}

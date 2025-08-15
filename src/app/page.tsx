@@ -22,7 +22,7 @@ export default function Home() {
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild>
-              <Link href="/register">
+              <Link href="/r">
                 Dołącz do nas!
                 <ArrowRight className="size-4" />
               </Link>

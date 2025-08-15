@@ -45,7 +45,7 @@ export function SiteHeader() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <Button asChild size="sm">
-            <Link href="/login" aria-label="Zaloguj się do Tęcza.app">Zaloguj się</Link>
+            <Link href="/l" aria-label="Zaloguj się do Tęcza.app">Zaloguj się</Link>
           </Button>
           <div className="md:hidden">
             <Sheet>
@@ -111,7 +111,7 @@ export function SiteHeader() {
 
                 <div className="mt-4 px-4 pb-4">
                   <Button asChild className="w-full">
-                    <Link href="/login">Zaloguj się</Link>
+                    <Link href="/l">Zaloguj się</Link>
                   </Button>
                 </div>
               </SheetContent>

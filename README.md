@@ -58,6 +58,22 @@ npm run build
 npm run start
 ```
 
+## CI/CD: Vercel + Supabase
+
+W repo są 3 workflowy GitHub Actions:
+
+- `.github/workflows/ci.yml` — lint + typecheck + build
+- `.github/workflows/vercel-deploy.yml` — deploy Preview (PR) i Production (push na main) do Vercel
+- `.github/workflows/supabase-deploy.yml` — push migracji i deploy Edge Functions do Supabase
+
+Wymagane sekrety repozytorium (Settings → Secrets and variables → Actions):
+
+- `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`
+
+Środowiska (Vercel): ustaw zmienne env w projekcie Vercel (Preview/Production) — te same co w `.env.example`.
+
 ## Supabase (lokalnie lub w chmurze)
 
 Migrations znajdują się w `supabase/migrations/`.
