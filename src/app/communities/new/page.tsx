@@ -27,7 +27,9 @@ export default function NewCommunityPage() {
     try {
       const me = (await supabase.auth.getUser()).data.user
       if (!me) throw new Error("Musisz być zalogowany")
+      const newId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : undefined
       const { data, error } = await supabase.from('communities').insert({
+        ...(newId ? { id: newId } : {}),
         name,
         description,
         type,
@@ -37,6 +39,11 @@ export default function NewCommunityPage() {
         is_local: !!(city || country),
       }).select('id').single()
       if (error) throw error
+      // Auto-join owner
+      const { error: memberErr } = await supabase
+        .from('community_memberships')
+        .insert({ community_id: data!.id, user_id: me.id, role: 'owner' })
+      if (memberErr) throw memberErr
       toast.success("Społeczność utworzona")
       router.push(`/communities/${data!.id}`)
     } catch (e) {

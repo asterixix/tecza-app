@@ -1,10 +1,11 @@
+/* App layout */
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
-import { HeaderSwitch } from "@/components/header-switch";
-import { FooterSwitch } from "@/components/footer-switch";
-import { DevSWReset } from "@/components/dev-sw-reset";
+import { ThemeProvider } from "@/components/site/theme-provider";
+import { HeaderSwitch } from "@/components/site/header-switch";
+import { FooterSwitch } from "@/components/site/footer-switch";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -58,7 +59,6 @@ export default function RootLayout({
   <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning>
         <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:z-[999] focus:top-2 focus:left-2 focus:bg-background focus:text-foreground focus:border focus:border-ring focus:rounded-md focus:px-3 focus:py-2">Pomiń do treści</a>
         <ThemeProvider>
-          <DevSWReset />
           <HeaderSwitch />
           <main role="main" id="main-content" className="min-h-[calc(100dvh-56px-64px)]">
             {children}

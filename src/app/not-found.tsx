@@ -1,3 +1,5 @@
+/* Nie znaleziono strony */
+
 "use client"
 
 import Link from "next/link"
@@ -39,7 +41,7 @@ export default function NotFound() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 md:px-6 py-12 md:py-16">
-      <div className="mb-4"><Badge variant="secondary" aria-label="Kod błędu">404 • Not Found</Badge></div>
+      <div className="mb-4"><Badge variant="secondary" aria-label="Kod błędu">404 • Nie znaleziono</Badge></div>
       <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Nie znaleziono strony</h1>
       <p className="mt-2 text-muted-foreground">
         Adres może być nieprawidłowy lub zasób został przeniesiony.

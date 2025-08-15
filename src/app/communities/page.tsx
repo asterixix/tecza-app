@@ -2,10 +2,15 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { toast } from "sonner"
 
 type Community = {
   id: string
@@ -19,8 +24,16 @@ type Community = {
 
 export default function CommunitiesPage() {
   const supabase = getSupabase()
+  const router = useRouter()
   const [items, setItems] = useState<Community[]>([])
-  const [q, setQ] = useState("")
+  // Create community dialog state
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
+  const [type, setType] = useState<'public'|'private'|'restricted'>("public")
+  const [city, setCity] = useState("")
+  const [country, setCountry] = useState("")
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -35,19 +48,70 @@ export default function CommunitiesPage() {
     load()
   }, [supabase])
 
-  const filtered = items.filter(c => c.name.toLowerCase().includes(q.toLowerCase()))
+  async function createCommunity() {
+    if (!supabase) return toast.error("Brak konfiguracji Supabase")
+    if (!name.trim()) return toast.error("Podaj nazwę społeczności")
+    setLoading(true)
+    try {
+      const me = (await supabase.auth.getUser()).data.user
+      if (!me) throw new Error("Musisz być zalogowany")
+      // Insert minimal payload aligned with schema and RLS (owner_id must equal auth.uid())
+    // Generate id client-side to avoid relying on DB default (gen_random_uuid) if extension is missing
+    const newId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : undefined
+    const { data: created, error: createErr } = await supabase
+        .from('communities')
+        .insert({
+      ...(newId ? { id: newId } : {}),
+          name,
+          description,
+          type,
+          city: city || null,
+          country: country || null,
+          is_local: !!(city || country),
+          owner_id: me.id,
+        })
+        .select('id')
+        .single()
+
+      if (createErr) throw createErr
+
+      // Auto-join owner to increment members_count via trigger and simplify permissions
+      const { error: memberErr } = await supabase
+        .from('community_memberships')
+        .insert({ community_id: created!.id, user_id: me.id, role: 'owner' })
+
+      if (memberErr) throw memberErr
+
+      toast.success("Społeczność utworzona")
+      setOpen(false)
+      // Reset form
+      setName("")
+      setDescription("")
+      setType("public")
+      setCity("")
+      setCountry("")
+      // Navigate to created community
+      router.push(`/communities/${created!.id}`)
+    } catch (e: unknown) {
+      const err = e as { message?: string; hint?: string; details?: string }
+      const details = err?.message || err?.hint || err?.details
+      toast.error(details ? `Błąd: ${details}` : 'Nie udało się utworzyć społeczności')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="mx-auto max-w-5xl p-4 md:p-6">
       <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
         <h1 className="text-2xl font-bold flex-1">Społeczności</h1>
         <div className="flex items-center gap-2">
-          <Input placeholder="Szukaj społeczności" value={q} onChange={(e) => setQ(e.target.value)} className="w-64" />
-          <Button asChild><Link href="/communities/new">Utwórz</Link></Button>
+          {/* Search removed per request */}
+          <Button onClick={() => setOpen(true)}>Utwórz</Button>
         </div>
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((c) => (
+        {items.map((c) => (
           <Card key={c.id} className="overflow-hidden">
             <CardContent className="p-0">
               <Link href={`/communities/${c.id}`} className="flex gap-3 p-3 hover:bg-accent/30">
@@ -63,6 +127,50 @@ export default function CommunitiesPage() {
           </Card>
         ))}
       </div>
+
+      {/* Create Community Dialog */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Utwórz społeczność</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div>
+              <div className="text-sm font-medium mb-1">Nazwa</div>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="np. LGBTQ Kraków" />
+            </div>
+            <div>
+              <div className="text-sm font-medium mb-1">Opis</div>
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Krótki opis społeczności" rows={4} />
+            </div>
+            <div className="grid md:grid-cols-3 gap-3">
+              <div>
+                <div className="text-sm font-medium mb-1">Typ</div>
+                <Select value={type} onValueChange={(v) => setType(v as 'public'|'private'|'restricted')}>
+                  <SelectTrigger><SelectValue placeholder="Publiczna" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">Publiczna</SelectItem>
+                    <SelectItem value="restricted">Ograniczona</SelectItem>
+                    <SelectItem value="private">Prywatna</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <div className="text-sm font-medium mb-1">Miasto</div>
+                <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="np. Kraków" />
+              </div>
+              <div>
+                <div className="text-sm font-medium mb-1">Kraj</div>
+                <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="np. Poland" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setOpen(false)}>Anuluj</Button>
+              <Button onClick={createCommunity} disabled={loading}>{loading ? 'Tworzenie…' : 'Utwórz'}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -1,7 +1,9 @@
+/* Strona błędu */
+
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { usePathname } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,11 +13,6 @@ import { Home, ArrowLeft, Bug, Copy, AlertTriangle } from "lucide-react"
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const pathname = usePathname()
   const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    // Optionally log to an error reporting service here
-    // console.error(error)
-  }, [error])
 
   const details = useMemo(() => ({
     route: "error",

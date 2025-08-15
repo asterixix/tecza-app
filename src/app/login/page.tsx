@@ -1,3 +1,5 @@
+/* Logowanie */
+
 "use client"
 
 import Link from "next/link"
@@ -13,7 +15,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Toaster } from "@/components/ui/sonner"
 import { toast } from "sonner"
-import { ShieldCheck, Mail, Lock, KeyRound } from "lucide-react"
+import { Mail, Lock, KeyRound } from "lucide-react"
 
 const schema = z.object({
   email: z.string().email("Podaj poprawny email"),
@@ -26,7 +28,7 @@ export default function LoginPage() {
   const [needsOtp, setNeedsOtp] = useState(false)
   const supabase = getSupabase()
 
-  // If already logged in (e.g., after OAuth redirect), push to dashboard
+  // Jeśli zalogowany (lub login przez OAuth), redirect do dashboardu
   useEffect(() => {
     if (!supabase) return
     supabase.auth.getSession().then(({ data }) => {
@@ -43,7 +45,7 @@ export default function LoginPage() {
     defaultValues: { email: "", password: "", otp: "" },
     mode: "onBlur",
   })
-
+  // Brak konfingu z SB
   async function onSubmit(values: z.infer<typeof schema>) {
     if (!supabase) {
       toast.error("Brak konfiguracji Supabase")
@@ -60,7 +62,7 @@ export default function LoginPage() {
       if (needsOtp && values.otp) {
         if (values.otp.trim().length < 6) throw new Error("Niepoprawny kod 2FA")
       }
-
+  // Success login + 2FA support
   toast.success("Zalogowano")
   window.location.href = "/dashboard"
     } catch (e: unknown) {
@@ -76,7 +78,7 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
-
+  // OAuth support
   async function oauth(provider: "google" | "discord") {
     if (!supabase) {
       toast.error("Brak konfiguracji Supabase")
@@ -88,7 +90,7 @@ export default function LoginPage() {
     })
     if (error) toast.error(error.message)
   }
-
+  // Reset hasła
   async function reset() {
     if (!supabase) {
       toast.error("Brak konfiguracji Supabase")
@@ -102,7 +104,7 @@ export default function LoginPage() {
     if (error) toast.error(error.message)
     else toast.success("Sprawdź skrzynkę — wysłaliśmy link do resetu hasła")
   }
-
+  // 
   return (
     <div className="mx-auto max-w-md px-4 md:px-6 py-10 md:py-14">
       <Toaster richColors position="top-center" />
@@ -110,7 +112,7 @@ export default function LoginPage() {
       <Card>
         <CardContent className="p-6">
           <h1 className="text-2xl font-bold tracking-tight">Wejdź do Tęcza.app</h1>
-          <p className="mt-1 text-muted-foreground">Zaloguj się email/hasło lub przez Google/Discord. Obsługa 2FA i reset hasła.</p>
+          <p className="mt-1 text-muted-foreground">Wprowadź swój email i hasło, lub zaloguj się korzystając z konta Google lub Discorda.</p>
 
           <div className="mt-4 grid gap-3">
             <Button type="button" variant="outline" onClick={() => oauth("google")} aria-label="Zaloguj przez Google">
@@ -178,7 +180,7 @@ export default function LoginPage() {
               </div>
 
               <Button type="submit" disabled={loading} aria-label="Zaloguj się">
-                <ShieldCheck className="size-4" aria-hidden /> {loading ? "Logowanie…" : "Zaloguj"}
+                {loading ? "Logowanie…" : "Zaloguj się"}
               </Button>
             </form>
           </Form>

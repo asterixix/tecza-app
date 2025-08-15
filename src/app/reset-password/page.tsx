@@ -30,13 +30,8 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     // Supabase sends a "type=recovery" link that sets a session via hash fragment.
-    // We just need to render a form for a new password.
-    const hash = typeof window !== "undefined" ? window.location.hash : ""
-    if (hash.includes("type=recovery")) {
-      setReady(true)
-    } else {
-      setReady(true) // still allow form; supabase-js will error if session missing
-    }
+    // We just need to render a form for a new password; always mark as ready.
+    setReady(true)
   }, [])
 
   async function onSubmit(values: z.infer<typeof schema>) {

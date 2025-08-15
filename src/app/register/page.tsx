@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { z, ZodType } from "zod"
+import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { getSupabase } from "@/lib/supabase-browser"
@@ -13,15 +13,19 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Toaster } from "@/components/ui/sonner"
 import { toast } from "sonner"
-import { UserPlus, Mail, Lock } from "lucide-react"
+import { Mail, Lock } from "lucide-react"
 
-type FormValues = { email: string; password: string; username: string; tag: number }
-const schema: ZodType<FormValues> = z.object({
+const schema = z.object({
   email: z.string().email("Podaj poprawny email"),
   password: z.string().min(8, "Min. 8 znaków"),
-  username: z.string().min(3, "Min. 3 znaki").max(30, "Max 30 znaków").regex(/^[a-z0-9_]+$/i, "Tylko litery, cyfry i _"),
-  tag: z.coerce.number().int().min(1).max(9999),
+  display_name: z.string().min(1, "Podaj widoczne imię/nazwę").max(50, "Max 50 znaków"),
+  username: z
+    .string()
+    .min(3, "Min. 3 znaki")
+    .max(30, "Max 30 znaków")
+    .regex(/^[a-z0-9_]+$/i, "Tylko litery, cyfry i _"),
 })
+type FormValues = z.infer<typeof schema>
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
@@ -29,7 +33,7 @@ export default function RegisterPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-  defaultValues: { email: "", password: "", username: "", tag: Math.floor(Math.random() * 9999) + 1 },
+    defaultValues: { email: "", password: "", display_name: "", username: "" },
     mode: "onBlur",
   })
 
@@ -40,12 +44,23 @@ export default function RegisterPage() {
     }
     setLoading(true)
     try {
-    const { error } = await supabase.auth.signUp({
+      const uname = values.username.trim().toLowerCase()
+      // Check username availability (client-side guard)
+      const { data: taken, error: checkErr } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", uname)
+        .limit(1)
+      if (!checkErr && taken && taken.length > 0) {
+        throw new Error("Nazwa użytkownika jest już zajęta")
+      }
+
+      const { error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
         options: {
-      emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/login` : undefined,
-      data: { username: values.username.trim(), tag: values.tag },
+          emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/login` : undefined,
+          data: { username: uname, display_name: values.display_name.trim() },
         },
       })
       if (error) throw error
@@ -65,18 +80,18 @@ export default function RegisterPage() {
       <Card>
         <CardContent className="p-6">
           <h1 className="text-2xl font-bold tracking-tight">Załóż konto</h1>
-          <p className="mt-1 text-muted-foreground">Po rejestracji włączysz 2FA w ustawieniach zabezpieczeń.</p>
+          <p className="mt-1 text-muted-foreground">Po rejestracji przejdziesz przez konfigurator ustawień i profilu.</p>
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="mt-4 grid gap-3">
               <FormField
                 control={form.control}
-                name="username"
+                name="display_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nazwa użytkownika</FormLabel>
+                    <FormLabel>Widoczna nazwa</FormLabel>
                     <FormControl>
-                      <Input placeholder="nazwa" autoComplete="username" required {...field} />
+                      <Input placeholder="Twoje imię/pseudonim" autoComplete="name" required {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -84,12 +99,12 @@ export default function RegisterPage() {
               />
               <FormField
                 control={form.control}
-                name="tag"
+                name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tag (1–9999)</FormLabel>
+                    <FormLabel>Nazwa użytkownika</FormLabel>
                     <FormControl>
-                      <Input type="number" min={1} max={9999} placeholder="np. 1234" required value={field.value} onChange={(e) => field.onChange(Number(e.target.value))} />
+                      <Input placeholder="nazwa_uzytkownika" autoComplete="username" required {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -102,7 +117,7 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel><span className="inline-flex items-center gap-1"><Mail className="size-4" aria-hidden /> Email</span></FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="you@example.com" autoComplete="email" inputMode="email" required {...field} />
+                      <Input type="email" placeholder="twoj@adres.pl" autoComplete="email" inputMode="email" required {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -113,7 +128,7 @@ export default function RegisterPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel><span className="inline-flex items-center gap-1"><Lock className="size-4" aria-hidden /> Hasło</span></FormLabel>
+                    <FormLabel><span className="inline-flex items-center gap-1"><Lock className="size-4" aria-hidden />Hasło min. 8 znaków</span></FormLabel>
                     <FormControl>
                       <Input type="password" placeholder="••••••••" autoComplete="new-password" required {...field} />
                     </FormControl>
@@ -122,7 +137,7 @@ export default function RegisterPage() {
                 )}
               />
               <Button type="submit" disabled={loading} aria-label="Zarejestruj się">
-                <UserPlus className="size-4" aria-hidden /> {loading ? "Rejestracja…" : "Zarejestruj"}
+                {loading ? "Rejestracja…" : "Zarejestruj się"}
               </Button>
             </form>
           </Form>
