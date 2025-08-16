@@ -62,8 +62,11 @@ export function CookieBanner() {
       <div className="mx-auto max-w-6xl px-4 md:px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between">
         <p className="text-sm text-muted-foreground">
           Używamy plików cookie. Niezbędne służą do działania i bezpieczeństwa aplikacji. Inne (np.
-          funkcjonalne/analityczne) używamy wyłącznie za Twoją zgodą. Zobacz naszą {" "}
-          <a className="underline" href="/pp">Politykę prywatności</a>.
+          funkcjonalne/analityczne) używamy wyłącznie za Twoją zgodą. Zobacz naszą{" "}
+          <a className="underline" href="/pp">
+            Politykę prywatności
+          </a>
+          .
         </p>
         <div className="flex items-center gap-2 shrink-0">
           <button

@@ -24,7 +24,7 @@ interface EventFull {
   organizer_id: string
 }
 
-type Participation = 'interested' | 'attending' | 'not_attending'
+type Participation = "interested" | "attending" | "not_attending"
 
 export default function EventPage() {
   const supabase = getSupabase()
@@ -38,17 +38,22 @@ export default function EventPage() {
       if (!supabase || !idOrSlug) return
       // Try by slug first, fallback to id
       let found: EventFull | null = null
-      const bySlug = await supabase.from('events').select('*').eq('slug', idOrSlug).maybeSingle()
+      const bySlug = await supabase.from("events").select("*").eq("slug", idOrSlug).maybeSingle()
       if (bySlug.data) {
         found = bySlug.data as EventFull
       } else {
-        const byId = await supabase.from('events').select('*').eq('id', idOrSlug).maybeSingle()
+        const byId = await supabase.from("events").select("*").eq("id", idOrSlug).maybeSingle()
         if (byId.data) found = byId.data as EventFull
       }
       setEvent(found)
       const me = (await supabase.auth.getUser()).data.user
       if (me && found?.id) {
-        const { data: p } = await supabase.from('event_participations').select('status').eq('event_id', found.id).eq('user_id', me.id).maybeSingle()
+        const { data: p } = await supabase
+          .from("event_participations")
+          .select("status")
+          .eq("event_id", found.id)
+          .eq("user_id", me.id)
+          .maybeSingle()
         setStatus((p?.status as Participation) || null)
       }
     }
@@ -59,7 +64,12 @@ export default function EventPage() {
     if (!supabase || !event) return
     const me = (await supabase.auth.getUser()).data.user
     if (!me) return
-    await supabase.from('event_participations').upsert({ event_id: event.id, user_id: me.id, status: newStatus }, { onConflict: 'event_id,user_id' })
+    await supabase
+      .from("event_participations")
+      .upsert(
+        { event_id: event.id, user_id: me.id, status: newStatus },
+        { onConflict: "event_id,user_id" }
+      )
     setStatus(newStatus)
   }
 
@@ -72,17 +82,46 @@ export default function EventPage() {
       </div>
       <div className="mt-4">
         <h1 className="text-2xl font-bold">{event.title}</h1>
-        <div className="text-sm text-muted-foreground">{new Date(event.start_date).toLocaleString()} {event.end_date ? `– ${new Date(event.end_date).toLocaleString()}` : ''} • {event.city || event.country ? [event.city, event.country].filter(Boolean).join(', ') : (event.is_online ? 'Online' : '')}</div>
+        <div className="text-sm text-muted-foreground">
+          {new Date(event.start_date).toLocaleString()}{" "}
+          {event.end_date ? `– ${new Date(event.end_date).toLocaleString()}` : ""} •{" "}
+          {event.city || event.country
+            ? [event.city, event.country].filter(Boolean).join(", ")
+            : event.is_online
+              ? "Online"
+              : ""}
+        </div>
         <div className="mt-3 flex gap-2">
-          <Button variant={status === 'interested' ? 'default' : 'outline'} onClick={() => rsvp('interested')}>Obserwuj</Button>
-          <Button variant={status === 'attending' ? 'default' : 'outline'} onClick={() => rsvp('attending')}>Biorę udział</Button>
-          <Button variant={status === 'not_attending' ? 'default' : 'outline'} onClick={() => rsvp('not_attending')}>Nie biorę udziału</Button>
-          <Button asChild variant="outline"><a href={`/w/${event.slug || event.id}/ical`} target="_blank" rel="noreferrer">iCal</a></Button>
+          <Button
+            variant={status === "interested" ? "default" : "outline"}
+            onClick={() => rsvp("interested")}
+          >
+            Obserwuj
+          </Button>
+          <Button
+            variant={status === "attending" ? "default" : "outline"}
+            onClick={() => rsvp("attending")}
+          >
+            Biorę udział
+          </Button>
+          <Button
+            variant={status === "not_attending" ? "default" : "outline"}
+            onClick={() => rsvp("not_attending")}
+          >
+            Nie biorę udziału
+          </Button>
+          <Button asChild variant="outline">
+            <a href={`/w/${event.slug || event.id}/ical`} target="_blank" rel="noreferrer">
+              iCal
+            </a>
+          </Button>
         </div>
         <Card className="mt-6">
           <CardContent className="p-4">
             <h2 className="text-lg font-semibold mb-1">Opis</h2>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{event.description || 'Brak opisu.'}</p>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              {event.description || "Brak opisu."}
+            </p>
           </CardContent>
         </Card>
       </div>

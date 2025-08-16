@@ -79,7 +79,10 @@ export default function TermsOfServicePage() {
 
         <h2>5. Usuwanie i retencja danych</h2>
         <ul>
-          <li>Możesz usuwać swoje treści. W przypadku wiadomości dostępna jest opcja „Usuń bezpiecznie”.</li>
+          <li>
+            Możesz usuwać swoje treści. W przypadku wiadomości dostępna jest opcja „Usuń
+            bezpiecznie”.
+          </li>
           <li>
             System podejmuje uzasadnione starania, aby bezpiecznie usunąć dane i powiązane pliki ze
             storage. Pewne kopie zapasowe/logi mogą być tymczasowo utrzymywane zgodnie z prawem.
@@ -90,7 +93,8 @@ export default function TermsOfServicePage() {
         <ul>
           <li>Szacunek dla osób LGBTQ+ i wszystkich użytkowników jest podstawą społeczności.</li>
           <li>
-            Nadużycia, nękanie, doxing, groźby lub dyskryminacja skutkują konsekwencjami regulaminowymi.
+            Nadużycia, nękanie, doxing, groźby lub dyskryminacja skutkują konsekwencjami
+            regulaminowymi.
           </li>
         </ul>
 
@@ -102,8 +106,13 @@ export default function TermsOfServicePage() {
 
         <h2>8. Kontakt</h2>
         <p>
-          W sprawach związanych z Regulaminem i zgłoszeniami naruszeń skontaktuj się z nami pod adresem
-          <a className="underline" href="mailto:kontakt@tecza.app"> kontakt@tecza.app</a>.
+          W sprawach związanych z Regulaminem i zgłoszeniami naruszeń skontaktuj się z nami pod
+          adresem
+          <a className="underline" href="mailto:kontakt@tecza.app">
+            {" "}
+            kontakt@tecza.app
+          </a>
+          .
         </p>
       </section>
     </div>

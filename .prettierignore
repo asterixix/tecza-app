@@ -1,0 +1,11 @@
+# Build artifacts
+.next/
+out/
+
+# Dependencies
+node_modules/
+
+# Misc
+coverage/
+*.log
+*.lock

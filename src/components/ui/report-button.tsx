@@ -5,12 +5,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import Textarea from "@/components/ui/textarea"
 import { getSupabase } from "@/lib/supabase-browser"
 
-type Reason = 'hate_speech'|'harassment'|'spam'|'inappropriate_content'|'other'
+type Reason = "hate_speech" | "harassment" | "spam" | "inappropriate_content" | "other"
 
-export function ReportButton({ targetType, targetId, meta, label = "Zgłoś" }: { targetType: 'user'|'post'|'comment'|'message'|'event'|'community'|'profile_media'; targetId?: string; meta?: Record<string, unknown>; label?: string }) {
+export function ReportButton({
+  targetType,
+  targetId,
+  meta,
+  label = "Zgłoś",
+}: {
+  targetType: "user" | "post" | "comment" | "message" | "event" | "community" | "profile_media"
+  targetId?: string
+  meta?: Record<string, unknown>
+  label?: string
+}) {
   const supabase = getSupabase()
   const [open, setOpen] = useState(false)
-  const [reason, setReason] = useState<Reason>('inappropriate_content')
+  const [reason, setReason] = useState<Reason>("inappropriate_content")
   const [desc, setDesc] = useState("")
   const [busy, setBusy] = useState(false)
 
@@ -18,9 +28,11 @@ export function ReportButton({ targetType, targetId, meta, label = "Zgłoś" }: 
     if (!supabase) return
     try {
       setBusy(true)
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (!user) return
-      await supabase.from('moderation_reports').insert({
+      await supabase.from("moderation_reports").insert({
         reporter_id: user.id,
         target_type: targetType,
         target_id: targetId || null,
@@ -37,7 +49,9 @@ export function ReportButton({ targetType, targetId, meta, label = "Zgłoś" }: 
 
   return (
     <>
-      <Button variant="ghost" size="sm" onClick={()=> setOpen(true)}>{label}</Button>
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+        {label}
+      </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -48,7 +62,7 @@ export function ReportButton({ targetType, targetId, meta, label = "Zgłoś" }: 
             <select
               className="rounded-md border bg-background px-2 py-1 text-sm"
               value={reason}
-              onChange={(e)=> setReason(e.target.value as Reason)}
+              onChange={(e) => setReason(e.target.value as Reason)}
             >
               <option value="inappropriate_content">Nieodpowiednia treść</option>
               <option value="hate_speech">Mowa nienawiści</option>
@@ -57,10 +71,19 @@ export function ReportButton({ targetType, targetId, meta, label = "Zgłoś" }: 
               <option value="other">Inne</option>
             </select>
             <label className="text-sm font-medium">Opis (opcjonalnie)</label>
-            <Textarea rows={4} value={desc} onChange={(e)=> setDesc(e.target.value)} placeholder="Dodaj szczegóły dla moderatora" />
+            <Textarea
+              rows={4}
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              placeholder="Dodaj szczegóły dla moderatora"
+            />
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={()=> setOpen(false)}>Anuluj</Button>
-              <Button onClick={submit} disabled={busy}>{busy ? "Wysyłanie…" : "Wyślij zgłoszenie"}</Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Anuluj
+              </Button>
+              <Button onClick={submit} disabled={busy}>
+                {busy ? "Wysyłanie…" : "Wyślij zgłoszenie"}
+              </Button>
             </div>
           </div>
         </DialogContent>

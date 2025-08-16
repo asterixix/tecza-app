@@ -58,7 +58,7 @@ npm start
 - Opis kontekstu i zrzuty ekranu dla zmian UI - bardzo prosimy <3
 - Przed PR-em uruchom `npm run build` (typy/lint) - nawet `npm start` i sprawdź czy to chociaż działa
 - Dodawaj/aktualizuj testy przy zmianie publicznego zachowania - polecam skrobnąć teścik z playwrightem i zobaczyć czy wszystko chula
-- Unikaj breaking changes bez uzasadnienia - nie rozpierd*laj połowy apki bo tak ci się podoba bo to nie przejdzie
+- Unikaj breaking changes bez uzasadnienia - nie rozpierd\*laj połowy apki bo tak ci się podoba bo to nie przejdzie
 
 ## Migracje i baza danych
 

@@ -8,7 +8,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { slugify } from "@/lib/utils"
@@ -32,7 +38,7 @@ export default function CommunitiesPage() {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [type, setType] = useState<'public'|'private'|'restricted'>("public")
+  const [type, setType] = useState<"public" | "private" | "restricted">("public")
   const [city, setCity] = useState("")
   const [country, setCountry] = useState("")
   const [loading, setLoading] = useState(false)
@@ -41,8 +47,8 @@ export default function CommunitiesPage() {
     async function load() {
       if (!supabase) return
       const { data } = await supabase
-  .from("communities")
-  .select("id,slug,name,description,avatar_url,members_count,city,country")
+        .from("communities")
+        .select("id,slug,name,description,avatar_url,members_count,city,country")
         .order("members_count", { ascending: false })
         .limit(50)
       setItems(data || [])
@@ -58,21 +64,24 @@ export default function CommunitiesPage() {
       const me = (await supabase.auth.getUser()).data.user
       if (!me) throw new Error("Musisz być zalogowany")
       // Insert minimal payload aligned with schema and RLS (owner_id must equal auth.uid())
-    // Generate id client-side to avoid relying on DB default (gen_random_uuid) if extension is missing
-    const newId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : undefined
-    const baseSlug = slugify(name)
-    // Try to ensure uniqueness by appending short suffix if needed; DB should also enforce unique index if configured
-    let slug = baseSlug
-    // Simple client-side disambiguation within current list
-    let i = 1
-    const existing = new Set(items.map(i => i.slug || ''))
-    while (slug && existing.has(slug)) {
-      slug = `${baseSlug}-${i++}`
-    }
-    const { data: created, error: createErr } = await supabase
-        .from('communities')
+      // Generate id client-side to avoid relying on DB default (gen_random_uuid) if extension is missing
+      const newId =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : undefined
+      const baseSlug = slugify(name)
+      // Try to ensure uniqueness by appending short suffix if needed; DB should also enforce unique index if configured
+      let slug = baseSlug
+      // Simple client-side disambiguation within current list
+      let i = 1
+      const existing = new Set(items.map((i) => i.slug || ""))
+      while (slug && existing.has(slug)) {
+        slug = `${baseSlug}-${i++}`
+      }
+      const { data: created, error: createErr } = await supabase
+        .from("communities")
         .insert({
-      ...(newId ? { id: newId } : {}),
+          ...(newId ? { id: newId } : {}),
           name,
           description,
           type,
@@ -82,15 +91,15 @@ export default function CommunitiesPage() {
           owner_id: me.id,
           slug,
         })
-        .select('id,slug')
+        .select("id,slug")
         .single()
 
       if (createErr) throw createErr
 
       // Auto-join owner to increment members_count via trigger and simplify permissions
       const { error: memberErr } = await supabase
-        .from('community_memberships')
-        .insert({ community_id: created!.id, user_id: me.id, role: 'owner' })
+        .from("community_memberships")
+        .insert({ community_id: created!.id, user_id: me.id, role: "owner" })
 
       if (memberErr) throw memberErr
 
@@ -103,11 +112,11 @@ export default function CommunitiesPage() {
       setCity("")
       setCountry("")
       // Navigate to created community
-  router.push(`/communities/${created!.slug || created!.id}`)
+      router.push(`/communities/${created!.slug || created!.id}`)
     } catch (e: unknown) {
       const err = e as { message?: string; hint?: string; details?: string }
       const details = err?.message || err?.hint || err?.details
-      toast.error(details ? `Błąd: ${details}` : 'Nie udało się utworzyć społeczności')
+      toast.error(details ? `Błąd: ${details}` : "Nie udało się utworzyć społeczności")
     } finally {
       setLoading(false)
     }
@@ -126,13 +135,27 @@ export default function CommunitiesPage() {
         {items.map((c) => (
           <Card key={c.id} className="overflow-hidden">
             <CardContent className="p-0">
-              <Link href={`/communities/${c.slug || c.id}`} className="flex gap-3 p-3 hover:bg-accent/30">
+              <Link
+                href={`/communities/${c.slug || c.id}`}
+                className="flex gap-3 p-3 hover:bg-accent/30"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={c.avatar_url || "/icons/tecza-icons/1.svg"} alt="Avatar" className="h-12 w-12 rounded object-cover border" />
+                <img
+                  src={c.avatar_url || "/icons/tecza-icons/1.svg"}
+                  alt="Avatar"
+                  className="h-12 w-12 rounded object-cover border"
+                />
                 <div className="min-w-0">
                   <div className="font-semibold truncate">{c.name}</div>
-                  <div className="text-sm text-muted-foreground truncate">{c.description || ""}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{c.members_count} członków{(c.city||c.country)?` • ${[c.city,c.country].filter(Boolean).join(', ')}`:''}</div>
+                  <div className="text-sm text-muted-foreground truncate">
+                    {c.description || ""}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {c.members_count} członków
+                    {c.city || c.country
+                      ? ` • ${[c.city, c.country].filter(Boolean).join(", ")}`
+                      : ""}
+                  </div>
                 </div>
               </Link>
             </CardContent>
@@ -149,17 +172,31 @@ export default function CommunitiesPage() {
           <div className="grid gap-3">
             <div>
               <div className="text-sm font-medium mb-1">Nazwa</div>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="np. LGBTQ Kraków" />
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="np. LGBTQ Kraków"
+              />
             </div>
             <div>
               <div className="text-sm font-medium mb-1">Opis</div>
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Krótki opis społeczności" rows={4} />
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Krótki opis społeczności"
+                rows={4}
+              />
             </div>
             <div className="grid md:grid-cols-3 gap-3">
               <div>
                 <div className="text-sm font-medium mb-1">Typ</div>
-                <Select value={type} onValueChange={(v) => setType(v as 'public'|'private'|'restricted')}>
-                  <SelectTrigger><SelectValue placeholder="Publiczna" /></SelectTrigger>
+                <Select
+                  value={type}
+                  onValueChange={(v) => setType(v as "public" | "private" | "restricted")}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Publiczna" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="public">Publiczna</SelectItem>
                     <SelectItem value="restricted">Ograniczona</SelectItem>
@@ -169,16 +206,28 @@ export default function CommunitiesPage() {
               </div>
               <div>
                 <div className="text-sm font-medium mb-1">Miasto</div>
-                <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="np. Kraków" />
+                <Input
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="np. Kraków"
+                />
               </div>
               <div>
                 <div className="text-sm font-medium mb-1">Kraj</div>
-                <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="np. Poland" />
+                <Input
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  placeholder="np. Poland"
+                />
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setOpen(false)}>Anuluj</Button>
-              <Button onClick={createCommunity} disabled={loading}>{loading ? 'Tworzenie…' : 'Utwórz'}</Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Anuluj
+              </Button>
+              <Button onClick={createCommunity} disabled={loading}>
+                {loading ? "Tworzenie…" : "Utwórz"}
+              </Button>
             </div>
           </div>
         </DialogContent>

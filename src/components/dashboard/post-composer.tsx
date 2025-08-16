@@ -6,8 +6,21 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 import { toast } from "sonner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -15,16 +28,24 @@ import { Image as ImageIcon, Video as VideoIcon, X, Smile } from "lucide-react"
 
 const schema = z.object({
   content: z.string().min(1, "Wpis nie może być pusty").max(5000),
-  visibility: z.enum(["public","friends","private","unlisted"]),
+  visibility: z.enum(["public", "friends", "private", "unlisted"]),
 })
 
-export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () => void; open?: boolean; onOpenChange?: (o: boolean) => void }) {
+export function PostComposer({
+  onPosted,
+  open,
+  onOpenChange,
+}: {
+  onPosted?: () => void
+  open?: boolean
+  onOpenChange?: (o: boolean) => void
+}) {
   const [loading, setLoading] = useState(false)
   const supabase = getSupabase()
   type FormValues = z.infer<typeof schema>
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-  defaultValues: { content: "", visibility: "public" },
+    defaultValues: { content: "", visibility: "public" },
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [videoFile, setVideoFile] = useState<File | null>(null)
@@ -43,15 +64,45 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
   // No Tenor GIF support (removed)
 
   // Emoji picker (lightweight list)
-  const emojis = useMemo(() => [
-    "😀","😁","😂","🤣","😊","😍","😎","😉","🥰","😇",
-    "🤔","😴","🤩","😢","😭","😡","🤗","🙌","👏","👍",
-    "🌈","🏳️‍🌈","🏳️‍⚧️","💖","✨","⭐","🔥","🎉","🥳","🍀"
-  ], [])
+  const emojis = useMemo(
+    () => [
+      "😀",
+      "😁",
+      "😂",
+      "🤣",
+      "😊",
+      "😍",
+      "😎",
+      "😉",
+      "🥰",
+      "😇",
+      "🤔",
+      "😴",
+      "🤩",
+      "😢",
+      "😭",
+      "😡",
+      "🤗",
+      "🙌",
+      "👏",
+      "👍",
+      "🌈",
+      "🏳️‍🌈",
+      "🏳️‍⚧️",
+      "💖",
+      "✨",
+      "⭐",
+      "🔥",
+      "🎉",
+      "🥳",
+      "🍀",
+    ],
+    []
+  )
   const addEmoji = (e: string) => {
     const cur = form.getValues("content") || ""
     const ta = textareaRef.current
-    if (ta && typeof ta.selectionStart === 'number' && typeof ta.selectionEnd === 'number') {
+    if (ta && typeof ta.selectionStart === "number" && typeof ta.selectionEnd === "number") {
       const start = ta.selectionStart
       const end = ta.selectionEnd
       const next = cur.slice(0, start) + e + cur.slice(end)
@@ -119,11 +170,11 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
   useEffect(() => {
     const sub = form.watch((vals) => {
       const text = vals.content || ""
-      const urls = Array.from(text.matchAll(/https?:\/\/[^\s)]+/gi)).map(m=>m[0])
+      const urls = Array.from(text.matchAll(/https?:\/\/[^\s)]+/gi)).map((m) => m[0])
       setFirstUrl(urls[0] || "")
     })
     return () => sub.unsubscribe?.()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [attachLink, setAttachLink] = useState(true)
   // Simple heuristic providers (YouTube) — can be extended later
@@ -140,7 +191,9 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
   }
 
   async function uploadToStorage(bucket: string, path: string, file: File) {
-    const { data, error } = await supabase!.storage.from(bucket).upload(path, file, { upsert: true })
+    const { data, error } = await supabase!.storage
+      .from(bucket)
+      .upload(path, file, { upsert: true })
     if (error) throw error
     const pub = await supabase!.storage.from(bucket).getPublicUrl(data.path)
     return pub.data.publicUrl
@@ -164,11 +217,16 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
           try {
             const bmp = await createImageBitmap(imageFile)
             const canvas = document.createElement("canvas")
-            canvas.width = bmp.width; canvas.height = bmp.height
+            canvas.width = bmp.width
+            canvas.height = bmp.height
             const ctx = canvas.getContext("2d")!
             ctx.drawImage(bmp, 0, 0)
-            const blob = await new Promise<Blob>((res) => canvas.toBlob((b)=>res(b!), "image/webp", 0.9))
-            fileToUpload = new File([blob], imageFile.name.replace(/\.[^.]+$/, ".webp"), { type: "image/webp" })
+            const blob = await new Promise<Blob>((res) =>
+              canvas.toBlob((b) => res(b!), "image/webp", 0.9)
+            )
+            fileToUpload = new File([blob], imageFile.name.replace(/\.[^.]+$/, ".webp"), {
+              type: "image/webp",
+            })
           } catch {}
         }
         const imgPath = `${user.id}/images/${Date.now()}-${fileToUpload.name}`
@@ -201,9 +259,10 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
       })
       if (error) throw error
       toast.success("Opublikowano post")
-  form.reset({ content: "", visibility: values.visibility })
-      setImageFile(null); setVideoFile(null)
-  setAttachLink(true)
+      form.reset({ content: "", visibility: values.visibility })
+      setImageFile(null)
+      setVideoFile(null)
+      setAttachLink(true)
       setOpen(false)
       onPosted?.()
     } catch (e) {
@@ -238,8 +297,11 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
                           {...rest}
                           onPaste={handlePaste}
                           ref={(el: HTMLTextAreaElement | null) => {
-                            if (typeof rhfRef === 'function') rhfRef(el)
-                            else if (rhfRef) (rhfRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el
+                            if (typeof rhfRef === "function") rhfRef(el)
+                            else if (rhfRef)
+                              (
+                                rhfRef as React.MutableRefObject<HTMLTextAreaElement | null>
+                              ).current = el
                             textareaRef.current = el
                           }}
                         />
@@ -258,9 +320,18 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={(e)=>{ const f=e.target.files?.[0]||null; setImageFile(f || null) }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0] || null
+                  setImageFile(f || null)
+                }}
               />
-              <Button type="button" variant="ghost" size="icon" title="Dodaj obraz" onClick={() => imgInputRef.current?.click()}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                title="Dodaj obraz"
+                onClick={() => imgInputRef.current?.click()}
+              >
                 <ImageIcon className="size-4" />
               </Button>
 
@@ -269,20 +340,39 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
                 type="file"
                 accept="video/*"
                 className="hidden"
-                onChange={(e)=>{ const f=e.target.files?.[0]||null; setVideoFile(f || null) }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0] || null
+                  setVideoFile(f || null)
+                }}
               />
-              <Button type="button" variant="ghost" size="icon" title="Dodaj wideo" onClick={() => vidInputRef.current?.click()}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                title="Dodaj wideo"
+                onClick={() => vidInputRef.current?.click()}
+              >
                 <VideoIcon className="size-4" />
               </Button>
 
               <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
                 <PopoverTrigger asChild>
-                  <Button type="button" variant="ghost" size="icon" title="Wstaw emoji"><Smile className="size-4" /></Button>
+                  <Button type="button" variant="ghost" size="icon" title="Wstaw emoji">
+                    <Smile className="size-4" />
+                  </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-60" onOpenAutoFocus={(e)=>e.preventDefault()}>
+                <PopoverContent className="w-60" onOpenAutoFocus={(e) => e.preventDefault()}>
                   <div className="grid grid-cols-8 gap-1">
                     {emojis.map((e) => (
-                      <button key={e} type="button" className="rounded hover:bg-accent p-1 text-lg" onClick={()=>{ addEmoji(e); setEmojiOpen(false) }}>
+                      <button
+                        key={e}
+                        type="button"
+                        className="rounded hover:bg-accent p-1 text-lg"
+                        onClick={() => {
+                          addEmoji(e)
+                          setEmojiOpen(false)
+                        }}
+                      >
                         {e}
                       </button>
                     ))}
@@ -295,11 +385,15 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
                 {imageFile && imagePreview && (
                   <div className="relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={imagePreview} alt="Podgląd obrazu" className="h-20 w-auto max-w-[160px] rounded object-cover border" />
+                    <img
+                      src={imagePreview}
+                      alt="Podgląd obrazu"
+                      className="h-20 w-auto max-w-[160px] rounded object-cover border"
+                    />
                     <button
                       type="button"
                       aria-label="Usuń obraz"
-                      onClick={()=>setImageFile(null)}
+                      onClick={() => setImageFile(null)}
                       className="absolute -right-2 -top-2 inline-flex items-center justify-center rounded-full bg-background border p-1 shadow"
                     >
                       <X className="size-3" />
@@ -308,11 +402,16 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
                 )}
                 {videoFile && videoPreview && (
                   <div className="relative">
-                    <video src={videoPreview} className="h-20 w-auto max-w-[200px] rounded border" controls muted />
+                    <video
+                      src={videoPreview}
+                      className="h-20 w-auto max-w-[200px] rounded border"
+                      controls
+                      muted
+                    />
                     <button
                       type="button"
                       aria-label="Usuń wideo"
-                      onClick={()=>setVideoFile(null)}
+                      onClick={() => setVideoFile(null)}
                       className="absolute -right-2 -top-2 inline-flex items-center justify-center rounded-full bg-background border p-1 shadow"
                     >
                       <X className="size-3" />
@@ -331,7 +430,13 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
                   <OGPreview url={firstUrl} />
                 </div>
                 <label className="ml-2 inline-flex items-center gap-2 text-xs select-none">
-                  <input type="checkbox" className="size-4" checked={attachLink} onChange={(e)=>setAttachLink(e.target.checked)} /> Dołącz podgląd
+                  <input
+                    type="checkbox"
+                    className="size-4"
+                    checked={attachLink}
+                    onChange={(e) => setAttachLink(e.target.checked)}
+                  />{" "}
+                  Dołącz podgląd
                 </label>
               </div>
             )}
@@ -357,7 +462,9 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={loading}>{loading ? "Publikuję…" : "Opublikuj"}</Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? "Publikuję…" : "Opublikuj"}
+              </Button>
             </div>
           </form>
         </Form>
@@ -367,7 +474,12 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
 }
 
 function OGPreview({ url }: { url: string }) {
-  const [data, setData] = useState<{ title?: string; description?: string; image?: string; siteName?: string } | null>(null)
+  const [data, setData] = useState<{
+    title?: string
+    description?: string
+    image?: string
+    siteName?: string
+  } | null>(null)
   const [loading, setLoading] = useState(false)
   useEffect(() => {
     let cancelled = false
@@ -383,9 +495,12 @@ function OGPreview({ url }: { url: string }) {
       }
     }
     void run()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [url])
-  if (loading && !data) return <div className="mt-2 text-xs text-muted-foreground">Ładowanie podglądu…</div>
+  if (loading && !data)
+    return <div className="mt-2 text-xs text-muted-foreground">Ładowanie podglądu…</div>
   if (!data) return null
   return (
     <div className="mt-2 flex gap-3 rounded border bg-muted/30 p-2">
@@ -395,8 +510,12 @@ function OGPreview({ url }: { url: string }) {
       )}
       <div className="min-w-0">
         <div className="text-sm font-medium truncate">{data.title || new URL(url).hostname}</div>
-        {data.siteName && <div className="text-xs text-muted-foreground truncate">{data.siteName}</div>}
-        {data.description && <div className="text-xs text-muted-foreground line-clamp-2">{data.description}</div>}
+        {data.siteName && (
+          <div className="text-xs text-muted-foreground truncate">{data.siteName}</div>
+        )}
+        {data.description && (
+          <div className="text-xs text-muted-foreground line-clamp-2">{data.description}</div>
+        )}
       </div>
     </div>
   )

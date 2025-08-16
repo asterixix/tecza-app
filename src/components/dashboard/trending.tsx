@@ -21,7 +21,7 @@ export function TrendingHashtags({ onHashtagClick, selectedHashtag }: TrendingHa
     async function load() {
       if (!supabase) return
       setLoading(true)
-      
+
       // Compute trending by scanning recent posts for hashtags array
       const since = new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString() // last 24h
       const { data } = await supabase
@@ -29,7 +29,7 @@ export function TrendingHashtags({ onHashtagClick, selectedHashtag }: TrendingHa
         .select("hashtags")
         .gte("created_at", since)
         .limit(500)
-      
+
       const counts = new Map<string, number>()
       ;(data || []).forEach((row: { hashtags: string[] | null }) => {
         ;(row.hashtags || []).forEach((h) => {
@@ -37,12 +37,12 @@ export function TrendingHashtags({ onHashtagClick, selectedHashtag }: TrendingHa
           counts.set(tag, (counts.get(tag) || 0) + 1)
         })
       })
-      
+
       const arr = Array.from(counts.entries())
         .map(([tag, uses]) => ({ tag, uses }))
         .sort((a, b) => b.uses - a.uses)
         .slice(0, 10)
-      
+
       setItems(arr)
       setLoading(false)
     }
@@ -50,7 +50,7 @@ export function TrendingHashtags({ onHashtagClick, selectedHashtag }: TrendingHa
   }, [supabase])
 
   const handleHashtagClick = (hashtag: string) => {
-    const cleanTag = hashtag.replace('#', '')
+    const cleanTag = hashtag.replace("#", "")
     onHashtagClick?.(cleanTag)
   }
 
@@ -61,7 +61,7 @@ export function TrendingHashtags({ onHashtagClick, selectedHashtag }: TrendingHa
           <TrendingUp className="h-4 w-4" />
           <h2 className="font-semibold">Trendy</h2>
         </div>
-        
+
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -80,7 +80,7 @@ export function TrendingHashtags({ onHashtagClick, selectedHashtag }: TrendingHa
               </div>
             ) : (
               items.map((item, index) => {
-                const isSelected = selectedHashtag === item.tag.replace('#', '')
+                const isSelected = selectedHashtag === item.tag.replace("#", "")
                 return (
                   <div key={item.tag} className="flex items-center justify-between">
                     <Button
@@ -94,15 +94,13 @@ export function TrendingHashtags({ onHashtagClick, selectedHashtag }: TrendingHa
                     >
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <div className="flex items-center gap-1 min-w-0">
-                          <span className="text-xs text-muted-foreground">
-                            #{index + 1}
-                          </span>
+                          <span className="text-xs text-muted-foreground">#{index + 1}</span>
                           <span className="font-medium truncate">{item.tag}</span>
                         </div>
                       </div>
                     </Button>
-                    <Badge 
-                      variant="secondary" 
+                    <Badge
+                      variant="secondary"
                       className="ml-2 text-xs"
                       title={`${item.uses} użyć w ostatnich 24h`}
                     >
@@ -114,7 +112,7 @@ export function TrendingHashtags({ onHashtagClick, selectedHashtag }: TrendingHa
             )}
           </div>
         )}
-        
+
         {selectedHashtag && (
           <div className="mt-4 pt-4 border-t">
             <div className="text-xs text-muted-foreground text-center">

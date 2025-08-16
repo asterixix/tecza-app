@@ -19,7 +19,7 @@ export function SiteHeader() {
   // Simple pagination for long navs on small screens
   const pageSize = 5
   const pages = useMemo(() => {
-    const chunks: typeof nav[] = []
+    const chunks: (typeof nav)[] = []
     for (let i = 0; i < nav.length; i += pageSize) {
       chunks.push(nav.slice(i, i + pageSize))
     }
@@ -36,7 +36,11 @@ export function SiteHeader() {
           <Logo />
           <nav className="hidden md:flex items-center gap-6" aria-label="Główna nawigacja">
             {nav.map((item) => (
-              <Link key={item.href} href={item.href} className="text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded px-1 py-0.5">
+              <Link
+                key={item.href}
+                href={item.href}
+                className="text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded px-1 py-0.5"
+              >
                 {item.label}
               </Link>
             ))}
@@ -45,7 +49,9 @@ export function SiteHeader() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <Button asChild size="sm">
-            <Link href="/l" aria-label="Zaloguj się do Tęcza.app">Zaloguj się</Link>
+            <Link href="/l" aria-label="Zaloguj się do Tęcza.app">
+              Zaloguj się
+            </Link>
           </Button>
           <div className="md:hidden">
             <Sheet>
@@ -86,12 +92,16 @@ export function SiteHeader() {
                     >
                       <ChevronLeft className="size-5" />
                     </Button>
-                    <div className="flex items-center gap-1" aria-label={`Strona ${page + 1} z ${pages.length}`}>
+                    <div
+                      className="flex items-center gap-1"
+                      aria-label={`Strona ${page + 1} z ${pages.length}`}
+                    >
                       {pages.map((_, i) => (
                         <span
                           key={i}
                           className={
-                            "h-2 w-2 rounded-full border " + (i === page ? "bg-foreground" : "bg-muted")
+                            "h-2 w-2 rounded-full border " +
+                            (i === page ? "bg-foreground" : "bg-muted")
                           }
                           aria-current={i === page ? "page" : undefined}
                         />

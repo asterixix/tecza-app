@@ -1,16 +1,16 @@
-import type { NextConfig } from "next";
-import withPWA from "next-pwa";
+import type { NextConfig } from "next"
+import withPWA from "next-pwa"
 
 const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
-  : "your-supabase-project.supabase.co";
+  : "your-supabase-project.supabase.co"
 
 const withPWAFn = withPWA({
   dest: "public",
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
-});
+})
 
 const nextConfig: NextConfig = {
   images: {
@@ -32,8 +32,8 @@ const nextConfig: NextConfig = {
       { source: "/profile", destination: "/u", permanent: false },
       // Reset password handled on /l; redirect legacy
       { source: "/reset-password", destination: "/l", permanent: true },
-    ];
+    ]
   },
-};
+}
 
-export default withPWAFn(nextConfig);
+export default withPWAFn(nextConfig)

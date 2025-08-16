@@ -15,7 +15,9 @@ export function HeaderSwitch() {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
       setAuthed(!!session)
     })
-    return () => { sub.subscription.unsubscribe() }
+    return () => {
+      sub.subscription.unsubscribe()
+    }
   }, [supabase])
 
   if (authed === null) return <SiteHeader />

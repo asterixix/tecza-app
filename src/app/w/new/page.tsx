@@ -7,7 +7,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { toast } from "sonner"
 import { slugify } from "@/lib/utils"
 
@@ -21,7 +27,9 @@ export default function NewEventPage() {
   const [timezone, setTimezone] = useState("Europe/Warsaw")
   const [city, setCity] = useState("")
   const [country, setCountry] = useState("")
-  const [category, setCategory] = useState<'pride'|'support'|'social'|'activism'|'education'|'other'>('other')
+  const [category, setCategory] = useState<
+    "pride" | "support" | "social" | "activism" | "education" | "other"
+  >("other")
   const [isOnline, setIsOnline] = useState(false)
   const [isFree, setIsFree] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -33,28 +41,35 @@ export default function NewEventPage() {
     try {
       const me = (await supabase.auth.getUser()).data.user
       if (!me) throw new Error("Musisz być zalogowany")
-      const newId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : undefined
+      const newId =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : undefined
       const baseSlug = slugify(title)
-      const { data, error } = await supabase.from('events').insert({
-        ...(newId ? { id: newId } : {}),
-        title,
-        description,
-        start_date: new Date(start).toISOString(),
-        end_date: end ? new Date(end).toISOString() : null,
-        timezone,
-        city: city || null,
-        country: country || null,
-        is_online: isOnline,
-        is_free: isFree,
-        category,
-        organizer_id: me.id,
-        slug: baseSlug,
-      }).select('slug').single()
+      const { data, error } = await supabase
+        .from("events")
+        .insert({
+          ...(newId ? { id: newId } : {}),
+          title,
+          description,
+          start_date: new Date(start).toISOString(),
+          end_date: end ? new Date(end).toISOString() : null,
+          timezone,
+          city: city || null,
+          country: country || null,
+          is_online: isOnline,
+          is_free: isFree,
+          category,
+          organizer_id: me.id,
+          slug: baseSlug,
+        })
+        .select("slug")
+        .single()
       if (error) throw error
       toast.success("Wydarzenie utworzone")
-  router.push(`/events/${data!.slug}`)
+      router.push(`/events/${data!.slug}`)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Nie udało się utworzyć wydarzenia'
+      const msg = e instanceof Error ? e.message : "Nie udało się utworzyć wydarzenia"
       toast.error(msg)
     } finally {
       setLoading(false)
@@ -68,16 +83,29 @@ export default function NewEventPage() {
         <CardContent className="p-4 grid gap-3">
           <div>
             <div className="text-sm font-medium mb-1">Tytuł</div>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="np. Pride Warszawa" />
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="np. Pride Warszawa"
+            />
           </div>
           <div>
             <div className="text-sm font-medium mb-1">Opis</div>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Szczegóły wydarzenia" rows={4} />
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Szczegóły wydarzenia"
+              rows={4}
+            />
           </div>
           <div className="grid md:grid-cols-2 gap-3">
             <div>
               <div className="text-sm font-medium mb-1">Start</div>
-              <Input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} />
+              <Input
+                type="datetime-local"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+              />
             </div>
             <div>
               <div className="text-sm font-medium mb-1">Koniec (opcjonalnie)</div>
@@ -91,18 +119,33 @@ export default function NewEventPage() {
             </div>
             <div>
               <div className="text-sm font-medium mb-1">Miasto</div>
-              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="np. Warszawa" />
+              <Input
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="np. Warszawa"
+              />
             </div>
             <div>
               <div className="text-sm font-medium mb-1">Kraj</div>
-              <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="np. Poland" />
+              <Input
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                placeholder="np. Poland"
+              />
             </div>
           </div>
           <div className="grid md:grid-cols-3 gap-3">
             <div>
               <div className="text-sm font-medium mb-1">Kategoria</div>
-              <Select value={category} onValueChange={(v: 'pride'|'support'|'social'|'activism'|'education'|'other') => setCategory(v)}>
-                <SelectTrigger><SelectValue placeholder="Wybierz" /></SelectTrigger>
+              <Select
+                value={category}
+                onValueChange={(
+                  v: "pride" | "support" | "social" | "activism" | "education" | "other"
+                ) => setCategory(v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Wybierz" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pride">Pride</SelectItem>
                   <SelectItem value="support">Wsparcie</SelectItem>
@@ -114,12 +157,28 @@ export default function NewEventPage() {
               </Select>
             </div>
             <div className="flex items-end gap-2">
-              <label className="text-sm"><input type="checkbox" checked={isOnline} onChange={(e) => setIsOnline(e.target.checked)} /> Online</label>
-              <label className="text-sm"><input type="checkbox" checked={isFree} onChange={(e) => setIsFree(e.target.checked)} /> Darmowe</label>
+              <label className="text-sm">
+                <input
+                  type="checkbox"
+                  checked={isOnline}
+                  onChange={(e) => setIsOnline(e.target.checked)}
+                />{" "}
+                Online
+              </label>
+              <label className="text-sm">
+                <input
+                  type="checkbox"
+                  checked={isFree}
+                  onChange={(e) => setIsFree(e.target.checked)}
+                />{" "}
+                Darmowe
+              </label>
             </div>
           </div>
           <div className="flex justify-end">
-            <Button onClick={createEvent} disabled={loading}>{loading? 'Tworzenie…' : 'Utwórz'}</Button>
+            <Button onClick={createEvent} disabled={loading}>
+              {loading ? "Tworzenie…" : "Utwórz"}
+            </Button>
           </div>
         </CardContent>
       </Card>

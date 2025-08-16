@@ -6,7 +6,13 @@ import { Menu, LogOut, User, Settings, ChevronLeft, ChevronRight } from "lucide-
 import { getSupabase } from "@/lib/supabase-browser"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Logo } from "./logo"
@@ -31,7 +37,7 @@ export function UserHeader() {
   // Simple pagination for long navs on small screens
   const pageSize = 5
   const pages = useMemo(() => {
-    const chunks: typeof nav[] = []
+    const chunks: (typeof nav)[] = []
     for (let i = 0; i < nav.length; i += pageSize) {
       chunks.push(nav.slice(i, i + pageSize))
     }
@@ -57,15 +63,22 @@ export function UserHeader() {
       const metaAvatar = meta.avatar_url as string | undefined
       const metaUsername = (meta.username as string | undefined)?.toString()
       const metaDisplay = (meta.display_name as string | undefined)?.toString()
-  if (metaAvatar) setAvatar(metaAvatar)
-  if (metaUsername) setUsername((v) => v || metaUsername)
+      if (metaAvatar) setAvatar(metaAvatar)
+      if (metaUsername) setUsername((v) => v || metaUsername)
 
       // Try finding profile by auth id first
-      let prof = (await supabase
-        .from("profiles")
-        .select("id,username,display_name,avatar_url,roles")
-        .eq("id", u.id)
-        .maybeSingle()).data as (null | { id: string; username: string | null; display_name: string | null; avatar_url: string | null })
+      let prof = (
+        await supabase
+          .from("profiles")
+          .select("id,username,display_name,avatar_url,roles")
+          .eq("id", u.id)
+          .maybeSingle()
+      ).data as null | {
+        id: string
+        username: string | null
+        display_name: string | null
+        avatar_url: string | null
+      }
 
       // Fallback: try by username from metadata
       if (!prof && metaUsername) {
@@ -79,26 +92,34 @@ export function UserHeader() {
 
       if (isCancelled) return
 
-  if (prof) {
+      if (prof) {
         if (prof.avatar_url) setAvatar(prof.avatar_url)
         if (prof.username) setUsername(prof.username)
 
         // Self-heal profile fields if missing or mismatched
         const next: Record<string, string> = {}
         if (!prof.username && metaUsername) next.username = metaUsername.toLowerCase()
-        if ((!prof.display_name || prof.display_name === prof.username) && metaDisplay) next.display_name = metaDisplay
+        if ((!prof.display_name || prof.display_name === prof.username) && metaDisplay)
+          next.display_name = metaDisplay
         if (Object.keys(next).length > 0) {
-          await supabase.from("profiles").update({ ...next, updated_at: new Date().toISOString() }).eq("id", prof.id)
+          await supabase
+            .from("profiles")
+            .update({ ...next, updated_at: new Date().toISOString() })
+            .eq("id", prof.id)
         }
 
         // Subscribe to updates for this exact row id
         channel = supabase
           .channel("user-header-profile")
-          .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${prof.id}` }, (payload) => {
-            const row = payload.new as { avatar_url?: string | null; username?: string | null }
-            if (row.avatar_url !== undefined && row.avatar_url !== null) setAvatar(row.avatar_url)
-            if (row.username) setUsername(row.username)
-          })
+          .on(
+            "postgres_changes",
+            { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${prof.id}` },
+            (payload) => {
+              const row = payload.new as { avatar_url?: string | null; username?: string | null }
+              if (row.avatar_url !== undefined && row.avatar_url !== null) setAvatar(row.avatar_url)
+              if (row.username) setUsername(row.username)
+            }
+          )
           .subscribe()
       } else {
         // No profile row found; keep metadata fallbacks
@@ -117,13 +138,20 @@ export function UserHeader() {
 
   const [isAdmin, setIsAdmin] = useState(false)
   useEffect(() => {
-    (async () => {
-  if (!supabase) return
-  const { data } = await supabase.auth.getUser(); const u = data.user
+    ;(async () => {
+      if (!supabase) return
+      const { data } = await supabase.auth.getUser()
+      const u = data.user
       if (!u) return
-  const { data: prof } = await supabase.from('profiles').select('roles').eq('id', u.id).maybeSingle()
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("roles")
+        .eq("id", u.id)
+        .maybeSingle()
       const roles = (prof?.roles as string[] | undefined) || []
-      setIsAdmin(roles.some(r => ['moderator','administrator','super-administrator'].includes(r)))
+      setIsAdmin(
+        roles.some((r) => ["moderator", "administrator", "super-administrator"].includes(r))
+      )
     })()
   }, [supabase])
 
@@ -140,7 +168,11 @@ export function UserHeader() {
           <Logo />
           <nav className="hidden md:flex items-center gap-6" aria-label="Nawigacja użytkownika">
             {nav.map((item) => (
-              <Link key={item.href} href={item.href} className="text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded px-1 py-0.5">
+              <Link
+                key={item.href}
+                href={item.href}
+                className="text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded px-1 py-0.5"
+              >
                 {item.label}
               </Link>
             ))}
@@ -162,7 +194,9 @@ export function UserHeader() {
           >
             <Search className="size-4" aria-hidden />
             <span className="text-sm">Szukaj</span>
-            <kbd className="ml-2 hidden lg:inline-flex h-5 items-center rounded border bg-muted px-1.5 text-[10px] font-medium">Ctrl+K</kbd>
+            <kbd className="ml-2 hidden lg:inline-flex h-5 items-center rounded border bg-muted px-1.5 text-[10px] font-medium">
+              Ctrl+K
+            </kbd>
           </UIButton>
           <UIButton
             type="button"
@@ -181,7 +215,11 @@ export function UserHeader() {
           <MessagesPopover />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-9 w-9 rounded-full p-0" aria-label="Menu użytkownika">
+              <Button
+                variant="ghost"
+                className="h-9 w-9 rounded-full p-0"
+                aria-label="Menu użytkownika"
+              >
                 <Avatar className="h-9 w-9">
                   {avatar ? <AvatarImage src={avatar} alt="Avatar" /> : null}
                   <AvatarFallback>{initial}</AvatarFallback>
@@ -196,23 +234,36 @@ export function UserHeader() {
                   <AvatarFallback className="text-base">{initial}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
-                  <div className="font-medium truncate">{username ? `@${username}` : (email || "Twoje konto")}</div>
-                  {email ? <div className="text-xs text-muted-foreground truncate">{email}</div> : null}
+                  <div className="font-medium truncate">
+                    {username ? `@${username}` : email || "Twoje konto"}
+                  </div>
+                  {email ? (
+                    <div className="text-xs text-muted-foreground truncate">{email}</div>
+                  ) : null}
                 </div>
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                {<Link href={username ? `/u/${encodeURIComponent(username)}` : "/d"} className="flex items-center gap-2">
+                {
+                  <Link
+                    href={username ? `/u/${encodeURIComponent(username)}` : "/d"}
+                    className="flex items-center gap-2"
+                  >
                     <User className="size-4" /> Profil
-                  </Link>}
+                  </Link>
+                }
               </DropdownMenuItem>
               {isAdmin && (
                 <DropdownMenuItem asChild>
-                  <Link href="/admin" className="flex items-center gap-2"><Settings className="size-4" /> Panel</Link>
+                  <Link href="/admin" className="flex items-center gap-2">
+                    <Settings className="size-4" /> Panel
+                  </Link>
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem asChild>
-                <Link href="/s" className="flex items-center gap-2"><Settings className="size-4" /> Ustawienia</Link>
+                <Link href="/s" className="flex items-center gap-2">
+                  <Settings className="size-4" /> Ustawienia
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={signOut} className="text-red-600 focus:text-red-700">
@@ -258,12 +309,16 @@ export function UserHeader() {
                     >
                       <ChevronLeft className="size-5" />
                     </Button>
-                    <div className="flex items-center gap-1" aria-label={`Strona ${page + 1} z ${pages.length}`}>
+                    <div
+                      className="flex items-center gap-1"
+                      aria-label={`Strona ${page + 1} z ${pages.length}`}
+                    >
                       {pages.map((_, i) => (
                         <span
                           key={i}
                           className={
-                            "h-2 w-2 rounded-full border " + (i === page ? "bg-foreground" : "bg-muted")
+                            "h-2 w-2 rounded-full border " +
+                            (i === page ? "bg-foreground" : "bg-muted")
                           }
                           aria-current={i === page ? "page" : undefined}
                         />

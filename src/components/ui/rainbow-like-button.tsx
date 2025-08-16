@@ -17,12 +17,12 @@ interface RainbowLikeButtonProps {
 }
 
 const rainbowColors = [
-  { name: 'red', color: 'text-red-500', bg: 'bg-red-500' },
-  { name: 'orange', color: 'text-orange-500', bg: 'bg-orange-500' },
-  { name: 'yellow', color: 'text-yellow-500', bg: 'bg-yellow-500' },
-  { name: 'green', color: 'text-green-500', bg: 'bg-green-500' },
-  { name: 'blue', color: 'text-blue-500', bg: 'bg-blue-500' },
-  { name: 'purple', color: 'text-purple-500', bg: 'bg-purple-500' },
+  { name: "red", color: "text-red-500", bg: "bg-red-500" },
+  { name: "orange", color: "text-orange-500", bg: "bg-orange-500" },
+  { name: "yellow", color: "text-yellow-500", bg: "bg-yellow-500" },
+  { name: "green", color: "text-green-500", bg: "bg-green-500" },
+  { name: "blue", color: "text-blue-500", bg: "bg-blue-500" },
+  { name: "purple", color: "text-purple-500", bg: "bg-purple-500" },
 ]
 
 export function RainbowLikeButton({
@@ -31,7 +31,7 @@ export function RainbowLikeButton({
   currentUserLike,
   onLike,
   onUnlike,
-  className
+  className,
 }: RainbowLikeButtonProps) {
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
@@ -51,8 +51,9 @@ export function RainbowLikeButton({
     setShowColorPicker(false)
   }
 
-  const currentColor = currentUserLike?.rainbow_color || rainbowColors[autoIdx % rainbowColors.length].name
-  const colorClass = rainbowColors.find(c => c.name === currentColor)?.color || 'text-red-500'
+  const currentColor =
+    currentUserLike?.rainbow_color || rainbowColors[autoIdx % rainbowColors.length].name
+  const colorClass = rainbowColors.find((c) => c.name === currentColor)?.color || "text-red-500"
 
   return (
     <div className="relative">
@@ -62,31 +63,28 @@ export function RainbowLikeButton({
         className={cn("gap-2 relative", className)}
         onClick={() => handleLike(currentColor)}
       >
-        <Heart 
+        <Heart
           className={cn(
             "size-4 transition-all duration-300",
             isLiked ? `${colorClass} fill-current` : "text-muted-foreground hover:text-red-400",
             isAnimating && "animate-bounce scale-125"
-          )} 
+          )}
         />
         <span className="text-sm">{likesCount}</span>
-        
+
         {/* Animated rainbow burst effect */}
         {isAnimating && (
           <div className="absolute inset-0 pointer-events-none">
             {rainbowColors.map((color, i) => (
               <div
                 key={color.name}
-                className={cn(
-                  "absolute w-1 h-1 rounded-full animate-ping",
-                  color.bg
-                )}
+                className={cn("absolute w-1 h-1 rounded-full animate-ping", color.bg)}
                 style={{
-                  left: '50%',
-                  top: '50%',
+                  left: "50%",
+                  top: "50%",
                   animationDelay: `${i * 100}ms`,
-                  animationDuration: '600ms',
-                  transform: `translate(-50%, -50%) rotate(${i * 60}deg) translateY(-20px)`
+                  animationDuration: "600ms",
+                  transform: `translate(-50%, -50%) rotate(${i * 60}deg) translateY(-20px)`,
                 }}
               />
             ))}
