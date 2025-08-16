@@ -47,7 +47,33 @@ export class MediaProcessor {
         img.src = u.toString()
       } catch (e) {
         URL.revokeObjectURL(objectUrl)
-        reject(e instanceof Error ? e : new Error("Invalid image URL"))
+      // Use URL.canParse if available for robust validation
+      let valid = false
+      if (typeof URL.canParse === "function") {
+        valid = URL.canParse(objectUrl)
+        if (!valid) {
+          URL.revokeObjectURL(objectUrl)
+          reject(new Error("Invalid image URL"))
+          return
+        }
+        try {
+          const u = new URL(objectUrl)
+          if (u.protocol !== "blob:") throw new Error("Invalid object URL scheme")
+          img.src = u.toString()
+        } catch (e) {
+          URL.revokeObjectURL(objectUrl)
+          reject(e instanceof Error ? e : new Error("Invalid image URL"))
+        }
+      } else {
+        // Fallback to try-catch if canParse is not available
+        try {
+          const u = new URL(objectUrl)
+          if (u.protocol !== "blob:") throw new Error("Invalid object URL scheme")
+          img.src = u.toString()
+        } catch (e) {
+          URL.revokeObjectURL(objectUrl)
+          reject(e instanceof Error ? e : new Error("Invalid image URL"))
+        }
       }
     })
   }
