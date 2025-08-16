@@ -1,5 +1,14 @@
 "use client"
 
+function isValidBlobUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    return u.protocol === "blob:"
+  } catch {
+    return false
+  }
+}
+
 export class MediaProcessor {
   // Convert image to WebP with size optimization
   static async processImage(
@@ -12,69 +21,55 @@ export class MediaProcessor {
       const canvas = document.createElement("canvas")
       const ctx = canvas.getContext("2d")
 
-      img.onload = () => {
-        // Calculate new dimensions
-        let width = img.width
-        let height = img.height
-
-        if (width > maxWidth || height > maxHeight) {
-          const ratio = Math.min(maxWidth / width, maxHeight / height)
-          width *= ratio
-          height *= ratio
-        }
-
-        canvas.width = width
-        canvas.height = height
-
-        // Draw and convert to WebP
-        ctx?.drawImage(img, 0, 0, width, height)
-        canvas.toBlob(
-          (blob) => {
-            if (blob) resolve(blob)
-            else reject(new Error("Failed to process image"))
-          },
-          "image/webp",
-          0.85, // Quality
-        )
-      }
-
-      img.onerror = () => reject(new Error("Failed to load image"))
-      // Create and validate a blob URL, then assign and ensure cleanup
       const objectUrl = URL.createObjectURL(file)
-      try {
-        const u = new URL(objectUrl)
-        if (u.protocol !== "blob:") throw new Error("Invalid object URL scheme")
-        img.src = u.toString()
-      } catch (e) {
-        URL.revokeObjectURL(objectUrl)
-      // Use URL.canParse if available for robust validation
-      let valid = false
-      if (typeof URL.canParse === "function") {
-        valid = URL.canParse(objectUrl)
-        if (!valid) {
-          URL.revokeObjectURL(objectUrl)
-          reject(new Error("Invalid image URL"))
-          return
-        }
+      const cleanup = () => {
         try {
-          const u = new URL(objectUrl)
-          if (u.protocol !== "blob:") throw new Error("Invalid object URL scheme")
-          img.src = u.toString()
-        } catch (e) {
           URL.revokeObjectURL(objectUrl)
-          reject(e instanceof Error ? e : new Error("Invalid image URL"))
-        }
-      } else {
-        // Fallback to try-catch if canParse is not available
+        } catch {}
+      }
+
+      img.onload = () => {
         try {
-          const u = new URL(objectUrl)
-          if (u.protocol !== "blob:") throw new Error("Invalid object URL scheme")
-          img.src = u.toString()
-        } catch (e) {
-          URL.revokeObjectURL(objectUrl)
-          reject(e instanceof Error ? e : new Error("Invalid image URL"))
+          // Calculate new dimensions
+          let width = img.width
+          let height = img.height
+
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height)
+            width *= ratio
+            height *= ratio
+          }
+
+          canvas.width = width
+          canvas.height = height
+
+          // Draw and convert to WebP
+          ctx?.drawImage(img, 0, 0, width, height)
+          canvas.toBlob(
+            (blob) => {
+              if (blob) resolve(blob)
+              else reject(new Error("Failed to process image"))
+            },
+            "image/webp",
+            0.85,
+          )
+        } finally {
+          cleanup()
         }
       }
+
+      img.onerror = () => {
+        cleanup()
+        reject(new Error("Failed to load image"))
+      }
+
+      // Validate and assign URL
+      if (!isValidBlobUrl(objectUrl)) {
+        cleanup()
+        reject(new Error("Invalid image URL"))
+        return
+      }
+      img.src = objectUrl
     })
   }
 

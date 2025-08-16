@@ -981,12 +981,12 @@ module.exports = nextConfig
   - If a user profile does not exist for a given username, return a 404 error.
   - Add options to edit or remove own published post on feed looking into own user profile preview
   - Map badges to icons:
-  - user-supporter → `/icons/tecza-badge/user-supporter.svg`
-  - company-supporter → `/icons/tecza-badge/company-supporter.svg`
-  - early-tester → `/icons/tecza-badge/early-tester.svg`
-  - tester → `/icons/tecza-badge/tester.svg`
-  - moderator/administrator → `/icons/tecza-badge/mod-admin.svg`
-  - super-administrator → `/icons/tecza-badge/6.svg`
+    - user-supporter → `/icons/tecza-badge/user-supporter.svg`
+    - company-supporter → `/icons/tecza-badge/company-supporter.svg`
+    - early-tester → `/icons/tecza-badge/early-tester.svg`
+    - tester → `/icons/tecza-badge/tester.svg`
+    - moderator/administrator → `/icons/tecza-badge/mod-admin.svg`
+    - super-administrator → `/icons/tecza-badge/6.svg`
   - The user footer `user-footer.tsx` must include “Regulamin” link to `/tos` and “Prywatność” link to `/pp` and settings link corrected to short path `/s`.
   - Move badges next to pronoun badge and add colours popovers for different types for badges
 
@@ -1009,9 +1009,3 @@ module.exports = nextConfig
 - Register: `/r`
 - Reset Password: Implemented in login page
 - Profile: Implemented in `/u/[username]` page
-- Settings: `/s`
-- Terms of Service: `/tos`
-- Privacy Policy: `/pp`
-- Admin: `/admin`
-
-###
