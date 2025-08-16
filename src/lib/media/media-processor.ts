@@ -169,7 +169,9 @@ export class MediaProcessor {
           const u = new URL(objectUrl)
           if (u.protocol !== "blob:")
             throw new Error("Invalid object URL scheme")
-          video.src = u.toString()
+          if (!isValidBlobUrl(objectUrl))
+            throw new Error("Invalid object URL scheme")
+          video.src = objectUrl
         } catch {
           cleanup(currentUrl)
           currentUrl = undefined
