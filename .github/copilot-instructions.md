@@ -270,7 +270,7 @@ interface Conversation {
 - Check Supabase DB migrations to ensure `conversationID` is based on the routing folder in `app/messages`
   - Ensure migrations use conversationId matching route
 - Setup user key management:
-  - Implement secure key storage (consider using IndexedDB with encryption) Consider avoiding indexedDB when users will be using message functionality on different devices.
+  - Implement secure key storage (consider avoiding IndexedDB with encryption) Consider avoiding indexedDB when users will be using message functionality on different devices.
     - Secure key storage (avoid IndexedDB) — Implemented (session-only; server-persisted public key), propose optional passphrase vault — Partial
   - Add key generation during user registration
     - Key generation on registration/first login — Done (on first authenticated session)
@@ -894,6 +894,7 @@ module.exports = nextConfig
       * moderator/administrator → `/icons/tecza-badge/mod-admin.svg`
       * super-administrator → `/icons/tecza-badge/6.svg`
     *   The user footer `user-footer.tsx` must include “Regulamin” link to `/tos` and “Prywatność” link to `/pp` and settings link corrected to short path `/s`.
+    *   Move badges next to pronoun badge and add colours popovers for different types for badges
 
 ### Community Standards
 *   The header should include a "Społeczności" link.
@@ -914,10 +915,11 @@ module.exports = nextConfig
 *   Settings: `/s`
 *   Terms of Service: `/tos`
 *   Privacy Policy: `/pp`
+*   Admin: `/admin`
 
 ## WORKFLOW & RELEASE RULES
 *   Build Vercel pipeline ci/cd and prepare proper implementation code to production
 
 ## DEBUGGING
 *   To minimize hydration mismatches: add `suppressHydrationWarning` to the body and html.
-*   To further minimize hydration mismatches, the theme toggle should render a neutral, static button until the client mounts, then switch to the dynamic label/icons. Add `suppressHydrationWarning` on the button
+*   To further minimize hydration mismatches, the theme toggle should render a neutral,

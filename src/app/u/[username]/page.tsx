@@ -7,6 +7,7 @@ import { getSupabase } from "@/lib/supabase-browser"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
 import Textarea from "@/components/ui/textarea"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
@@ -305,14 +306,16 @@ export default function PublicUserPage() {
   const orients = (profile?.show_orientation ? profile?.sexual_orientation : null) || []
   const genders = (profile?.show_orientation ? profile?.gender_identity : null) || []
 
-  const badgeIconMap: Record<string, string> = {
-    "user-supporter": "/icons/tecza-badge/user-supporter.svg",
-    "company-supporter": "/icons/tecza-badge/company-supporter.svg",
-    "early-tester": "/icons/tecza-badge/early-tester.svg",
-    "tester": "/icons/tecza-badge/tester.svg",
-    "moderator": "/icons/tecza-badge/mod-admin.svg",
-    "administrator": "/icons/tecza-badge/mod-admin.svg",
-    "super-administrator": "/icons/tecza-badge/super-admin.svg",
+  // Badge color+icon definitions for popovers
+
+  const badgeMeta: Record<string, { label: string; color: string; icon: string }> = {
+    "user-supporter": { label: "Wspierający", color: "bg-orange-500/15 text-orange-300 ring-orange-500/30", icon: "/icons/tecza-badge/user-supporter.svg" },
+    "company-supporter": { label: "Firma wspierająca", color: "bg-violet-500/15 text-violet-300 ring-violet-500/30", icon: "/icons/tecza-badge/company-supporter.svg" },
+    "early-tester": { label: "Wczesny tester", color: "bg-blue-500/15 text-blue-300 ring-blue-500/30", icon: "/icons/tecza-badge/early-tester.svg" },
+    "tester": { label: "Tester", color: "bg-teal-500/15 text-teal-300 ring-teal-500/30", icon: "/icons/tecza-badge/tester.svg" },
+    "moderator": { label: "Moderator", color: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30", icon: "/icons/tecza-badge/mod-admin.svg" },
+    "administrator": { label: "Administrator", color: "bg-rose-500/15 text-rose-300 ring-rose-500/30", icon: "/icons/tecza-badge/mod-admin.svg" },
+    "super-administrator": { label: "Super administrator", color: "bg-red-600/15 text-red-300 ring-red-600/30", icon: "/icons/tecza-badge/super-admin.svg" },
   }
 
   useEffect(() => {
@@ -842,19 +845,38 @@ export default function PublicUserPage() {
                 {profile?.pronouns ? (
                   <Badge variant="outline" title="Zaimki">{profile.pronouns}</Badge>
                 ) : null}
+                {(profile?.badges && profile.badges.length > 0) ? (
+                  <div className="flex items-center gap-1.5">
+                    {profile.badges.map((b, i) => {
+                      const info = badgeMeta[b]
+                      if (!info) return null
+                      return (
+                        <Popover key={`b-${i}`}>
+                          <PopoverTrigger asChild>
+                            <button
+                              className={`inline-flex items-center justify-center h-6 w-6 rounded-full ring-1 ${info.color}`}
+                              title={info.label}
+                              aria-label={info.label}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={info.icon} alt="" className="h-4 w-4" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-2">
+                            <div className="flex items-center gap-2">
+                              <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 ring-1 ${info.color}`}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={info.icon} alt="" className="h-4 w-4" />
+                                {info.label}
+                              </span>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      )
+                    })}
+                  </div>
+                ) : null}
               </h1>
-              {(profile?.badges && profile.badges.length > 0) ? (
-                <div className="mt-1 flex items-center gap-1.5">
-                  {profile.badges.map((b, i) => {
-                    const src = badgeIconMap[b] || null
-                    if (!src) return null
-                    return (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img key={`b-${i}`} src={src} alt={b} title={b} className="h-5 w-5" />
-                    )
-                  })}
-                </div>
-              ) : null}
               {profile?.username && (
                 <p className="text-sm text-muted-foreground">@{profile.username}</p>
               )}

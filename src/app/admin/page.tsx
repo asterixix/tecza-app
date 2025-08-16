@@ -47,6 +47,18 @@ export default function AdminHome() {
           Role i uprawnienia
           <div className="text-sm text-muted-foreground">Zarządzaj rolami użytkowników</div>
         </Link>
+        <Link href="/admin/profiles" className="rounded-md border p-4 hover:bg-muted">
+          Zarządzanie profilami (super-admin)
+          <div className="text-sm text-muted-foreground">Dodaj, modyfikuj, usuwaj profile</div>
+        </Link>
+        <a href="https://supabase.com/dashboard/project/earfxvgvrqgyfzuwaqga" target="_blank" rel="noopener noreferrer" className="rounded-md border p-4 hover:bg-muted">
+          Supabase — dashboard
+          <div className="text-sm text-muted-foreground">Przejdź do zarządzania bazą danych</div>
+        </a>
+        <a href="https://vercel.com/asterixixs-projects/tecza-app" target="_blank" rel="noopener noreferrer" className="rounded-md border p-4 hover:bg-muted">
+          Vercel — projekt
+          <div className="text-sm text-muted-foreground">Zarządzanie wdrożeniem</div>
+        </a>
       </div>
     </div>
   )
