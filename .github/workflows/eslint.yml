@@ -41,7 +41,6 @@ jobs:
         run: npx eslint .
           --config .eslintrc.js
           --ext .js,.jsx,.ts,.tsx
-          --format @microsoft/eslint-formatter-sarif
         run: |
           npx eslint . \
             --config .eslintrc.js \
