@@ -12,7 +12,10 @@ interface TrendingHashtagsProps {
   selectedHashtag?: string | null
 }
 
-export function TrendingHashtags({ onHashtagClick, selectedHashtag }: TrendingHashtagsProps) {
+export function TrendingHashtags({
+  onHashtagClick,
+  selectedHashtag,
+}: TrendingHashtagsProps) {
   const supabase = getSupabase()
   const [items, setItems] = useState<{ tag: string; uses: number }[]>([])
   const [loading, setLoading] = useState(true)
@@ -33,7 +36,9 @@ export function TrendingHashtags({ onHashtagClick, selectedHashtag }: TrendingHa
       const counts = new Map<string, number>()
       ;(data || []).forEach((row: { hashtags: string[] | null }) => {
         ;(row.hashtags || []).forEach((h) => {
-          const tag = h.startsWith("#") ? h.toLowerCase() : `#${h.toLowerCase()}`
+          const tag = h.startsWith("#")
+            ? h.toLowerCase()
+            : `#${h.toLowerCase()}`
           counts.set(tag, (counts.get(tag) || 0) + 1)
         })
       })
@@ -73,7 +78,9 @@ export function TrendingHashtags({ onHashtagClick, selectedHashtag }: TrendingHa
             {items.length === 0 ? (
               <div className="text-center py-4">
                 <Hash className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">Brak trendów (jeszcze).</p>
+                <p className="text-sm text-muted-foreground">
+                  Brak trendów (jeszcze).
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Dodaj hashtagi do swoich postów!
                 </p>
@@ -82,20 +89,28 @@ export function TrendingHashtags({ onHashtagClick, selectedHashtag }: TrendingHa
               items.map((item, index) => {
                 const isSelected = selectedHashtag === item.tag.replace("#", "")
                 return (
-                  <div key={item.tag} className="flex items-center justify-between">
+                  <div
+                    key={item.tag}
+                    className="flex items-center justify-between"
+                  >
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleHashtagClick(item.tag)}
                       className={cn(
                         "h-auto p-2 justify-start flex-1 hover:bg-muted/50",
-                        isSelected && "bg-primary/10 text-primary hover:bg-primary/20"
+                        isSelected &&
+                          "bg-primary/10 text-primary hover:bg-primary/20",
                       )}
                     >
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <div className="flex items-center gap-1 min-w-0">
-                          <span className="text-xs text-muted-foreground">#{index + 1}</span>
-                          <span className="font-medium truncate">{item.tag}</span>
+                          <span className="text-xs text-muted-foreground">
+                            #{index + 1}
+                          </span>
+                          <span className="font-medium truncate">
+                            {item.tag}
+                          </span>
                         </div>
                       </div>
                     </Button>
@@ -116,7 +131,8 @@ export function TrendingHashtags({ onHashtagClick, selectedHashtag }: TrendingHa
         {selectedHashtag && (
           <div className="mt-4 pt-4 border-t">
             <div className="text-xs text-muted-foreground text-center">
-              Przeglądasz: <span className="font-medium">#{selectedHashtag}</span>
+              Przeglądasz:{" "}
+              <span className="font-medium">#{selectedHashtag}</span>
             </div>
           </div>
         )}

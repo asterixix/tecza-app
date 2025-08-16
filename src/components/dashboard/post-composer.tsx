@@ -22,8 +22,17 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { toast } from "sonner"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { Image as ImageIcon, Video as VideoIcon, X, Smile } from "lucide-react"
 import { moderateContent } from "@/lib/moderation"
 
@@ -108,12 +117,16 @@ export function PostComposer({
       "🥳",
       "🍀",
     ],
-    []
+    [],
   )
   const addEmoji = (e: string) => {
     const cur = form.getValues("content") || ""
     const ta = textareaRef.current
-    if (ta && typeof ta.selectionStart === "number" && typeof ta.selectionEnd === "number") {
+    if (
+      ta &&
+      typeof ta.selectionStart === "number" &&
+      typeof ta.selectionEnd === "number"
+    ) {
       const start = ta.selectionStart
       const end = ta.selectionEnd
       const next = cur.slice(0, start) + e + cur.slice(end)
@@ -181,7 +194,9 @@ export function PostComposer({
   useEffect(() => {
     const sub = form.watch((vals) => {
       const text = vals.content || ""
-      const urls = Array.from(text.matchAll(/https?:\/\/[^\s)]+/gi)).map((m) => m[0])
+      const urls = Array.from(text.matchAll(/https?:\/\/[^\s)]+/gi)).map(
+        (m) => m[0],
+      )
       setFirstUrl(urls[0] || "")
     })
     return () => sub.unsubscribe?.()
@@ -215,7 +230,10 @@ export function PostComposer({
     try {
       setLoading(true)
       // AI moderation pre-check for text content
-      const moderation = await moderateContent({ type: "post", content: values.content })
+      const moderation = await moderateContent({
+        type: "post",
+        content: values.content,
+      })
       if (moderation?.decision === "block") {
         toast.error("Treść odrzucona przez moderację AI")
         // Try to create a moderation report for audit
@@ -255,11 +273,15 @@ export function PostComposer({
             const ctx = canvas.getContext("2d")!
             ctx.drawImage(bmp, 0, 0)
             const blob = await new Promise<Blob>((res) =>
-              canvas.toBlob((b) => res(b!), "image/webp", 0.9)
+              canvas.toBlob((b) => res(b!), "image/webp", 0.9),
             )
-            fileToUpload = new File([blob], imageFile.name.replace(/\.[^.]+$/, ".webp"), {
-              type: "image/webp",
-            })
+            fileToUpload = new File(
+              [blob],
+              imageFile.name.replace(/\.[^.]+$/, ".webp"),
+              {
+                type: "image/webp",
+              },
+            )
           } catch {}
         }
         const imgPath = `${user.id}/images/${Date.now()}-${fileToUpload.name}`
@@ -281,7 +303,9 @@ export function PostComposer({
           if (res.ok) {
             const j = await res.json()
             if (j?.ok && typeof j.outputPath === "string") {
-              const pub = await supabase.storage.from("posts").getPublicUrl(j.outputPath)
+              const pub = await supabase.storage
+                .from("posts")
+                .getPublicUrl(j.outputPath)
               if (pub.data?.publicUrl) mediaUrls.push(pub.data.publicUrl)
             }
           }
@@ -298,7 +322,13 @@ export function PostComposer({
       const { error } = await supabase.from("posts").insert({
         user_id: user.id,
         content: values.content,
-        type: mediaUrls.length ? (videoFile ? "video" : imageFile ? "image" : "text") : "text",
+        type: mediaUrls.length
+          ? videoFile
+            ? "video"
+            : imageFile
+              ? "image"
+              : "text"
+          : "text",
         media_urls: mediaUrls.length ? mediaUrls : null,
         hashtags: hashtags.length ? hashtags : null,
         // Mentions: we store usernames; server can map to user IDs if needed later
@@ -424,11 +454,19 @@ export function PostComposer({
 
               <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
                 <PopoverTrigger asChild>
-                  <Button type="button" variant="ghost" size="icon" title="Wstaw emoji">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    title="Wstaw emoji"
+                  >
                     <Smile className="size-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-60" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <PopoverContent
+                  className="w-60"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                >
                   <div className="grid grid-cols-8 gap-1">
                     {emojis.map((e) => (
                       <button
@@ -493,7 +531,9 @@ export function PostComposer({
               <div className="rounded-md border p-3 text-sm flex items-start gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="font-medium truncate">Podgląd linku</div>
-                  <div className="text-muted-foreground truncate max-w-[32ch]">{firstUrl}</div>
+                  <div className="text-muted-foreground truncate max-w-[32ch]">
+                    {firstUrl}
+                  </div>
                   <OGPreview url={firstUrl} />
                 </div>
                 <label className="ml-2 inline-flex items-center gap-2 text-xs select-none">
@@ -522,7 +562,9 @@ export function PostComposer({
                       <SelectContent>
                         <SelectItem value="public">Publiczny</SelectItem>
                         <SelectItem value="friends">Tylko znajomi</SelectItem>
-                        <SelectItem value="unlisted">Nielistowany (z linkiem)</SelectItem>
+                        <SelectItem value="unlisted">
+                          Nielistowany (z linkiem)
+                        </SelectItem>
                         <SelectItem value="private">Prywatny</SelectItem>
                       </SelectContent>
                     </Select>
@@ -552,7 +594,9 @@ function OGPreview({ url }: { url: string }) {
     if (!val) return null
     try {
       const u = new URL(val)
-      return u.protocol === "http:" || u.protocol === "https:" ? u.toString() : null
+      return u.protocol === "http:" || u.protocol === "https:"
+        ? u.toString()
+        : null
     } catch {
       return null
     }
@@ -562,7 +606,9 @@ function OGPreview({ url }: { url: string }) {
     async function run() {
       setLoading(true)
       try {
-        const res = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`)
+        const res = await fetch(
+          `/api/link-preview?url=${encodeURIComponent(url)}`,
+        )
         if (!res.ok) return
         const j = await res.json()
         if (!cancelled) setData(j)
@@ -576,7 +622,11 @@ function OGPreview({ url }: { url: string }) {
     }
   }, [url])
   if (loading && !data)
-    return <div className="mt-2 text-xs text-muted-foreground">Ładowanie podglądu…</div>
+    return (
+      <div className="mt-2 text-xs text-muted-foreground">
+        Ładowanie podglądu…
+      </div>
+    )
   if (!data) return null
   return (
     <div className="mt-2 flex gap-3 rounded border bg-muted/30 p-2">
@@ -589,12 +639,18 @@ function OGPreview({ url }: { url: string }) {
         />
       )}
       <div className="min-w-0">
-        <div className="text-sm font-medium truncate">{data.title || new URL(url).hostname}</div>
+        <div className="text-sm font-medium truncate">
+          {data.title || new URL(url).hostname}
+        </div>
         {data.siteName && (
-          <div className="text-xs text-muted-foreground truncate">{data.siteName}</div>
+          <div className="text-xs text-muted-foreground truncate">
+            {data.siteName}
+          </div>
         )}
         {data.description && (
-          <div className="text-xs text-muted-foreground line-clamp-2">{data.description}</div>
+          <div className="text-xs text-muted-foreground line-clamp-2">
+            {data.description}
+          </div>
         )}
       </div>
     </div>

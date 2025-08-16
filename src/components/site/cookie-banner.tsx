@@ -13,7 +13,9 @@ function getConsent(): ConsentValue | null {
 function setConsent(value: ConsentValue) {
   if (typeof document === "undefined") return
   const days = 180
-  const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString()
+  const expires = new Date(
+    Date.now() + days * 24 * 60 * 60 * 1000,
+  ).toUTCString()
   document.cookie = `tecza_consent=${encodeURIComponent(value)}; Expires=${expires}; Path=/; SameSite=Lax`
 }
 
@@ -61,8 +63,9 @@ export function CookieBanner() {
     >
       <div className="mx-auto max-w-6xl px-4 md:px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between">
         <p className="text-sm text-muted-foreground">
-          Używamy plików cookie. Niezbędne służą do działania i bezpieczeństwa aplikacji. Inne (np.
-          funkcjonalne/analityczne) używamy wyłącznie za Twoją zgodą. Zobacz naszą{" "}
+          Używamy plików cookie. Niezbędne służą do działania i bezpieczeństwa
+          aplikacji. Inne (np. funkcjonalne/analityczne) używamy wyłącznie za
+          Twoją zgodą. Zobacz naszą{" "}
           <a className="underline" href="/pp">
             Politykę prywatności
           </a>

@@ -3,7 +3,13 @@ import { useEffect, useState, useCallback } from "react"
 import { getSupabase } from "@/lib/supabase-browser"
 import { PostItem, type PostRecord } from "./post-item"
 
-export function Feed({ reloadSignal, hashtag }: { reloadSignal?: number; hashtag?: string }) {
+export function Feed({
+  reloadSignal,
+  hashtag,
+}: {
+  reloadSignal?: number
+  hashtag?: string
+}) {
   const supabase = getSupabase()
   const [posts, setPosts] = useState<PostRecord[]>([])
   const [loading, setLoading] = useState(false)
@@ -42,7 +48,9 @@ export function Feed({ reloadSignal, hashtag }: { reloadSignal?: number; hashtag
     <div className="space-y-3">
       {loading && (
         <div className="text-center">
-          <div className="text-sm text-muted-foreground">Ładowanie postów...</div>
+          <div className="text-sm text-muted-foreground">
+            Ładowanie postów...
+          </div>
         </div>
       )}
       {posts.map((p) => (
@@ -51,7 +59,9 @@ export function Feed({ reloadSignal, hashtag }: { reloadSignal?: number; hashtag
       {posts.length === 0 && !loading && (
         <div className="text-center">
           <p className="text-sm text-muted-foreground">
-            {hashtag ? `Brak postów z tagiem #${hashtag}` : "Brak postów do wyświetlenia."}
+            {hashtag
+              ? `Brak postów z tagiem #${hashtag}`
+              : "Brak postów do wyświetlenia."}
           </p>
           {hashtag && (
             <p className="text-xs text-muted-foreground mt-2">

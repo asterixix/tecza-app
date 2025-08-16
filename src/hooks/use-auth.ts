@@ -24,27 +24,31 @@ export function useAuth(): AuthState {
       })
     })()
 
-    const { data: sub } = supabase!.auth.onAuthStateChange(async (_event, session) => {
-      setState((s) => ({
-        ...s,
-        user: session?.user ? { id: session.user.id, email: session.user.email } : null,
-      }))
-      if (session?.user) {
-        // Ensure public key exists in profile
-        const { data: profile } = await supabase!
-          .from("profiles")
-          .select("id, public_key")
-          .eq("id", session.user.id)
-          .single()
-        if (profile && !profile.public_key) {
-          const { publicKey } = await KeyManager.getOrCreateKeyPair()
-          await supabase!
+    const { data: sub } = supabase!.auth.onAuthStateChange(
+      async (_event, session) => {
+        setState((s) => ({
+          ...s,
+          user: session?.user
+            ? { id: session.user.id, email: session.user.email }
+            : null,
+        }))
+        if (session?.user) {
+          // Ensure public key exists in profile
+          const { data: profile } = await supabase!
             .from("profiles")
-            .update({ public_key: publicKey })
+            .select("id, public_key")
             .eq("id", session.user.id)
+            .single()
+          if (profile && !profile.public_key) {
+            const { publicKey } = await KeyManager.getOrCreateKeyPair()
+            await supabase!
+              .from("profiles")
+              .update({ public_key: publicKey })
+              .eq("id", session.user.id)
+          }
         }
-      }
-    })
+      },
+    )
 
     return () => {
       isMounted = false

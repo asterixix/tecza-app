@@ -37,7 +37,7 @@ export default function ProfilesModeration() {
         .maybeSingle()
       const roles = (prof?.roles as string[] | undefined) || []
       const ok = roles.some((r) =>
-        ["moderator", "administrator", "super-administrator"].includes(r)
+        ["moderator", "administrator", "super-administrator"].includes(r),
       )
       setAllowed(ok)
       if (!ok) window.location.href = "/d"
@@ -71,14 +71,21 @@ export default function ProfilesModeration() {
   async function banUser(id: string) {
     if (!supabase) return
     const reason = prompt("Powód blokady? (widoczny w logach)") || "moderation"
-    const { error } = await supabase.rpc("admin_ban_user", { p_user_id: id, p_reason: reason })
+    const { error } = await supabase.rpc("admin_ban_user", {
+      p_user_id: id,
+      p_reason: reason,
+    })
     if (!error)
       setProfiles((prev) =>
         prev.map((p) =>
           p.id === id
-            ? { ...p, suspended_at: new Date().toISOString(), suspended_reason: reason }
-            : p
-        )
+            ? {
+                ...p,
+                suspended_at: new Date().toISOString(),
+                suspended_reason: reason,
+              }
+            : p,
+        ),
       )
   }
 
@@ -87,16 +94,22 @@ export default function ProfilesModeration() {
     const { error } = await supabase.rpc("admin_unban_user", { p_user_id: id })
     if (!error)
       setProfiles((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, suspended_at: null, suspended_reason: null } : p))
+        prev.map((p) =>
+          p.id === id
+            ? { ...p, suspended_at: null, suspended_reason: null }
+            : p,
+        ),
       )
   }
 
   const filtered = useMemo(
     () =>
       profiles.filter(
-        (p) => !query || (p.username || "").toLowerCase().includes(query.toLowerCase())
+        (p) =>
+          !query ||
+          (p.username || "").toLowerCase().includes(query.toLowerCase()),
       ),
-    [profiles, query]
+    [profiles, query],
   )
 
   if (allowed === null || !allowed) return null
@@ -143,11 +156,19 @@ export default function ProfilesModeration() {
                 </div>
                 <div className="flex gap-2">
                   {p.suspended_at ? (
-                    <Button size="sm" variant="outline" onClick={() => unbanUser(p.id)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => unbanUser(p.id)}
+                    >
                       Odblokuj
                     </Button>
                   ) : (
-                    <Button size="sm" variant="destructive" onClick={() => banUser(p.id)}>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => banUser(p.id)}
+                    >
                       Zablokuj
                     </Button>
                   )}

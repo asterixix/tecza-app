@@ -72,7 +72,7 @@ export function useMessages(conversationId?: string) {
             display_name,
             avatar_url
           )
-        `
+        `,
         )
         .eq("id", conversationId)
         .single()
@@ -84,7 +84,12 @@ export function useMessages(conversationId?: string) {
       if (conv.type === "direct") {
         const otherUserId = conv.participants.find((p: string) => p !== user.id)
         const profilesTyped:
-          | Array<{ id: string; username: string; display_name: string; avatar_url?: string }>
+          | Array<{
+              id: string
+              username: string
+              display_name: string
+              avatar_url?: string
+            }>
           | undefined = (
           conv as unknown as {
             profiles?: Array<{
@@ -106,13 +111,18 @@ export function useMessages(conversationId?: string) {
         const priv = KeyManager.getPrivateKey()
         if (priv) {
           try {
-            conversationKeyRef.current = await MessageEncryption.unwrapKey(wrappedKey, priv)
+            conversationKeyRef.current = await MessageEncryption.unwrapKey(
+              wrappedKey,
+              priv,
+            )
           } catch {
-            conversationKeyRef.current = await MessageEncryption.importKey(wrappedKey)
+            conversationKeyRef.current =
+              await MessageEncryption.importKey(wrappedKey)
           }
         } else {
           try {
-            conversationKeyRef.current = await MessageEncryption.importKey(wrappedKey)
+            conversationKeyRef.current =
+              await MessageEncryption.importKey(wrappedKey)
           } catch (e) {
             console.error("Failed to import conversation key", e)
           }
@@ -141,7 +151,7 @@ export function useMessages(conversationId?: string) {
             display_name,
             avatar_url
           )
-        `
+        `,
         )
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: true })
@@ -162,7 +172,7 @@ export function useMessages(conversationId?: string) {
               decrypted.content = await MessageEncryption.decryptText(
                 msg.content_cipher,
                 msg.iv,
-                conversationKeyRef.current!
+                conversationKeyRef.current!,
               )
             } catch (e) {
               console.error("Failed to decrypt message:", e)
@@ -185,7 +195,7 @@ export function useMessages(conversationId?: string) {
           }
 
           return decrypted
-        })
+        }),
       )
 
       setMessages(decryptedMessages)
@@ -198,7 +208,11 @@ export function useMessages(conversationId?: string) {
 
   // Send encrypted message
   const sendMessage = useCallback(
-    async (content?: string, file?: File, type: "text" | "image" | "video" | "file" = "text") => {
+    async (
+      content?: string,
+      file?: File,
+      type: "text" | "image" | "video" | "file" = "text",
+    ) => {
       if (!conversationId || !conversationKeyRef.current) return
       if (!content && !file) return
 
@@ -217,7 +231,10 @@ export function useMessages(conversationId?: string) {
 
         // Encrypt text content
         if (content) {
-          const encrypted = await MessageEncryption.encryptText(content, conversationKeyRef.current)
+          const encrypted = await MessageEncryption.encryptText(
+            content,
+            conversationKeyRef.current,
+          )
           messageData.content_cipher = encrypted.cipher
           messageData.iv = encrypted.iv
         }
@@ -239,7 +256,7 @@ export function useMessages(conversationId?: string) {
           const arrayBuffer = await processedFile.arrayBuffer()
           const encrypted = await MessageEncryption.encryptFile(
             arrayBuffer,
-            conversationKeyRef.current
+            conversationKeyRef.current,
           )
 
           // Upload to storage
@@ -312,7 +329,7 @@ export function useMessages(conversationId?: string) {
         setSending(false)
       }
     },
-    [conversationId, supabase]
+    [conversationId, supabase],
   )
 
   // Mark messages as read
@@ -332,7 +349,7 @@ export function useMessages(conversationId?: string) {
         console.error("Failed to mark messages as read:", error)
       }
     },
-    [supabase]
+    [supabase],
   )
 
   // Secure delete request (marks for purge via SQL function)
@@ -347,7 +364,7 @@ export function useMessages(conversationId?: string) {
         throw e
       }
     },
-    [supabase]
+    [supabase],
   )
 
   // Setup realtime subscription
@@ -405,7 +422,7 @@ export function useMessages(conversationId?: string) {
                 decrypted.content = await MessageEncryption.decryptText(
                   msg.content_cipher,
                   msg.iv,
-                  conversationKeyRef.current
+                  conversationKeyRef.current,
                 )
               } catch {
                 decrypted.content = "[Unable to decrypt]"
@@ -414,7 +431,7 @@ export function useMessages(conversationId?: string) {
 
             setMessages((prev) => [...prev, decrypted])
           }
-        }
+        },
       )
       .on(
         "postgres_changes",
@@ -427,9 +444,11 @@ export function useMessages(conversationId?: string) {
         (payload) => {
           // Update message (e.g., mark as read)
           setMessages((prev) =>
-            prev.map((msg) => (msg.id === payload.new.id ? { ...msg, ...payload.new } : msg))
+            prev.map((msg) =>
+              msg.id === payload.new.id ? { ...msg, ...payload.new } : msg,
+            ),
           )
-        }
+        },
       )
       .subscribe()
 
@@ -457,7 +476,9 @@ export function useConversation(otherUserId?: string) {
   const supabase = getSupabase()
   const [loading, setLoading] = useState(false)
 
-  const getOrCreateConversation = useCallback(async (): Promise<string | null> => {
+  const getOrCreateConversation = useCallback(async (): Promise<
+    string | null
+  > => {
     if (!otherUserId) return null
 
     setLoading(true)
@@ -501,7 +522,9 @@ export function useConversation(otherUserId?: string) {
         .in("id", [user.id, otherUserId])
 
       const byId: Record<string, { public_key: string | null }> = {}
-      ;(keyProfiles as Array<{ id: string; public_key: string | null }> | null)?.forEach((p) => {
+      ;(
+        keyProfiles as Array<{ id: string; public_key: string | null }> | null
+      )?.forEach((p) => {
         byId[p.id] = { public_key: p.public_key }
       })
 
@@ -511,7 +534,10 @@ export function useConversation(otherUserId?: string) {
         if (pub) {
           try {
             const pubKey = await MessageEncryption.importPublicKey(pub)
-            const wrapped = await MessageEncryption.wrapKey(conversationKey, pubKey)
+            const wrapped = await MessageEncryption.wrapKey(
+              conversationKey,
+              pubKey,
+            )
             wrappedKeys[uid] = wrapped
             continue
           } catch {}

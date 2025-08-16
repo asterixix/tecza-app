@@ -14,11 +14,19 @@ interface MessageConversationProps {
   conversationId: string
 }
 
-export function MessageConversation({ conversationId }: MessageConversationProps) {
+export function MessageConversation({
+  conversationId,
+}: MessageConversationProps) {
   const router = useRouter()
   const { user } = useAuth()
-  const { messages, conversation, loading, sendMessage, markAsRead, requestSecureDelete } =
-    useMessages(conversationId)
+  const {
+    messages,
+    conversation,
+    loading,
+    sendMessage,
+    markAsRead,
+    requestSecureDelete,
+  } = useMessages(conversationId)
 
   if (loading) {
     return (
@@ -33,7 +41,11 @@ export function MessageConversation({ conversationId }: MessageConversationProps
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
           <h2 className="text-lg font-semibold">Konwersacja nie znaleziona</h2>
-          <Button variant="ghost" onClick={() => router.push("/m")} className="mt-4">
+          <Button
+            variant="ghost"
+            onClick={() => router.push("/m")}
+            className="mt-4"
+          >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Wróć do wiadomości
           </Button>
@@ -66,9 +78,12 @@ export function MessageConversation({ conversationId }: MessageConversationProps
               </Avatar>
               <div>
                 <h1 className="font-semibold">
-                  {conversation.other_user.display_name || conversation.other_user.username}
+                  {conversation.other_user.display_name ||
+                    conversation.other_user.username}
                 </h1>
-                <p className="text-xs text-muted-foreground">@{conversation.other_user.username}</p>
+                <p className="text-xs text-muted-foreground">
+                  @{conversation.other_user.username}
+                </p>
               </div>
             </>
           )}

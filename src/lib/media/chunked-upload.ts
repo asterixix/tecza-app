@@ -3,7 +3,7 @@
 export async function uploadInChunks(
   file: Blob,
   putUrlFactory: (chunkIndex: number, totalChunks: number) => Promise<string>,
-  chunkSize = 5 * 1024 * 1024
+  chunkSize = 5 * 1024 * 1024,
 ) {
   const totalChunks = Math.ceil(file.size / chunkSize)
   for (let i = 0; i < totalChunks; i++) {

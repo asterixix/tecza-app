@@ -3,7 +3,11 @@ import Link from "next/link"
 
 export function Logo({ className }: { className?: string }) {
   return (
-    <Link href="/" aria-label="Tęcza.app – przejdź na stronę główną" className={className}>
+    <Link
+      href="/"
+      aria-label="Tęcza.app – przejdź na stronę główną"
+      className={className}
+    >
       <div className="flex items-center gap-2">
         <Image
           src="/icons/tecza-icons-500x270/2.svg"

@@ -7,10 +7,11 @@ export class MessageEncryption {
 
   // Generate a new AES-GCM key
   static async generateKey(): Promise<CryptoKey> {
-    return await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, [
-      "encrypt",
-      "decrypt",
-    ])
+    return await crypto.subtle.generateKey(
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"],
+    )
   }
 
   // Export key to base64
@@ -22,20 +23,28 @@ export class MessageEncryption {
   // Import key from base64
   static async importKey(keyData: string): Promise<CryptoKey> {
     const raw = Uint8Array.from(atob(keyData), (c) => c.charCodeAt(0))
-    return await crypto.subtle.importKey("raw", raw, { name: "AES-GCM", length: 256 }, false, [
-      "encrypt",
-      "decrypt",
-    ])
+    return await crypto.subtle.importKey(
+      "raw",
+      raw,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"],
+    )
   }
 
   // Wrap key with user's public key (for key exchange)
   static async wrapKey(key: CryptoKey, publicKey: CryptoKey): Promise<string> {
-    const wrapped = await crypto.subtle.wrapKey("raw", key, publicKey, { name: "RSA-OAEP" })
+    const wrapped = await crypto.subtle.wrapKey("raw", key, publicKey, {
+      name: "RSA-OAEP",
+    })
     return btoa(String.fromCharCode(...new Uint8Array(wrapped)))
   }
 
   // Unwrap key with user's private key
-  static async unwrapKey(wrappedKey: string, privateKey: CryptoKey): Promise<CryptoKey> {
+  static async unwrapKey(
+    wrappedKey: string,
+    privateKey: CryptoKey,
+  ): Promise<CryptoKey> {
     const raw = Uint8Array.from(atob(wrappedKey), (c) => c.charCodeAt(0))
     return await crypto.subtle.unwrapKey(
       "raw",
@@ -44,17 +53,20 @@ export class MessageEncryption {
       { name: "RSA-OAEP" },
       { name: "AES-GCM", length: 256 },
       false,
-      ["encrypt", "decrypt"]
+      ["encrypt", "decrypt"],
     )
   }
 
   // Encrypt text message
-  static async encryptText(text: string, key: CryptoKey): Promise<{ cipher: string; iv: string }> {
+  static async encryptText(
+    text: string,
+    key: CryptoKey,
+  ): Promise<{ cipher: string; iv: string }> {
     const iv = crypto.getRandomValues(new Uint8Array(12))
     const encrypted = await crypto.subtle.encrypt(
       { name: "AES-GCM", iv },
       key,
-      this.encoder.encode(text)
+      this.encoder.encode(text),
     )
 
     return {
@@ -64,11 +76,19 @@ export class MessageEncryption {
   }
 
   // Decrypt text message
-  static async decryptText(cipher: string, iv: string, key: CryptoKey): Promise<string> {
+  static async decryptText(
+    cipher: string,
+    iv: string,
+    key: CryptoKey,
+  ): Promise<string> {
     const cipherData = Uint8Array.from(atob(cipher), (c) => c.charCodeAt(0))
     const ivData = Uint8Array.from(atob(iv), (c) => c.charCodeAt(0))
 
-    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv: ivData }, key, cipherData)
+    const decrypted = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: ivData },
+      key,
+      cipherData,
+    )
 
     return this.decoder.decode(decrypted)
   }
@@ -76,10 +96,14 @@ export class MessageEncryption {
   // Encrypt file/media
   static async encryptFile(
     file: ArrayBuffer,
-    key: CryptoKey
+    key: CryptoKey,
   ): Promise<{ cipher: ArrayBuffer; iv: string }> {
     const iv = crypto.getRandomValues(new Uint8Array(12))
-    const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, file)
+    const encrypted = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      file,
+    )
 
     return {
       cipher: encrypted,
@@ -88,10 +112,18 @@ export class MessageEncryption {
   }
 
   // Decrypt file/media
-  static async decryptFile(cipher: ArrayBuffer, iv: string, key: CryptoKey): Promise<ArrayBuffer> {
+  static async decryptFile(
+    cipher: ArrayBuffer,
+    iv: string,
+    key: CryptoKey,
+  ): Promise<ArrayBuffer> {
     const ivData = Uint8Array.from(atob(iv), (c) => c.charCodeAt(0))
 
-    return await crypto.subtle.decrypt({ name: "AES-GCM", iv: ivData }, key, cipher)
+    return await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: ivData },
+      key,
+      cipher,
+    )
   }
 
   // Generate RSA key pair for key exchange
@@ -104,7 +136,7 @@ export class MessageEncryption {
         hash: "SHA-256",
       },
       true,
-      ["wrapKey", "unwrapKey"]
+      ["wrapKey", "unwrapKey"],
     )
   }
 
@@ -122,7 +154,7 @@ export class MessageEncryption {
       raw,
       { name: "RSA-OAEP", hash: "SHA-256" },
       false,
-      ["wrapKey"]
+      ["wrapKey"],
     )
   }
 }

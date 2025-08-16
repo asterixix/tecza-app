@@ -4,7 +4,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { getSupabase } from "@/lib/supabase-browser"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Search, Users, Hash, Calendar, Layers } from "lucide-react"
@@ -15,7 +20,12 @@ type UserRow = {
   display_name: string | null
   avatar_url: string | null
 }
-type CommunityRow = { id: string; name: string; slug: string | null; avatar_url: string | null }
+type CommunityRow = {
+  id: string
+  name: string
+  slug: string | null
+  avatar_url: string | null
+}
 type EventRow = {
   id: string
   title: string
@@ -120,7 +130,11 @@ export function GlobalSearch() {
     return () => clearTimeout(h)
   }, [q, open, supabase])
 
-  const total = users.length + communities.length + events.length + (tags.length > 0 ? 1 : 0)
+  const total =
+    users.length +
+    communities.length +
+    events.length +
+    (tags.length > 0 ? 1 : 0)
 
   const items = useMemo(() => {
     const out: Array<{
@@ -188,7 +202,7 @@ export function GlobalSearch() {
         }
       }
     },
-    [items, activeIndex, router]
+    [items, activeIndex, router],
   )
 
   return (
@@ -227,10 +241,14 @@ export function GlobalSearch() {
               className="p-2"
             >
               {loading && (
-                <li className="px-2 py-2 text-sm text-muted-foreground">Wyszukiwanie…</li>
+                <li className="px-2 py-2 text-sm text-muted-foreground">
+                  Wyszukiwanie…
+                </li>
               )}
               {!loading && total === 0 && q.trim().length > 0 && (
-                <li className="px-2 py-2 text-sm text-muted-foreground">Brak wyników dla „{q}”.</li>
+                <li className="px-2 py-2 text-sm text-muted-foreground">
+                  Brak wyników dla „{q}”.
+                </li>
               )}
               {items.map((it, idx) => (
                 <li
@@ -263,8 +281,8 @@ export function GlobalSearch() {
           </ScrollArea>
         </div>
         <div className="border-t px-3 py-2 text-xs text-muted-foreground">
-          Wskazówka: naciśnij Ctrl+K / Cmd+K aby otworzyć. Strzałki aby nawigować, Enter aby
-          przejść.
+          Wskazówka: naciśnij Ctrl+K / Cmd+K aby otworzyć. Strzałki aby
+          nawigować, Enter aby przejść.
         </div>
       </DialogContent>
     </Dialog>

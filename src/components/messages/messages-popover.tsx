@@ -2,7 +2,11 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Loader2, MessageSquare } from "lucide-react"
 
@@ -43,7 +47,11 @@ export function MessagesPopover() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0" aria-label="Ostatnie rozmowy">
+      <PopoverContent
+        align="end"
+        className="w-80 p-0"
+        aria-label="Ostatnie rozmowy"
+      >
         <div className="p-3 font-medium">Ostatnie rozmowy</div>
         <ScrollArea className="max-h-80">
           <ul className="divide-y">

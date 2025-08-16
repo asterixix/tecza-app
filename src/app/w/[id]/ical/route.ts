@@ -1,4 +1,7 @@
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const { id } = await params
   const url = new URL(req.url)
   const host = `${url.protocol}//${url.host}`

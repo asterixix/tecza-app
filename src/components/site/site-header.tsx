@@ -4,7 +4,13 @@ import Link from "next/link"
 import { useMemo, useState } from "react"
 import { Menu, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Logo } from "./logo"
 import { ThemeToggle } from "./theme-toggle"
@@ -34,7 +40,10 @@ export function SiteHeader() {
       <div className="mx-auto max-w-6xl px-4 md:px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Logo />
-          <nav className="hidden md:flex items-center gap-6" aria-label="Główna nawigacja">
+          <nav
+            className="hidden md:flex items-center gap-6"
+            aria-label="Główna nawigacja"
+          >
             {nav.map((item) => (
               <Link
                 key={item.href}
@@ -68,7 +77,10 @@ export function SiteHeader() {
                   <Logo />
                 </div>
                 <ScrollArea className="max-h-[65dvh]">
-                  <nav className="grid gap-1 px-4 pb-2" aria-label="Menu mobilne">
+                  <nav
+                    className="grid gap-1 px-4 pb-2"
+                    aria-label="Menu mobilne"
+                  >
                     {current.map((item) => (
                       <Link
                         key={item.href}
@@ -111,7 +123,9 @@ export function SiteHeader() {
                       variant="outline"
                       size="icon"
                       aria-label="Następna strona menu"
-                      onClick={() => setPage((p) => Math.min(pages.length - 1, p + 1))}
+                      onClick={() =>
+                        setPage((p) => Math.min(pages.length - 1, p + 1))
+                      }
                       disabled={page === pages.length - 1}
                     >
                       <ChevronRight className="size-5" />

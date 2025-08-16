@@ -11,7 +11,10 @@ export function SiteFooter() {
         <p className="leading-tight text-center sm:text-left">
           © Copyright <time aria-label="Rok">{year}</time> Tęcza.app{" "}
           <Badge variant="outline" title="Wersja 0.1.2" color="purple">
-            <Link className="hover:underline" href="https://github.com/asterixix/tecza-app">
+            <Link
+              className="hover:underline"
+              href="https://github.com/asterixix/tecza-app"
+            >
               Wersja Alpha
             </Link>
           </Badge>

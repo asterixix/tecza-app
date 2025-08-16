@@ -77,7 +77,9 @@ function DashboardContent() {
           {selectedHashtag ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Posty z tagiem #{selectedHashtag}</h2>
+                <h2 className="text-lg font-semibold">
+                  Posty z tagiem #{selectedHashtag}
+                </h2>
                 <Button variant="ghost" size="sm" onClick={clearHashtagFilter}>
                   Pokaż wszystkie posty
                 </Button>
@@ -89,7 +91,10 @@ function DashboardContent() {
           )}
         </div>
         <aside className="lg:col-span-4 space-y-6">
-          <TrendingHashtags onHashtagClick={handleHashtagClick} selectedHashtag={selectedHashtag} />
+          <TrendingHashtags
+            onHashtagClick={handleHashtagClick}
+            selectedHashtag={selectedHashtag}
+          />
           <SuggestedProfiles />
         </aside>
       </div>
@@ -105,7 +110,9 @@ export default function DashboardPage() {
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-sm text-muted-foreground">Ładowanie pulpitu...</p>
+              <p className="text-sm text-muted-foreground">
+                Ładowanie pulpitu...
+              </p>
             </div>
           </div>
         </div>

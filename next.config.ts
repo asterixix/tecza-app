@@ -19,7 +19,11 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/communities", destination: "/c", permanent: true },
-      { source: "/communities/:path*", destination: "/c/:path*", permanent: true },
+      {
+        source: "/communities/:path*",
+        destination: "/c/:path*",
+        permanent: true,
+      },
       { source: "/dashboard", destination: "/d", permanent: true },
       { source: "/events", destination: "/w", permanent: true },
       { source: "/events/:path*", destination: "/w/:path*", permanent: true },
@@ -30,8 +34,7 @@ const nextConfig: NextConfig = {
       { source: "/settings", destination: "/s", permanent: true },
       // Profile is now /u/:username; /profile can redirect to /u or homepage
       { source: "/profile", destination: "/u", permanent: false },
-      // Reset password handled on /l; redirect legacy
-      { source: "/reset-password", destination: "/l", permanent: true },
+      // Keep /reset-password as a real page to preserve #type=recovery hash and forward client-side
     ]
   },
 }

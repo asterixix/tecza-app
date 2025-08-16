@@ -31,12 +31,15 @@ export default function Home() {
           <Badge className="mb-3" aria-hidden>
             Polska społeczność LGBTQ • Bezpieczna przestrzeń
           </Badge>
-          <h1 id="about-heading" className="text-3xl md:text-5xl font-bold tracking-tight">
+          <h1
+            id="about-heading"
+            className="text-3xl md:text-5xl font-bold tracking-tight"
+          >
             Bezpieczna, nowoczesna społeczność LGBTQ w Polsce 🌈
           </h1>
           <p className="mt-4 text-muted-foreground text-base md:text-lg">
-            Platforma, która łączy ludzi, wydarzenia i społeczności. Prywatność, dostępność i żywe,
-            tęczowe doświadczenia — zawsze po Twojej stronie.
+            Platforma, która łączy ludzi, wydarzenia i społeczności. Prywatność,
+            dostępność i żywe, tęczowe doświadczenia — zawsze po Twojej stronie.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild>
@@ -70,8 +73,15 @@ export default function Home() {
       </section>
 
       {/* Funkcje */}
-      <section id="features" aria-labelledby="features-heading" className="mt-14 md:mt-20">
-        <h2 id="features-heading" className="text-2xl md:text-3xl font-semibold tracking-tight">
+      <section
+        id="features"
+        aria-labelledby="features-heading"
+        className="mt-14 md:mt-20"
+      >
+        <h2
+          id="features-heading"
+          className="text-2xl md:text-3xl font-semibold tracking-tight"
+        >
           Najważniejsze funkcje
         </h2>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -90,13 +100,22 @@ export default function Home() {
       </section>
 
       {/* Współpraca */}
-      <section id="contribute" aria-labelledby="contribute-heading" className="mt-14 md:mt-20">
-        <h2 id="contribute-heading" className="text-2xl md:text-3xl font-semibold tracking-tight">
-          Twórz z nami Tęcza.app 🌈 - Nowe miejsce dla społeczności LGBTQ+ w Internecie!
+      <section
+        id="contribute"
+        aria-labelledby="contribute-heading"
+        className="mt-14 md:mt-20"
+      >
+        <h2
+          id="contribute-heading"
+          className="text-2xl md:text-3xl font-semibold tracking-tight"
+        >
+          Twórz z nami Tęcza.app 🌈 - Nowe miejsce dla społeczności LGBTQ+ w
+          Internecie!
         </h2>
         <p className="mt-2 text-muted-foreground max-w-3xl">
-          Szukamy osób chętnych do współpracy! Poszukujemy projektantów, specjalistów ds.
-          dostępności, tłumaczy, moderatorów, a szczególnie programistów WebDev.
+          Szukamy osób chętnych do współpracy! Poszukujemy projektantów,
+          specjalistów ds. dostępności, tłumaczy, moderatorów, a szczególnie
+          programistów WebDev.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button asChild>
@@ -110,7 +129,9 @@ export default function Home() {
             </Link>
           </Button>
         </div>
-        <p className="sr-only">Sekcja dla osób chcących pomóc w rozwoju projektu.</p>
+        <p className="sr-only">
+          Sekcja dla osób chcących pomóc w rozwoju projektu.
+        </p>
       </section>
     </div>
   )

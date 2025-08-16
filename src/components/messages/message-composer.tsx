@@ -4,7 +4,11 @@ import NextImage from "next/image"
 import { useState, useRef, ChangeEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   Send,
   Paperclip,
@@ -21,12 +25,15 @@ interface MessageComposerProps {
   onSendMessage: (
     content?: string,
     file?: File,
-    type?: "text" | "image" | "video" | "file"
+    type?: "text" | "image" | "video" | "file",
   ) => Promise<void>
   disabled?: boolean
 }
 
-export function MessageComposer({ onSendMessage, disabled }: MessageComposerProps) {
+export function MessageComposer({
+  onSendMessage,
+  disabled,
+}: MessageComposerProps) {
   const [message, setMessage] = useState("")
   const [attachedFile, setAttachedFile] = useState<File | null>(null)
   const [filePreview, setFilePreview] = useState<string | null>(null)
@@ -72,7 +79,8 @@ export function MessageComposer({ onSendMessage, disabled }: MessageComposerProp
         setFilePreview(preview)
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Nieoczekiwany błąd"
+      const message =
+        error instanceof Error ? error.message : "Nieoczekiwany błąd"
       toast({
         title: "Błąd",
         description: message,
@@ -158,7 +166,12 @@ export function MessageComposer({ onSendMessage, disabled }: MessageComposerProp
               {(attachedFile.size / 1024 / 1024).toFixed(2)} MB
             </p>
           </div>
-          <Button size="icon" variant="ghost" onClick={removeAttachment} className="h-8 w-8">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={removeAttachment}
+            className="h-8 w-8"
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -270,7 +283,12 @@ export function MessageComposer({ onSendMessage, disabled }: MessageComposerProp
       </div>
 
       {/* Hidden file input */}
-      <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
     </div>
   )
 }

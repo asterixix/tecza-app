@@ -25,7 +25,8 @@ export default function IntroOnboardingPage() {
         <CardContent className="p-6">
           <h1 className="text-2xl font-bold">Witaj w Tęcza.app 🌈</h1>
           <p className="mt-1 text-muted-foreground">
-            Twoje konto jest gotowe. Możesz przejść do pulpitu albo odwiedzić swój profil.
+            Twoje konto jest gotowe. Możesz przejść do pulpitu albo odwiedzić
+            swój profil.
           </p>
           <div className="mt-4 flex gap-2">
             <Button

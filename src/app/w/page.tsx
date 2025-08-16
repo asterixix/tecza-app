@@ -14,7 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { slugify } from "@/lib/utils"
 
@@ -54,7 +59,9 @@ export default function EventsPage() {
       const now = new Date().toISOString()
       const { data } = await supabase
         .from("events")
-        .select("id,slug,title,start_date,city,country,category,cover_image_url")
+        .select(
+          "id,slug,title,start_date,city,country,category,cover_image_url",
+        )
         .gte("start_date", now)
         .order("start_date", { ascending: true })
         .limit(50)
@@ -65,7 +72,8 @@ export default function EventsPage() {
 
   async function createEvent() {
     if (!supabase) return toast.error("Brak konfiguracji Supabase")
-    if (!title.trim() || !start) return toast.error("Podaj tytuł i datę rozpoczęcia")
+    if (!title.trim() || !start)
+      return toast.error("Podaj tytuł i datę rozpoczęcia")
     setLoading(true)
     try {
       const me = (await supabase.auth.getUser()).data.user
@@ -111,7 +119,8 @@ export default function EventsPage() {
       // navigate
       window.location.href = `/events/${data!.slug}`
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Nie udało się utworzyć wydarzenia"
+      const message =
+        e instanceof Error ? e.message : "Nie udało się utworzyć wydarzenia"
       toast.error(message)
     } finally {
       setLoading(false)
@@ -141,7 +150,9 @@ export default function EventsPage() {
                     {new Date(e.start_date).toLocaleString()} •{" "}
                     {[e.city, e.country].filter(Boolean).join(", ") || "Online"}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">{e.category}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {e.category}
+                  </div>
                 </div>
               </Link>
             </CardContent>
@@ -183,14 +194,23 @@ export default function EventsPage() {
                 />
               </div>
               <div>
-                <div className="text-sm font-medium mb-1">Koniec (opcjonalnie)</div>
-                <Input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} />
+                <div className="text-sm font-medium mb-1">
+                  Koniec (opcjonalnie)
+                </div>
+                <Input
+                  type="datetime-local"
+                  value={end}
+                  onChange={(e) => setEnd(e.target.value)}
+                />
               </div>
             </div>
             <div className="grid md:grid-cols-3 gap-3">
               <div>
                 <div className="text-sm font-medium mb-1">Strefa czasowa</div>
-                <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} />
+                <Input
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                />
               </div>
               <div>
                 <div className="text-sm font-medium mb-1">Miasto</div>
@@ -215,7 +235,13 @@ export default function EventsPage() {
                 <Select
                   value={category}
                   onValueChange={(
-                    v: "pride" | "support" | "social" | "activism" | "education" | "other"
+                    v:
+                      | "pride"
+                      | "support"
+                      | "social"
+                      | "activism"
+                      | "education"
+                      | "other",
                   ) => setCategory(v)}
                 >
                   <SelectTrigger>

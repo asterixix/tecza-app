@@ -64,10 +64,11 @@ export function MessageList({
           onMarkAsRead(visibleUnreadIds)
         }
       },
-      { threshold: 0.5 }
+      { threshold: 0.5 },
     )
 
-    const messageElements = containerRef.current?.querySelectorAll("[data-message-id]")
+    const messageElements =
+      containerRef.current?.querySelectorAll("[data-message-id]")
     messageElements?.forEach((el) => observer.observe(el))
 
     return () => observer.disconnect()
@@ -76,7 +77,9 @@ export function MessageList({
   const renderMessageContent = (message: Message) => {
     switch (message.type) {
       case "text":
-        return <p className="whitespace-pre-wrap break-words">{message.content}</p>
+        return (
+          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+        )
 
       case "image":
         return message.media_url ? (
@@ -98,7 +101,11 @@ export function MessageList({
 
       case "video":
         return message.media_url ? (
-          <video src={message.media_url} controls className="max-w-sm rounded-lg" />
+          <video
+            src={message.media_url}
+            controls
+            className="max-w-sm rounded-lg"
+          />
         ) : null
 
       case "file":
@@ -110,7 +117,9 @@ export function MessageList({
           >
             <FileText className="h-8 w-8 text-muted-foreground" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{message.media_url.split("/").pop()}</p>
+              <p className="text-sm font-medium truncate">
+                {message.media_url.split("/").pop()}
+              </p>
               {message.media_size && (
                 <p className="text-xs text-muted-foreground">
                   {(message.media_size / 1024 / 1024).toFixed(2)} MB
@@ -132,13 +141,18 @@ export function MessageList({
           <div
             key={message.id}
             data-message-id={message.id}
-            className={cn("flex gap-3", isOwn ? "flex-row-reverse" : "flex-row")}
+            className={cn(
+              "flex gap-3",
+              isOwn ? "flex-row-reverse" : "flex-row",
+            )}
           >
             {/* Avatar */}
             {!isOwn && (
               <Avatar className="h-8 w-8 shrink-0">
                 <AvatarImage src={message.sender?.avatar_url} />
-                <AvatarFallback>{message.sender?.display_name?.[0]?.toUpperCase()}</AvatarFallback>
+                <AvatarFallback>
+                  {message.sender?.display_name?.[0]?.toUpperCase()}
+                </AvatarFallback>
               </Avatar>
             )}
 
@@ -146,7 +160,7 @@ export function MessageList({
             <div
               className={cn(
                 "max-w-[70%] rounded-2xl px-4 py-2",
-                isOwn ? "bg-primary text-primary-foreground" : "bg-muted"
+                isOwn ? "bg-primary text-primary-foreground" : "bg-muted",
               )}
             >
               {/* Sender name (for group chats) */}
@@ -163,7 +177,7 @@ export function MessageList({
               <div
                 className={cn(
                   "flex items-center gap-1 mt-1",
-                  isOwn ? "justify-end" : "justify-start"
+                  isOwn ? "justify-end" : "justify-start",
                 )}
               >
                 <span className="text-xs opacity-60">

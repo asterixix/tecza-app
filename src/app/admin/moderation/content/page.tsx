@@ -17,9 +17,21 @@ import Textarea from "@/components/ui/textarea"
 type Report = {
   id: string
   reporter_id: string
-  target_type: "user" | "post" | "comment" | "message" | "event" | "community" | "profile_media"
+  target_type:
+    | "user"
+    | "post"
+    | "comment"
+    | "message"
+    | "event"
+    | "community"
+    | "profile_media"
   target_id: string | null
-  reason: "hate_speech" | "harassment" | "spam" | "inappropriate_content" | "other"
+  reason:
+    | "hate_speech"
+    | "harassment"
+    | "spam"
+    | "inappropriate_content"
+    | "other"
   description: string | null
   status: "pending" | "reviewed" | "resolved" | "dismissed"
   created_at: string
@@ -32,8 +44,12 @@ export default function ContentModeration() {
   const [allowed, setAllowed] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(true)
   const [reports, setReports] = useState<Report[]>([])
-  const [statusFilter, setStatusFilter] = useState<Report["status"] | "all">("pending")
-  const [typeFilter, setTypeFilter] = useState<Report["target_type"] | "all">("all")
+  const [statusFilter, setStatusFilter] = useState<Report["status"] | "all">(
+    "pending",
+  )
+  const [typeFilter, setTypeFilter] = useState<Report["target_type"] | "all">(
+    "all",
+  )
   const [actionNotes, setActionNotes] = useState("")
 
   useEffect(() => {
@@ -54,7 +70,7 @@ export default function ContentModeration() {
         .maybeSingle()
       const roles = (prof?.roles as string[] | undefined) || []
       const ok = roles.some((r) =>
-        ["moderator", "administrator", "super-administrator"].includes(r)
+        ["moderator", "administrator", "super-administrator"].includes(r),
       )
       setAllowed(ok)
       if (!ok) {
@@ -82,13 +98,22 @@ export default function ContentModeration() {
   }
 
   // Helpers to build typed args for admin RPCs (avoid `any`)
-  type HideRpc = "admin_hide_comment" | "admin_hide_event" | "admin_hide_community"
-  type RestoreRpc = "admin_restore_comment" | "admin_restore_event" | "admin_restore_community"
+  type HideRpc =
+    | "admin_hide_comment"
+    | "admin_hide_event"
+    | "admin_hide_community"
+  type RestoreRpc =
+    | "admin_restore_comment"
+    | "admin_restore_event"
+    | "admin_restore_community"
   type HideArgs =
     | { p_comment_id: string; p_reason: string }
     | { p_event_id: string; p_reason: string }
     | { p_community_id: string; p_reason: string }
-  type RestoreArgs = { p_comment_id: string } | { p_event_id: string } | { p_community_id: string }
+  type RestoreArgs =
+    | { p_comment_id: string }
+    | { p_event_id: string }
+    | { p_community_id: string }
 
   function buildHideArgs(fn: HideRpc, id: string, reason: string): HideArgs {
     switch (fn) {
@@ -116,7 +141,7 @@ export default function ContentModeration() {
     return reports.filter(
       (r) =>
         (statusFilter === "all" || r.status === statusFilter) &&
-        (typeFilter === "all" || r.target_type === typeFilter)
+        (typeFilter === "all" || r.target_type === typeFilter),
     )
   }, [reports, statusFilter, typeFilter])
 
@@ -131,11 +156,18 @@ export default function ContentModeration() {
       .update({ status })
       .eq("id", report.id)
     if (!error) {
-      setReports((prev) => prev.map((r) => (r.id === report.id ? { ...r, status } : r)))
+      setReports((prev) =>
+        prev.map((r) => (r.id === report.id ? { ...r, status } : r)),
+      )
       // log action
       await supabase.from("moderation_actions").insert({
         actor_id: user.id,
-        action: status === "dismissed" ? "note" : status === "resolved" ? "restore" : "note",
+        action:
+          status === "dismissed"
+            ? "note"
+            : status === "resolved"
+              ? "restore"
+              : "note",
         target_type: report.target_type,
         target_id: report.target_id,
         notes: actionNotes || null,
@@ -261,7 +293,10 @@ export default function ContentModeration() {
             <SelectItem value="dismissed">Odrzucone</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
+        <Select
+          value={typeFilter}
+          onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
+        >
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Typ" />
           </SelectTrigger>
@@ -284,7 +319,9 @@ export default function ContentModeration() {
       {loading ? (
         <p className="text-sm text-muted-foreground">Ładowanie…</p>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Brak zgłoszeń do wyświetlenia.</p>
+        <p className="text-sm text-muted-foreground">
+          Brak zgłoszeń do wyświetlenia.
+        </p>
       ) : (
         <div className="grid gap-3">
           {filtered.map((r) => (
@@ -300,10 +337,15 @@ export default function ContentModeration() {
               </CardHeader>
               <CardContent className="text-sm space-y-2">
                 <div className="text-muted-foreground">
-                  Powód: <span className="text-foreground font-medium">{r.reason}</span>
+                  Powód:{" "}
+                  <span className="text-foreground font-medium">
+                    {r.reason}
+                  </span>
                 </div>
                 {r.description && <div>Opis: {r.description}</div>}
-                {r.target_id && <div className="text-xs">ID: {r.target_id}</div>}
+                {r.target_id && (
+                  <div className="text-xs">ID: {r.target_id}</div>
+                )}
                 <div className="grid gap-2 md:grid-cols-2 md:items-end">
                   <div>
                     <label className="text-xs font-medium">
@@ -324,7 +366,10 @@ export default function ContentModeration() {
                     >
                       Oznacz jako sprawdzone
                     </Button>
-                    <Button size="sm" onClick={() => updateStatus(r, "resolved")}>
+                    <Button
+                      size="sm"
+                      onClick={() => updateStatus(r, "resolved")}
+                    >
                       Rozwiązane
                     </Button>
                     <Button
@@ -338,19 +383,37 @@ export default function ContentModeration() {
                       <>
                         {r.target_type === "post" ? (
                           <>
-                            <Button size="sm" variant="destructive" onClick={() => hidePost(r)}>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => hidePost(r)}
+                            >
                               Ukryj post
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => restorePost(r)}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => restorePost(r)}
+                            >
                               Przywróć post
                             </Button>
                           </>
-                        ) : ["comment", "event", "community"].includes(r.target_type) ? (
+                        ) : ["comment", "event", "community"].includes(
+                            r.target_type,
+                          ) ? (
                           <>
-                            <Button size="sm" variant="destructive" onClick={() => hideOther(r)}>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => hideOther(r)}
+                            >
                               Ukryj
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => restoreOther(r)}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => restoreOther(r)}
+                            >
                               Przywróć
                             </Button>
                           </>

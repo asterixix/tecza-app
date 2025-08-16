@@ -27,7 +27,11 @@ import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { KeyManager } from "@/lib/crypto/key-manager"
-import { encryptPrivateKeyPkcs8B64, decryptPrivateKeyPkcs8B64, VaultBlob } from "@/lib/crypto/vault"
+import {
+  encryptPrivateKeyPkcs8B64,
+  decryptPrivateKeyPkcs8B64,
+  VaultBlob,
+} from "@/lib/crypto/vault"
 
 const schema = z.object({
   username: z
@@ -68,7 +72,9 @@ export default function SettingsPage() {
   const [mfaSecret, setMfaSecret] = useState<string>("")
   const [otpCode, setOtpCode] = useState("")
   // OAuth state
-  const [identities, setIdentities] = useState<Array<{ id?: string; provider?: string }>>([])
+  const [identities, setIdentities] = useState<
+    Array<{ id?: string; provider?: string }>
+  >([])
   // Accessibility
   const [reduceMotion, setReduceMotion] = useState<boolean>(() => {
     if (typeof window === "undefined") return false
@@ -113,13 +119,14 @@ export default function SettingsPage() {
       setAccountEmail(user.email || "")
       // identities (OAuth links)
       try {
-        const ids = (user.identities as Array<{ id?: string; provider?: string }>) || []
+        const ids =
+          (user.identities as Array<{ id?: string; provider?: string }>) || []
         setIdentities(ids)
       } catch {}
       const { data } = await supabase
         .from("profiles")
         .select(
-          "username,display_name,bio,pronouns,sexual_orientation,gender_identity,email,website,social_links,city,country,profile_visibility,show_location,show_orientation,avatar_url,cover_image_url,show_friends"
+          "username,display_name,bio,pronouns,sexual_orientation,gender_identity,email,website,social_links,city,country,profile_visibility,show_location,show_orientation,avatar_url,cover_image_url,show_friends",
         )
         .eq("id", user.id)
         .maybeSingle()
@@ -130,7 +137,8 @@ export default function SettingsPage() {
           display_name: data.display_name || "",
           bio: data.bio || "",
           pronouns: data.pronouns || "",
-          sexual_orientation: (data.sexual_orientation as string[] | null) || [],
+          sexual_orientation:
+            (data.sexual_orientation as string[] | null) || [],
           gender_identity: (data.gender_identity as string[] | null) || [],
           email: data.email || "",
           website: data.website || "",
@@ -140,10 +148,12 @@ export default function SettingsPage() {
           city: data.city || "",
           country: data.country || "Poland",
           profile_visibility:
-            (data.profile_visibility as "public" | "friends" | "private") || "public",
+            (data.profile_visibility as "public" | "friends" | "private") ||
+            "public",
           show_location: !!data.show_location,
           show_orientation: !!data.show_orientation,
-          show_friends: (data as { show_friends?: boolean }).show_friends ?? true,
+          show_friends:
+            (data as { show_friends?: boolean }).show_friends ?? true,
         })
       }
       // MFA capability and status
@@ -152,7 +162,8 @@ export default function SettingsPage() {
           setMfaSupported(true)
           const res = await supabase.auth.mfa.listFactors?.()
           const enrolled: Array<{ id: string; factor_type?: string }> =
-            (res?.data?.all as Array<{ id: string; factor_type?: string }>) ?? []
+            (res?.data?.all as Array<{ id: string; factor_type?: string }>) ??
+            []
           const totp = enrolled.find((f) => f.factor_type === "totp")
           setMfaEnrolled(!!totp)
           if (totp) setMfaFactorId(totp.id)
@@ -218,13 +229,18 @@ export default function SettingsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Widoczność profilu</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Publiczny" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="public">Publiczny</SelectItem>
-                            <SelectItem value="friends">Tylko znajomi</SelectItem>
+                            <SelectItem value="friends">
+                              Tylko znajomi
+                            </SelectItem>
                             <SelectItem value="private">Prywatny</SelectItem>
                           </SelectContent>
                         </Select>
@@ -239,9 +255,14 @@ export default function SettingsPage() {
                     name="show_location"
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between rounded-md border p-3">
-                        <FormLabel className="m-0">Pokazuj lokalizację</FormLabel>
+                        <FormLabel className="m-0">
+                          Pokazuj lokalizację
+                        </FormLabel>
                         <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -252,9 +273,14 @@ export default function SettingsPage() {
                     name="show_orientation"
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between rounded-md border p-3">
-                        <FormLabel className="m-0">Pokazuj orientację/tożsamość</FormLabel>
+                        <FormLabel className="m-0">
+                          Pokazuj orientację/tożsamość
+                        </FormLabel>
                         <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -265,9 +291,14 @@ export default function SettingsPage() {
                     name="show_friends"
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between rounded-md border p-3">
-                        <FormLabel className="m-0">Pokazuj listę znajomych</FormLabel>
+                        <FormLabel className="m-0">
+                          Pokazuj listę znajomych
+                        </FormLabel>
                         <FormControl>
-                          <Switch checked={!!field.value} onCheckedChange={field.onChange} />
+                          <Switch
+                            checked={!!field.value}
+                            onCheckedChange={field.onChange}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -275,7 +306,10 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div>
-                  <Button onClick={form.handleSubmit(onSubmit)} disabled={loading}>
+                  <Button
+                    onClick={form.handleSubmit(onSubmit)}
+                    disabled={loading}
+                  >
                     {loading ? "Zapisywanie…" : "Zapisz prywatność"}
                   </Button>
                 </div>
@@ -291,8 +325,8 @@ export default function SettingsPage() {
                 <h2 className="text-lg font-semibold">2FA (TOTP)</h2>
                 {!mfaSupported ? (
                   <p className="text-sm text-muted-foreground">
-                    2FA nie jest dostępne w tej instancji. Upewnij się, że MFA jest włączone w
-                    Supabase.
+                    2FA nie jest dostępne w tej instancji. Upewnij się, że MFA
+                    jest włączone w Supabase.
                   </p>
                 ) : (
                   <div className="grid gap-3">
@@ -309,7 +343,9 @@ export default function SettingsPage() {
                                 return
                               }
                               if (!mfaFactorId) return
-                              await supabase.auth.mfa.unenroll({ factorId: mfaFactorId })
+                              await supabase.auth.mfa.unenroll({
+                                factorId: mfaFactorId,
+                              })
                               setMfaEnrolled(false)
                               setMfaFactorId(null)
                               toast.success("Wyłączono 2FA")
@@ -331,17 +367,22 @@ export default function SettingsPage() {
                                 toast.error("Brak konfiguracji Supabase")
                                 return
                               }
-                              const { data, error } = await supabase.auth.mfa.enroll({
-                                factorType: "totp",
-                              })
+                              const { data, error } =
+                                await supabase.auth.mfa.enroll({
+                                  factorType: "totp",
+                                })
                               if (error) throw error
                               const { id, totp } = data || {}
                               setMfaFactorId(id || null)
                               setMfaQR(totp?.qr_code || "")
                               setMfaSecret(totp?.secret || "")
-                              toast.message("Zeskanuj kod i wpisz kod z aplikacji.")
+                              toast.message(
+                                "Zeskanuj kod i wpisz kod z aplikacji.",
+                              )
                             } catch {
-                              toast.error("Nie udało się rozpocząć rejestracji 2FA")
+                              toast.error(
+                                "Nie udało się rozpocząć rejestracji 2FA",
+                              )
                             }
                           }}
                         >
@@ -351,10 +392,16 @@ export default function SettingsPage() {
                           <div className="grid gap-2">
                             {mfaQR && (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img src={mfaQR} alt="Kod QR 2FA" className="h-40 w-40" />
+                              <img
+                                src={mfaQR}
+                                alt="Kod QR 2FA"
+                                className="h-40 w-40"
+                              />
                             )}
                             {mfaSecret && (
-                              <p className="text-xs text-muted-foreground">Sekret: {mfaSecret}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Sekret: {mfaSecret}
+                              </p>
                             )}
                             <div className="flex items-center gap-2">
                               <Input
@@ -372,18 +419,23 @@ export default function SettingsPage() {
                                       return
                                     }
                                     if (!mfaFactorId || !otpCode) return
-                                    const ch = await supabase.auth.mfa.challenge({
-                                      factorId: mfaFactorId,
-                                    })
-                                    const challengeId = (ch?.data as { id?: string } | undefined)
-                                      ?.id
+                                    const ch =
+                                      await supabase.auth.mfa.challenge({
+                                        factorId: mfaFactorId,
+                                      })
+                                    const challengeId = (
+                                      ch?.data as { id?: string } | undefined
+                                    )?.id
                                     if (!challengeId)
-                                      throw new Error("Brak identyfikatora wyzwania 2FA")
-                                    const { error: verr } = await supabase.auth.mfa.verify({
-                                      factorId: mfaFactorId,
-                                      code: otpCode,
-                                      challengeId,
-                                    })
+                                      throw new Error(
+                                        "Brak identyfikatora wyzwania 2FA",
+                                      )
+                                    const { error: verr } =
+                                      await supabase.auth.mfa.verify({
+                                        factorId: mfaFactorId,
+                                        code: otpCode,
+                                        challengeId,
+                                      })
                                     if (verr) throw verr
                                     setMfaEnrolled(true)
                                     setMfaQR("")
@@ -391,7 +443,9 @@ export default function SettingsPage() {
                                     setOtpCode("")
                                     toast.success("2FA włączone")
                                   } catch {
-                                    toast.error("Nie udało się zweryfikować kodu 2FA")
+                                    toast.error(
+                                      "Nie udało się zweryfikować kodu 2FA",
+                                    )
                                   }
                                 }}
                               >
@@ -437,7 +491,9 @@ export default function SettingsPage() {
                           toast.error("Hasła nie są zgodne")
                           return
                         }
-                        const { error } = await supabase.auth.updateUser({ password })
+                        const { error } = await supabase.auth.updateUser({
+                          password,
+                        })
                         if (error) throw error
                         setPassword("")
                         setPassword2("")
@@ -455,7 +511,9 @@ export default function SettingsPage() {
 
             <Card>
               <CardContent className="p-4 grid gap-3">
-                <h2 className="text-lg font-semibold">Email konta (prywatny)</h2>
+                <h2 className="text-lg font-semibold">
+                  Email konta (prywatny)
+                </h2>
                 <div className="grid md:grid-cols-2 gap-2 max-w-lg">
                   <Input
                     type="email"
@@ -472,9 +530,13 @@ export default function SettingsPage() {
                           toast.error("Brak konfiguracji Supabase")
                           return
                         }
-                        const { error } = await supabase.auth.updateUser({ email: accountEmail })
+                        const { error } = await supabase.auth.updateUser({
+                          email: accountEmail,
+                        })
                         if (error) throw error
-                        toast.success("Zaktualizowano email. Sprawdź skrzynkę, aby potwierdzić.")
+                        toast.success(
+                          "Zaktualizowano email. Sprawdź skrzynkę, aby potwierdzić.",
+                        )
                       } catch {
                         toast.error("Nie udało się zaktualizować emaila")
                       }
@@ -484,8 +546,8 @@ export default function SettingsPage() {
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Ten email służy do logowania i odzyskiwania konta. Nie jest wyświetlany
-                  publicznie.
+                  Ten email służy do logowania i odzyskiwania konta. Nie jest
+                  wyświetlany publicznie.
                 </p>
               </CardContent>
             </Card>
@@ -506,14 +568,19 @@ export default function SettingsPage() {
                           toast.error("Brak konfiguracji Supabase")
                           return
                         }
-                        const { data, error } = await supabase.auth.linkIdentity({
-                          provider: "google",
-                          options: { redirectTo: `${window.location.origin}/settings` },
-                        })
+                        const { data, error } =
+                          await supabase.auth.linkIdentity({
+                            provider: "google",
+                            options: {
+                              redirectTo: `${window.location.origin}/settings`,
+                            },
+                          })
                         if (error) throw error
                         if (data?.url) window.location.href = data.url
                       } catch {
-                        toast.error("Nie udało się zainicjować połączenia Google")
+                        toast.error(
+                          "Nie udało się zainicjować połączenia Google",
+                        )
                       }
                     }}
                   >
@@ -528,14 +595,19 @@ export default function SettingsPage() {
                           toast.error("Brak konfiguracji Supabase")
                           return
                         }
-                        const { data, error } = await supabase.auth.linkIdentity({
-                          provider: "discord",
-                          options: { redirectTo: `${window.location.origin}/settings` },
-                        })
+                        const { data, error } =
+                          await supabase.auth.linkIdentity({
+                            provider: "discord",
+                            options: {
+                              redirectTo: `${window.location.origin}/settings`,
+                            },
+                          })
                         if (error) throw error
                         if (data?.url) window.location.href = data.url
                       } catch {
-                        toast.error("Nie udało się zainicjować połączenia Discord")
+                        toast.error(
+                          "Nie udało się zainicjować połączenia Discord",
+                        )
                       }
                     }}
                   >
@@ -544,17 +616,22 @@ export default function SettingsPage() {
                 </div>
                 <div className="text-sm">
                   Połączone:{" "}
-                  {identities.length ? identities.map((i) => i.provider).join(", ") : "brak"}
+                  {identities.length
+                    ? identities.map((i) => i.provider).join(", ")
+                    : "brak"}
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-4 grid gap-3">
-                <h2 className="text-lg font-semibold">Klucze szyfrowania (E2EE)</h2>
+                <h2 className="text-lg font-semibold">
+                  Klucze szyfrowania (E2EE)
+                </h2>
                 <p className="text-sm text-muted-foreground">
-                  Zabezpiecz swój klucz prywatny hasłem i przechowuj zaszyfrowaną kopię w profilu.
-                  Dzięki temu możesz odszyfrowywać wiadomości na innych urządzeniach.
+                  Zabezpiecz swój klucz prywatny hasłem i przechowuj
+                  zaszyfrowaną kopię w profilu. Dzięki temu możesz odszyfrowywać
+                  wiadomości na innych urządzeniach.
                 </p>
                 <div className="grid md:grid-cols-2 gap-2 max-w-xl">
                   <Input
@@ -573,22 +650,33 @@ export default function SettingsPage() {
                             return
                           }
                           // Export current private key and encrypt into vault
-                          const pkcs8b64 = await KeyManager.exportPrivateKeyPkcs8B64().catch(
-                            () => ""
-                          )
+                          const pkcs8b64 =
+                            await KeyManager.exportPrivateKeyPkcs8B64().catch(
+                              () => "",
+                            )
                           if (!pkcs8b64) {
-                            toast.error("Brak klucza prywatnego w pamięci. Zaloguj się ponownie.")
+                            toast.error(
+                              "Brak klucza prywatnego w pamięci. Zaloguj się ponownie.",
+                            )
                             return
                           }
                           if (!password) {
                             toast.error("Podaj hasło do sejfu")
                             return
                           }
-                          const vault = await encryptPrivateKeyPkcs8B64(pkcs8b64, password)
+                          const vault = await encryptPrivateKeyPkcs8B64(
+                            pkcs8b64,
+                            password,
+                          )
                           const { error } = await supabase
                             .from("profiles")
-                            .update({ private_key_vault: vault as unknown as VaultBlob })
-                            .eq("id", (await supabase.auth.getUser()).data.user?.id)
+                            .update({
+                              private_key_vault: vault as unknown as VaultBlob,
+                            })
+                            .eq(
+                              "id",
+                              (await supabase.auth.getUser()).data.user?.id,
+                            )
                           if (error) throw error
                           toast.success("Zapisano zaszyfrowany klucz prywatny")
                         } catch {
@@ -610,9 +698,13 @@ export default function SettingsPage() {
                           const { data } = await supabase
                             .from("profiles")
                             .select("private_key_vault")
-                            .eq("id", (await supabase.auth.getUser()).data.user?.id)
+                            .eq(
+                              "id",
+                              (await supabase.auth.getUser()).data.user?.id,
+                            )
                             .maybeSingle()
-                          const vault = (data?.private_key_vault || null) as VaultBlob | null
+                          const vault = (data?.private_key_vault ||
+                            null) as VaultBlob | null
                           if (!vault) {
                             toast.error("Brak sejfu w profilu")
                             return
@@ -621,11 +713,18 @@ export default function SettingsPage() {
                             toast.error("Podaj hasło do sejfu")
                             return
                           }
-                          const pkcs8b64 = await decryptPrivateKeyPkcs8B64(vault, password)
+                          const pkcs8b64 = await decryptPrivateKeyPkcs8B64(
+                            vault,
+                            password,
+                          )
                           await KeyManager.setPrivateKeyFromPkcs8(pkcs8b64)
-                          toast.success("Zaimportowano klucz prywatny na to urządzenie")
+                          toast.success(
+                            "Zaimportowano klucz prywatny na to urządzenie",
+                          )
                         } catch {
-                          toast.error("Nie udało się odszyfrować sejfu. Błędne hasło?")
+                          toast.error(
+                            "Nie udało się odszyfrować sejfu. Błędne hasło?",
+                          )
                         }
                       }}
                     >
@@ -634,7 +733,8 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Uwaga: hasło nie jest przechowywane. Zadbaj o jego zapamiętanie.
+                  Uwaga: hasło nie jest przechowywane. Zadbaj o jego
+                  zapamiętanie.
                 </div>
               </CardContent>
             </Card>
@@ -661,7 +761,10 @@ export default function SettingsPage() {
                     try {
                       localStorage.setItem("pref-reduce-motion", v ? "1" : "0")
                     } catch {}
-                    document.documentElement.classList.toggle("reduce-motion", v)
+                    document.documentElement.classList.toggle(
+                      "reduce-motion",
+                      v,
+                    )
                   }}
                 />
               </div>
@@ -685,10 +788,15 @@ export default function SettingsPage() {
                       try {
                         localStorage.setItem("pref-font-scale", v)
                       } catch {}
-                      document.documentElement.style.setProperty("--app-font-scale", `${v}%`)
+                      document.documentElement.style.setProperty(
+                        "--app-font-scale",
+                        `${v}%`,
+                      )
                     }}
                   />
-                  <div className="w-14 text-right text-sm text-muted-foreground">{fontScale}%</div>
+                  <div className="w-14 text-right text-sm text-muted-foreground">
+                    {fontScale}%
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -700,7 +808,8 @@ export default function SettingsPage() {
             <CardContent className="p-4 grid gap-3">
               <h2 className="text-lg font-semibold text-red-600">Usuń konto</h2>
               <p className="text-sm text-muted-foreground">
-                To usunie Twoje posty, interakcje i połączenia. Tej operacji nie można cofnąć.
+                To usunie Twoje posty, interakcje i połączenia. Tej operacji nie
+                można cofnąć.
               </p>
               <Button
                 variant="destructive"
@@ -713,7 +822,10 @@ export default function SettingsPage() {
                     const me = (await supabase.auth.getUser()).data.user
                     if (!me) throw new Error("Brak użytkownika")
                     // Best effort client-side cleanup under RLS
-                    await supabase.from("post_interactions").delete().eq("user_id", me.id)
+                    await supabase
+                      .from("post_interactions")
+                      .delete()
+                      .eq("user_id", me.id)
                     await supabase.from("posts").delete().eq("user_id", me.id)
                     await supabase
                       .from("friend_requests")
@@ -728,7 +840,9 @@ export default function SettingsPage() {
                     await supabase.auth.signOut()
                     window.location.href = "/"
                   } catch {
-                    toast.error("Nie udało się usunąć konta. Skontaktuj się ze wsparciem.")
+                    toast.error(
+                      "Nie udało się usunąć konta. Skontaktuj się ze wsparciem.",
+                    )
                   }
                 }}
               >

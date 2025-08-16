@@ -96,7 +96,9 @@ function CommentItem({
   const timeAgo = (date: string) => {
     const now = new Date()
     const commentDate = new Date(date)
-    const diffInMinutes = Math.floor((now.getTime() - commentDate.getTime()) / (1000 * 60))
+    const diffInMinutes = Math.floor(
+      (now.getTime() - commentDate.getTime()) / (1000 * 60),
+    )
 
     if (diffInMinutes < 1) return "teraz"
     if (diffInMinutes < 60) return `${diffInMinutes}m`
@@ -125,7 +127,9 @@ function CommentItem({
               </Badge>
             )}
           </div>
-          <p className="text-sm leading-relaxed break-words">{comment.content}</p>
+          <p className="text-sm leading-relaxed break-words">
+            {comment.content}
+          </p>
         </div>
 
         <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
@@ -137,10 +141,12 @@ function CommentItem({
             onClick={handleLikeToggle}
             className={cn(
               "h-auto p-0 text-xs font-medium hover:text-foreground",
-              comment.is_liked && "text-red-500"
+              comment.is_liked && "text-red-500",
             )}
           >
-            <Heart className={cn("h-3 w-3 mr-1", comment.is_liked && "fill-current")} />
+            <Heart
+              className={cn("h-3 w-3 mr-1", comment.is_liked && "fill-current")}
+            />
             {comment.likes_count > 0 && comment.likes_count}
           </Button>
 
@@ -163,7 +169,8 @@ function CommentItem({
               onClick={() => setShowReplies(!showReplies)}
               className="h-auto p-0 text-xs font-medium hover:text-foreground"
             >
-              {showReplies ? "Ukryj" : "Pokaż"} odpowiedzi ({comment.replies_count})
+              {showReplies ? "Ukryj" : "Pokaż"} odpowiedzi (
+              {comment.replies_count})
             </Button>
           )}
 
@@ -273,7 +280,9 @@ export function CommentSection({
 
   // Show only top-level comments initially, with option to show all
   const topLevelComments = comments.filter((comment) => !comment.parent_id)
-  const displayedComments = showAllComments ? topLevelComments : topLevelComments.slice(0, 3)
+  const displayedComments = showAllComments
+    ? topLevelComments
+    : topLevelComments.slice(0, 3)
 
   if (isLoading) {
     return (
@@ -293,7 +302,8 @@ export function CommentSection({
         <div className="flex items-center gap-2 text-muted-foreground">
           <MessageCircle className="h-4 w-4" />
           <span className="text-sm font-medium">
-            {comments.length} {comments.length === 1 ? "komentarz" : "komentarzy"}
+            {comments.length}{" "}
+            {comments.length === 1 ? "komentarz" : "komentarzy"}
           </span>
         </div>
       )}

@@ -3,9 +3,18 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card"
 import { getSupabase } from "@/lib/supabase-browser"
 import { useEffect, useState } from "react"
 import {
@@ -15,7 +24,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { MoreHorizontal, Pencil, Trash2, MessageCircle, Flag } from "lucide-react"
+import {
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  MessageCircle,
+  Flag,
+} from "lucide-react"
 import Textarea from "@/components/ui/textarea"
 import { RainbowLikeButton } from "@/components/ui/rainbow-like-button"
 import { CommentSection } from "@/components/ui/comment-section"
@@ -63,7 +78,9 @@ export function PostItem({
     sexual_orientation: string[] | null
     gender_identity: string[] | null
   }
-  const [mentionProfiles, setMentionProfiles] = useState<Record<string, ProfilePreview>>({})
+  const [mentionProfiles, setMentionProfiles] = useState<
+    Record<string, ProfilePreview>
+  >({})
   type Author = {
     id: string
     username: string
@@ -87,7 +104,9 @@ export function PostItem({
   const [likesCount, setLikesCount] = useState<number>(0)
   const [commentsCount, setCommentsCount] = useState<number>(0)
   const [isLiked, setIsLiked] = useState(false)
-  const [currentUserLike, setCurrentUserLike] = useState<{ rainbow_color: string } | null>(null)
+  const [currentUserLike, setCurrentUserLike] = useState<{
+    rainbow_color: string
+  } | null>(null)
   const [showComments, setShowComments] = useState(false)
   const [commentsLoading, setCommentsLoading] = useState(false)
   type DashboardComment = {
@@ -108,17 +127,21 @@ export function PostItem({
     replies?: DashboardComment[]
   }
   const [comments, setComments] = useState<DashboardComment[]>([])
-  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined)
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(
+    undefined,
+  )
   // Parse mentions from content (usernames only)
   useEffect(() => {
-    const m = Array.from(post.content.matchAll(/(^|\s)@([a-z0-9_]{3,30})/gi)).map((x) =>
-      x[2].toLowerCase()
-    )
+    const m = Array.from(
+      post.content.matchAll(/(^|\s)@([a-z0-9_]{3,30})/gi),
+    ).map((x) => x[2].toLowerCase())
     async function load() {
       if (!supabase || m.length === 0) return
       const { data } = await supabase
         .from("profiles")
-        .select("username,display_name,avatar_url,bio,pronouns,sexual_orientation,gender_identity")
+        .select(
+          "username,display_name,avatar_url,bio,pronouns,sexual_orientation,gender_identity",
+        )
         .in("username", m)
       const map: Record<string, ProfilePreview> = {}
       ;((data as ProfilePreview[] | null) || []).forEach((p) => {
@@ -241,7 +264,7 @@ export function PostItem({
         pronouns: string | null
       }
       const profMap = new Map<string, ProfileMini>(
-        ((profs as ProfileMini[]) || []).map((p) => [p.id, p])
+        ((profs as ProfileMini[]) || []).map((p) => [p.id, p]),
       )
       const enriched: DashboardComment[] = rows.map((r) => ({
         id: r.id,
@@ -251,7 +274,9 @@ export function PostItem({
           id: r.user_id,
           username: profMap.get(r.user_id)?.username || "",
           display_name:
-            profMap.get(r.user_id)?.display_name || profMap.get(r.user_id)?.username || "",
+            profMap.get(r.user_id)?.display_name ||
+            profMap.get(r.user_id)?.username ||
+            "",
           avatar_url: profMap.get(r.user_id)?.avatar_url || undefined,
           pronouns: profMap.get(r.user_id)?.pronouns || undefined,
         },
@@ -262,7 +287,7 @@ export function PostItem({
       }))
       // build simple thread
       const byId = new Map<string, DashboardComment>(
-        enriched.map((e) => [e.id, { ...e, replies: [] }])
+        enriched.map((e) => [e.id, { ...e, replies: [] }]),
       )
       const top: DashboardComment[] = []
       byId.forEach((c) => {
@@ -284,9 +309,11 @@ export function PostItem({
   // Interaction handlers
   const handleLike = async (color: string) => {
     if (!supabase || !currentUserId) return
-    const { error } = await supabase
-      .from("post_likes")
-      .insert({ post_id: post.id, user_id: currentUserId, rainbow_color: color })
+    const { error } = await supabase.from("post_likes").insert({
+      post_id: post.id,
+      user_id: currentUserId,
+      rainbow_color: color,
+    })
     if (!error) {
       setIsLiked(true)
       setCurrentUserLike({ rainbow_color: color })
@@ -308,9 +335,12 @@ export function PostItem({
   }
   const handleAddComment = async (content: string, parentId?: string) => {
     if (!supabase || !currentUserId) return
-    const { error } = await supabase
-      .from("post_comments")
-      .insert({ post_id: post.id, user_id: currentUserId, content, parent_id: parentId || null })
+    const { error } = await supabase.from("post_comments").insert({
+      post_id: post.id,
+      user_id: currentUserId,
+      content,
+      parent_id: parentId || null,
+    })
     if (!error) {
       setCommentsCount((c) => c + 1)
       // reload list if open
@@ -321,20 +351,27 @@ export function PostItem({
   function updateCommentInTree(
     list: DashboardComment[],
     id: string,
-    updater: (c: DashboardComment) => DashboardComment
+    updater: (c: DashboardComment) => DashboardComment,
   ): DashboardComment[] {
     return list.map((c) => {
       if (c.id === id) return updater({ ...c })
       if (c.replies && c.replies.length) {
         const updatedReplies = updateCommentInTree(c.replies, id, updater)
         if (updatedReplies !== c.replies) {
-          return { ...c, replies: updatedReplies, replies_count: updatedReplies.length }
+          return {
+            ...c,
+            replies: updatedReplies,
+            replies_count: updatedReplies.length,
+          }
         }
       }
       return c
     })
   }
-  function removeCommentFromTree(list: DashboardComment[], id: string): DashboardComment[] {
+  function removeCommentFromTree(
+    list: DashboardComment[],
+    id: string,
+  ): DashboardComment[] {
     let changed = false
     const filtered = list
       .filter((c) => {
@@ -349,7 +386,11 @@ export function PostItem({
           const newReplies = removeCommentFromTree(c.replies, id)
           if (newReplies !== c.replies) {
             changed = true
-            return { ...c, replies: newReplies, replies_count: newReplies.length }
+            return {
+              ...c,
+              replies: newReplies,
+              replies_count: newReplies.length,
+            }
           }
         }
         return c
@@ -364,7 +405,7 @@ export function PostItem({
         ...c,
         is_liked: true,
         likes_count: c.likes_count + 1,
-      }))
+      })),
     )
     try {
       await supabase
@@ -379,7 +420,7 @@ export function PostItem({
         ...c,
         is_liked: false,
         likes_count: Math.max(0, c.likes_count - 1),
-      }))
+      })),
     )
     try {
       await supabase
@@ -395,7 +436,11 @@ export function PostItem({
     setComments((prev) => removeCommentFromTree(prev, commentId))
     setCommentsCount((c) => Math.max(0, c - 1))
     try {
-      await supabase.from("post_comments").delete().eq("id", commentId).eq("user_id", currentUserId)
+      await supabase
+        .from("post_comments")
+        .delete()
+        .eq("id", commentId)
+        .eq("user_id", currentUserId)
     } catch {}
   }
   // Reshare functionality temporarily removed
@@ -413,7 +458,9 @@ export function PostItem({
             onClick={(e) => {
               e.preventDefault()
               // Use router push instead of window.location for smoother UX
-              router.push(`/dashboard?hashtag=${encodeURIComponent(tag.toLowerCase())}`)
+              router.push(
+                `/dashboard?hashtag=${encodeURIComponent(tag.toLowerCase())}`,
+              )
             }}
           >
             {p}
@@ -437,31 +484,46 @@ export function PostItem({
             </HoverCardTrigger>
             <HoverCardContent>
               <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-full overflow-hidden bg-muted border" aria-hidden>
+                <div
+                  className="h-10 w-10 rounded-full overflow-hidden bg-muted border"
+                  aria-hidden
+                >
                   {prof.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={prof.avatar_url} alt="" className="h-full w-full object-cover" />
+                    <img
+                      src={prof.avatar_url}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
                   ) : null}
                 </div>
                 <div className="min-w-0">
-                  <div className="font-medium truncate">{prof.display_name || prof.username}</div>
+                  <div className="font-medium truncate">
+                    {prof.display_name || prof.username}
+                  </div>
                   {prof.pronouns && (
                     <div className="text-xs">
                       <Badge variant="outline">{prof.pronouns}</Badge>
                     </div>
                   )}
                   {prof.bio && (
-                    <p className="text-xs text-muted-foreground line-clamp-3 mt-1">{prof.bio}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-3 mt-1">
+                      {prof.bio}
+                    </p>
                   )}
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {(prof.sexual_orientation || []).map((o: string, idx: number) => (
-                      <Badge key={`o${idx}`} variant="secondary">
-                        {o}
-                      </Badge>
-                    ))}
-                    {(prof.gender_identity || []).map((g: string, idx: number) => (
-                      <Badge key={`g${idx}`}>{g}</Badge>
-                    ))}
+                    {(prof.sexual_orientation || []).map(
+                      (o: string, idx: number) => (
+                        <Badge key={`o${idx}`} variant="secondary">
+                          {o}
+                        </Badge>
+                      ),
+                    )}
+                    {(prof.gender_identity || []).map(
+                      (g: string, idx: number) => (
+                        <Badge key={`g${idx}`}>{g}</Badge>
+                      ),
+                    )}
                   </div>
                 </div>
               </div>
@@ -494,7 +556,7 @@ export function PostItem({
   // Update helpers
   function extractHashtags(text: string) {
     return Array.from(text.matchAll(/#[\p{L}0-9_]{2,30}/giu)).map((m) =>
-      m[0].slice(1).toLowerCase()
+      m[0].slice(1).toLowerCase(),
     )
   }
   async function saveEdit() {
@@ -511,7 +573,8 @@ export function PostItem({
         })
         .eq("id", post.id)
       setEditing(false)
-      if (onChange) onChange("updated", { ...post, content: contentDraft, hashtags })
+      if (onChange)
+        onChange("updated", { ...post, content: contentDraft, hashtags })
     } finally {
       setBusy(false)
     }
@@ -562,9 +625,14 @@ export function PostItem({
                 className="flex items-center gap-3 min-w-0"
               >
                 <Avatar>
-                  <AvatarImage src={author?.avatar_url || undefined} alt={author?.username || ""} />
+                  <AvatarImage
+                    src={author?.avatar_url || undefined}
+                    alt={author?.username || ""}
+                  />
                   <AvatarFallback>
-                    {(author?.display_name || author?.username || "U").slice(0, 1).toUpperCase()}
+                    {(author?.display_name || author?.username || "U")
+                      .slice(0, 1)
+                      .toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
@@ -572,8 +640,12 @@ export function PostItem({
                     {author?.display_name || author?.username || "Użytkownik"}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {author?.username && <span className="truncate">@{author.username}</span>}
-                    {author?.pronouns && <Badge variant="outline">{author.pronouns}</Badge>}
+                    {author?.username && (
+                      <span className="truncate">@{author.username}</span>
+                    )}
+                    {author?.pronouns && (
+                      <Badge variant="outline">{author.pronouns}</Badge>
+                    )}
                     <span className="whitespace-nowrap">
                       {new Date(post.created_at).toLocaleString()}
                     </span>
@@ -582,7 +654,9 @@ export function PostItem({
               </Link>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline">{visibilityLabel(post.visibility)}</Badge>
+              <Badge variant="outline">
+                {visibilityLabel(post.visibility)}
+              </Badge>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" aria-label="Akcje posta">
@@ -626,7 +700,10 @@ export function PostItem({
           {linkMedia.length > 0 && (
             <div className="mt-2 grid gap-2">
               {linkMedia.map((url, idx) => (
-                <div key={idx} className="rounded-md overflow-hidden border bg-muted">
+                <div
+                  key={idx}
+                  className="rounded-md overflow-hidden border bg-muted"
+                >
                   {isTenorHost(url) ? (
                     <iframe
                       src={url}
@@ -655,7 +732,9 @@ export function PostItem({
                     href={`/dashboard?hashtag=${encodeURIComponent(hashtag.toLowerCase())}`}
                     onClick={(e) => {
                       e.preventDefault()
-                      router.push(`/dashboard?hashtag=${encodeURIComponent(hashtag.toLowerCase())}`)
+                      router.push(
+                        `/dashboard?hashtag=${encodeURIComponent(hashtag.toLowerCase())}`,
+                      )
                     }}
                     className="text-xs text-primary hover:text-primary/80 hover:underline font-medium"
                   >
@@ -748,9 +827,13 @@ export function PostItem({
             <select
               className="rounded-md border bg-background px-2 py-1 text-sm"
               value={reportReason}
-              onChange={(e) => setReportReason(e.target.value as typeof reportReason)}
+              onChange={(e) =>
+                setReportReason(e.target.value as typeof reportReason)
+              }
             >
-              <option value="inappropriate_content">Nieodpowiednia treść</option>
+              <option value="inappropriate_content">
+                Nieodpowiednia treść
+              </option>
               <option value="hate_speech">Mowa nienawiści</option>
               <option value="harassment">Nękanie</option>
               <option value="spam">Spam</option>
@@ -789,7 +872,9 @@ function OGCard({ url }: { url: string }) {
     let cancelled = false
     async function run() {
       try {
-        const res = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`)
+        const res = await fetch(
+          `/api/link-preview?url=${encodeURIComponent(url)}`,
+        )
         if (!res.ok) return
         const j = await res.json()
         if (!cancelled) setData(j)
@@ -804,25 +889,42 @@ function OGCard({ url }: { url: string }) {
     return (
       <a href={url} target="_blank" rel="noreferrer" className="block">
         <div className="p-3 bg-background">
-          <div className="text-sm font-medium truncate">{new URL(url).hostname}</div>
+          <div className="text-sm font-medium truncate">
+            {new URL(url).hostname}
+          </div>
           <div className="text-xs text-muted-foreground truncate">{url}</div>
         </div>
       </a>
     )
   }
   return (
-    <a href={url} target="_blank" rel="noreferrer" className="flex gap-3 p-3 bg-background">
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="flex gap-3 p-3 bg-background"
+    >
       {data.image && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={data.image} alt="" className="h-20 w-20 object-cover rounded" />
+        <img
+          src={data.image}
+          alt=""
+          className="h-20 w-20 object-cover rounded"
+        />
       )}
       <div className="min-w-0">
-        <div className="text-sm font-medium truncate">{data.title || new URL(url).hostname}</div>
+        <div className="text-sm font-medium truncate">
+          {data.title || new URL(url).hostname}
+        </div>
         {data.siteName && (
-          <div className="text-xs text-muted-foreground truncate">{data.siteName}</div>
+          <div className="text-xs text-muted-foreground truncate">
+            {data.siteName}
+          </div>
         )}
         {data.description && (
-          <div className="text-xs text-muted-foreground line-clamp-2">{data.description}</div>
+          <div className="text-xs text-muted-foreground line-clamp-2">
+            {data.description}
+          </div>
         )}
       </div>
     </a>
@@ -868,13 +970,24 @@ function MediaGallery({ urls }: { urls: string[] }) {
             >
               {isImg(url) ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={url} alt="media" className="h-40 w-full object-cover" />
+                <img
+                  src={url}
+                  alt="media"
+                  className="h-40 w-full object-cover"
+                />
               ) : isVid(url) ? (
-                <video src={url} className="h-40 w-full object-cover" muted playsInline />
+                <video
+                  src={url}
+                  className="h-40 w-full object-cover"
+                  muted
+                  playsInline
+                />
               ) : null}
               {isLast && (
                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                  <span className="text-white text-xl font-semibold">+{extra}</span>
+                  <span className="text-white text-xl font-semibold">
+                    +{extra}
+                  </span>
                 </div>
               )}
             </button>

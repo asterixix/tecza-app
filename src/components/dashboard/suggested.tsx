@@ -29,7 +29,7 @@ export function SuggestedProfiles() {
         .eq("follower_id", me.id)
         .limit(200)
       const followingIds = new Set(
-        (iFollow || []).map((r: { following_id: string }) => r.following_id)
+        (iFollow || []).map((r: { following_id: string }) => r.following_id),
       )
       if (followingIds.size === 0) {
         setItems([])
@@ -72,16 +72,28 @@ export function SuggestedProfiles() {
       <CardContent className="p-4 space-y-3">
         <h2 className="font-semibold">Proponowani do obserwowania</h2>
         {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Brak sugestii na ten moment.</p>
+          <p className="text-sm text-muted-foreground">
+            Brak sugestii na ten moment.
+          </p>
         ) : (
           <ul className="grid gap-3">
             {items.map((u) => (
-              <li key={u.id} className="flex items-center justify-between gap-3">
+              <li
+                key={u.id}
+                className="flex items-center justify-between gap-3"
+              >
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full overflow-hidden bg-muted border" aria-hidden>
+                  <div
+                    className="h-8 w-8 rounded-full overflow-hidden bg-muted border"
+                    aria-hidden
+                  >
                     {u.avatar_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={u.avatar_url} alt="" className="h-full w-full object-cover" />
+                      <img
+                        src={u.avatar_url}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
                     ) : null}
                   </div>
                   <div className="truncate">
@@ -89,7 +101,9 @@ export function SuggestedProfiles() {
                       {u.display_name || u.username || "Użytkownik"}
                     </div>
                     {u.username && (
-                      <div className="text-xs text-muted-foreground">@{u.username}</div>
+                      <div className="text-xs text-muted-foreground">
+                        @{u.username}
+                      </div>
                     )}
                   </div>
                 </div>

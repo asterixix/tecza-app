@@ -15,7 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { slugify } from "@/lib/utils"
 
@@ -38,7 +43,9 @@ export default function CommunitiesPage() {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [type, setType] = useState<"public" | "private" | "restricted">("public")
+  const [type, setType] = useState<"public" | "private" | "restricted">(
+    "public",
+  )
   const [city, setCity] = useState("")
   const [country, setCountry] = useState("")
   const [loading, setLoading] = useState(false)
@@ -48,7 +55,9 @@ export default function CommunitiesPage() {
       if (!supabase) return
       const { data } = await supabase
         .from("communities")
-        .select("id,slug,name,description,avatar_url,members_count,city,country")
+        .select(
+          "id,slug,name,description,avatar_url,members_count,city,country",
+        )
         .order("members_count", { ascending: false })
         .limit(50)
       setItems(data || [])
@@ -116,7 +125,9 @@ export default function CommunitiesPage() {
     } catch (e: unknown) {
       const err = e as { message?: string; hint?: string; details?: string }
       const details = err?.message || err?.hint || err?.details
-      toast.error(details ? `Błąd: ${details}` : "Nie udało się utworzyć społeczności")
+      toast.error(
+        details ? `Błąd: ${details}` : "Nie udało się utworzyć społeczności",
+      )
     } finally {
       setLoading(false)
     }
@@ -192,7 +203,9 @@ export default function CommunitiesPage() {
                 <div className="text-sm font-medium mb-1">Typ</div>
                 <Select
                   value={type}
-                  onValueChange={(v) => setType(v as "public" | "private" | "restricted")}
+                  onValueChange={(v) =>
+                    setType(v as "public" | "private" | "restricted")
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Publiczna" />

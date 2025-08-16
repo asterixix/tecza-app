@@ -37,7 +37,13 @@ export default function ProfileOnboardingPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { pronouns: "", city: "", country: "", bio: "", website: "" },
+    defaultValues: {
+      pronouns: "",
+      city: "",
+      country: "",
+      bio: "",
+      website: "",
+    },
     mode: "onBlur",
   })
 
@@ -51,7 +57,9 @@ export default function ProfileOnboardingPage() {
       }
       const { data: profile } = await supabase
         .from("profiles")
-        .select("id, onboarded_at, pronouns, city, country, bio, website, username, display_name")
+        .select(
+          "id, onboarded_at, pronouns, city, country, bio, website, username, display_name",
+        )
         .eq("id", u.user.id)
         .single()
       if (!profile) {
@@ -100,7 +108,10 @@ export default function ProfileOnboardingPage() {
             Możesz pominąć — ustawisz wszystko później w profilu.
           </p>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="mt-4 grid gap-3">
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="mt-4 grid gap-3"
+            >
               <FormField
                 name="pronouns"
                 control={form.control}
@@ -147,7 +158,11 @@ export default function ProfileOnboardingPage() {
                   <FormItem>
                     <FormLabel>Strona WWW</FormLabel>
                     <FormControl>
-                      <Input type="url" placeholder="https://twoja-strona.pl" {...field} />
+                      <Input
+                        type="url"
+                        placeholder="https://twoja-strona.pl"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -160,7 +175,11 @@ export default function ProfileOnboardingPage() {
                   <FormItem>
                     <FormLabel>Bio</FormLabel>
                     <FormControl>
-                      <Textarea rows={4} placeholder="Krótki opis o Tobie" {...field} />
+                      <Textarea
+                        rows={4}
+                        placeholder="Krótki opis o Tobie"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

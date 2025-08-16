@@ -2,7 +2,11 @@
 
 export class MediaProcessor {
   // Convert image to WebP with size optimization
-  static async processImage(file: File, maxWidth = 1920, maxHeight = 1080): Promise<Blob> {
+  static async processImage(
+    file: File,
+    maxWidth = 1920,
+    maxHeight = 1080,
+  ): Promise<Blob> {
     return new Promise((resolve, reject) => {
       const img = new Image()
       const canvas = document.createElement("canvas")
@@ -30,7 +34,7 @@ export class MediaProcessor {
             else reject(new Error("Failed to process image"))
           },
           "image/webp",
-          0.85 // Quality
+          0.85, // Quality
         )
       }
 
@@ -137,7 +141,8 @@ export class MediaProcessor {
         let currentUrl: string | undefined = objectUrl
         try {
           const u = new URL(objectUrl)
-          if (u.protocol !== "blob:") throw new Error("Invalid object URL scheme")
+          if (u.protocol !== "blob:")
+            throw new Error("Invalid object URL scheme")
           video.src = u.toString()
         } catch {
           cleanup(currentUrl)

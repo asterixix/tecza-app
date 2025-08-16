@@ -26,12 +26,16 @@ export default function NotFound() {
     () => ({
       route: "not-found",
       pathname,
-      referrer: typeof document !== "undefined" ? document.referrer || undefined : undefined,
-      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+      referrer:
+        typeof document !== "undefined"
+          ? document.referrer || undefined
+          : undefined,
+      userAgent:
+        typeof navigator !== "undefined" ? navigator.userAgent : undefined,
       timestamp: new Date().toISOString(),
       error: err,
     }),
-    [pathname, err]
+    [pathname, err],
   )
 
   async function copyDetails() {
@@ -49,7 +53,9 @@ export default function NotFound() {
           404 • Nie znaleziono
         </Badge>
       </div>
-      <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Nie znaleziono strony</h1>
+      <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+        Nie znaleziono strony
+      </h1>
       <p className="mt-2 text-muted-foreground">
         Adres może być nieprawidłowy lub zasób został przeniesiony.
       </p>
@@ -76,8 +82,13 @@ export default function NotFound() {
             <Bug className="size-4" /> Zgłoś problem
           </a>
         </Button>
-        <Button variant="ghost" onClick={copyDetails} aria-label="Skopiuj dane diagnostyczne">
-          <Copy className="size-4" /> {copied ? "Skopiowano" : "Kopiuj szczegóły"}
+        <Button
+          variant="ghost"
+          onClick={copyDetails}
+          aria-label="Skopiuj dane diagnostyczne"
+        >
+          <Copy className="size-4" />{" "}
+          {copied ? "Skopiowano" : "Kopiuj szczegóły"}
         </Button>
       </div>
 

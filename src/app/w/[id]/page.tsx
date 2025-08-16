@@ -38,11 +38,19 @@ export default function EventPage() {
       if (!supabase || !idOrSlug) return
       // Try by slug first, fallback to id
       let found: EventFull | null = null
-      const bySlug = await supabase.from("events").select("*").eq("slug", idOrSlug).maybeSingle()
+      const bySlug = await supabase
+        .from("events")
+        .select("*")
+        .eq("slug", idOrSlug)
+        .maybeSingle()
       if (bySlug.data) {
         found = bySlug.data as EventFull
       } else {
-        const byId = await supabase.from("events").select("*").eq("id", idOrSlug).maybeSingle()
+        const byId = await supabase
+          .from("events")
+          .select("*")
+          .eq("id", idOrSlug)
+          .maybeSingle()
         if (byId.data) found = byId.data as EventFull
       }
       setEvent(found)
@@ -68,12 +76,13 @@ export default function EventPage() {
       .from("event_participations")
       .upsert(
         { event_id: event.id, user_id: me.id, status: newStatus },
-        { onConflict: "event_id,user_id" }
+        { onConflict: "event_id,user_id" },
       )
     setStatus(newStatus)
   }
 
-  if (!event) return <div className="mx-auto max-w-4xl p-4 md:p-6">Wczytywanie…</div>
+  if (!event)
+    return <div className="mx-auto max-w-4xl p-4 md:p-6">Wczytywanie…</div>
 
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-6">
@@ -84,7 +93,10 @@ export default function EventPage() {
         <h1 className="text-2xl font-bold">{event.title}</h1>
         <div className="text-sm text-muted-foreground">
           {new Date(event.start_date).toLocaleString()}{" "}
-          {event.end_date ? `– ${new Date(event.end_date).toLocaleString()}` : ""} •{" "}
+          {event.end_date
+            ? `– ${new Date(event.end_date).toLocaleString()}`
+            : ""}{" "}
+          •{" "}
           {event.city || event.country
             ? [event.city, event.country].filter(Boolean).join(", ")
             : event.is_online
@@ -111,7 +123,11 @@ export default function EventPage() {
             Nie biorę udziału
           </Button>
           <Button asChild variant="outline">
-            <a href={`/w/${event.slug || event.id}/ical`} target="_blank" rel="noreferrer">
+            <a
+              href={`/w/${event.slug || event.id}/ical`}
+              target="_blank"
+              rel="noreferrer"
+            >
               iCal
             </a>
           </Button>

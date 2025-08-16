@@ -2,10 +2,23 @@
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
-import { Menu, LogOut, User, Settings, ChevronLeft, ChevronRight } from "lucide-react"
+import {
+  Menu,
+  LogOut,
+  User,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -98,8 +111,12 @@ export function UserHeader() {
 
         // Self-heal profile fields if missing or mismatched
         const next: Record<string, string> = {}
-        if (!prof.username && metaUsername) next.username = metaUsername.toLowerCase()
-        if ((!prof.display_name || prof.display_name === prof.username) && metaDisplay)
+        if (!prof.username && metaUsername)
+          next.username = metaUsername.toLowerCase()
+        if (
+          (!prof.display_name || prof.display_name === prof.username) &&
+          metaDisplay
+        )
           next.display_name = metaDisplay
         if (Object.keys(next).length > 0) {
           await supabase
@@ -113,12 +130,21 @@ export function UserHeader() {
           .channel("user-header-profile")
           .on(
             "postgres_changes",
-            { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${prof.id}` },
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "profiles",
+              filter: `id=eq.${prof.id}`,
+            },
             (payload) => {
-              const row = payload.new as { avatar_url?: string | null; username?: string | null }
-              if (row.avatar_url !== undefined && row.avatar_url !== null) setAvatar(row.avatar_url)
+              const row = payload.new as {
+                avatar_url?: string | null
+                username?: string | null
+              }
+              if (row.avatar_url !== undefined && row.avatar_url !== null)
+                setAvatar(row.avatar_url)
               if (row.username) setUsername(row.username)
-            }
+            },
           )
           .subscribe()
       } else {
@@ -134,7 +160,10 @@ export function UserHeader() {
     }
   }, [supabase])
 
-  const initial = useMemo(() => email?.trim().charAt(0).toUpperCase() || "U", [email])
+  const initial = useMemo(
+    () => email?.trim().charAt(0).toUpperCase() || "U",
+    [email],
+  )
 
   const [isAdmin, setIsAdmin] = useState(false)
   useEffect(() => {
@@ -150,7 +179,9 @@ export function UserHeader() {
         .maybeSingle()
       const roles = (prof?.roles as string[] | undefined) || []
       setIsAdmin(
-        roles.some((r) => ["moderator", "administrator", "super-administrator"].includes(r))
+        roles.some((r) =>
+          ["moderator", "administrator", "super-administrator"].includes(r),
+        ),
       )
     })()
   }, [supabase])
@@ -166,7 +197,10 @@ export function UserHeader() {
       <div className="mx-auto max-w-6xl px-4 md:px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Logo />
-          <nav className="hidden md:flex items-center gap-6" aria-label="Nawigacja użytkownika">
+          <nav
+            className="hidden md:flex items-center gap-6"
+            aria-label="Nawigacja użytkownika"
+          >
             {nav.map((item) => (
               <Link
                 key={item.href}
@@ -188,7 +222,10 @@ export function UserHeader() {
             aria-label="Otwórz wyszukiwarkę (Ctrl+K / Cmd+K)"
             onClick={() => {
               // Dispatch cmd+k programmatically to open dialog from GlobalSearch
-              const ev = new KeyboardEvent("keydown", { key: "k", ctrlKey: true })
+              const ev = new KeyboardEvent("keydown", {
+                key: "k",
+                ctrlKey: true,
+              })
               window.dispatchEvent(ev)
             }}
           >
@@ -205,7 +242,10 @@ export function UserHeader() {
             className="md:hidden"
             aria-label="Szukaj"
             onClick={() => {
-              const ev = new KeyboardEvent("keydown", { key: "k", ctrlKey: true })
+              const ev = new KeyboardEvent("keydown", {
+                key: "k",
+                ctrlKey: true,
+              })
               window.dispatchEvent(ev)
             }}
           >
@@ -231,14 +271,18 @@ export function UserHeader() {
               <div className="px-3 pt-3 pb-2 flex items-center gap-3">
                 <Avatar className="h-12 w-12">
                   {avatar ? <AvatarImage src={avatar} alt="Avatar" /> : null}
-                  <AvatarFallback className="text-base">{initial}</AvatarFallback>
+                  <AvatarFallback className="text-base">
+                    {initial}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
                   <div className="font-medium truncate">
                     {username ? `@${username}` : email || "Twoje konto"}
                   </div>
                   {email ? (
-                    <div className="text-xs text-muted-foreground truncate">{email}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {email}
+                    </div>
                   ) : null}
                 </div>
               </div>
@@ -246,7 +290,9 @@ export function UserHeader() {
               <DropdownMenuItem asChild>
                 {
                   <Link
-                    href={username ? `/u/${encodeURIComponent(username)}` : "/d"}
+                    href={
+                      username ? `/u/${encodeURIComponent(username)}` : "/d"
+                    }
                     className="flex items-center gap-2"
                   >
                     <User className="size-4" /> Profil
@@ -266,7 +312,10 @@ export function UserHeader() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={signOut} className="text-red-600 focus:text-red-700">
+              <DropdownMenuItem
+                onClick={signOut}
+                className="text-red-600 focus:text-red-700"
+              >
                 <LogOut className="size-4" /> Wyloguj się
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -286,7 +335,10 @@ export function UserHeader() {
                   <Logo />
                 </div>
                 <ScrollArea className="max-h-[65dvh]">
-                  <nav className="grid gap-1 px-4 pb-2" aria-label="Menu mobilne">
+                  <nav
+                    className="grid gap-1 px-4 pb-2"
+                    aria-label="Menu mobilne"
+                  >
                     {current.map((item) => (
                       <Link
                         key={item.href}
@@ -328,7 +380,9 @@ export function UserHeader() {
                       variant="outline"
                       size="icon"
                       aria-label="Następna strona menu"
-                      onClick={() => setPage((p) => Math.min(pages.length - 1, p + 1))}
+                      onClick={() =>
+                        setPage((p) => Math.min(pages.length - 1, p + 1))
+                      }
                       disabled={page === pages.length - 1}
                     >
                       <ChevronRight className="size-5" />

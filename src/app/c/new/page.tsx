@@ -22,7 +22,9 @@ export default function NewCommunityPage() {
   const router = useRouter()
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [type, setType] = useState<"public" | "private" | "restricted">("public")
+  const [type, setType] = useState<"public" | "private" | "restricted">(
+    "public",
+  )
   const [city, setCity] = useState("")
   const [country, setCountry] = useState("")
   const [loading, setLoading] = useState(false)
@@ -63,7 +65,8 @@ export default function NewCommunityPage() {
       toast.success("Społeczność utworzona")
       router.push(`/communities/${baseSlug}`)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Nie udało się utworzyć społeczności"
+      const msg =
+        e instanceof Error ? e.message : "Nie udało się utworzyć społeczności"
       toast.error(msg)
     } finally {
       setLoading(false)
@@ -97,7 +100,9 @@ export default function NewCommunityPage() {
               <div className="text-sm font-medium mb-1">Typ</div>
               <Select
                 value={type}
-                onValueChange={(v: "public" | "private" | "restricted") => setType(v)}
+                onValueChange={(v: "public" | "private" | "restricted") =>
+                  setType(v)
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Publiczna" />

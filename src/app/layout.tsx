@@ -24,10 +24,18 @@ export const metadata: Metadata = {
     "Tęcza.app to nowoczesna, bezpieczna platforma społecznościowa dla polskiej społeczności LGBTQ: profil, znajomi, posty, wydarzenia i społeczności.",
   metadataBase: new URL("https://tecza.app"),
   applicationName: "Tęcza.app",
-  keywords: ["LGBTQ", "społeczność", "Polska", "PWA", "wydarzenia", "społeczności"],
+  keywords: [
+    "LGBTQ",
+    "społeczność",
+    "Polska",
+    "PWA",
+    "wydarzenia",
+    "społeczności",
+  ],
   openGraph: {
     title: "Tęcza.app — bezpieczna społeczność LGBTQ w Polsce",
-    description: "Połącz się, dziel się treścią i buduj wspólnotę w bezpiecznej przestrzeni.",
+    description:
+      "Połącz się, dziel się treścią i buduj wspólnotę w bezpiecznej przestrzeni.",
     url: "/",
     siteName: "Tęcza.app",
     locale: "pl_PL",
@@ -61,7 +69,11 @@ export default function RootLayout({
         </a>
         <ThemeProvider>
           <HeaderSwitch />
-          <main role="main" id="main-content" className="min-h-[calc(100dvh-56px-64px)]">
+          <main
+            role="main"
+            id="main-content"
+            className="min-h-[calc(100dvh-56px-64px)]"
+          >
             {children}
           </main>
           <FooterSwitch />

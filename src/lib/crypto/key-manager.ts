@@ -4,7 +4,10 @@
 export class KeyManager {
   private static privKeyCache: CryptoKey | null = null
 
-  static async getOrCreateKeyPair(): Promise<{ publicKey: string; privateKey: CryptoKey }> {
+  static async getOrCreateKeyPair(): Promise<{
+    publicKey: string
+    privateKey: CryptoKey
+  }> {
     if (this.privKeyCache) {
       const pub = sessionStorage.getItem("rsa_pub_spki_b64")
       if (pub) return { publicKey: pub, privateKey: this.privKeyCache }
@@ -17,7 +20,7 @@ export class KeyManager {
         hash: "SHA-256",
       },
       true,
-      ["wrapKey", "unwrapKey"]
+      ["wrapKey", "unwrapKey"],
     )
     const spki = await crypto.subtle.exportKey("spki", pair.publicKey)
     const publicKey = btoa(String.fromCharCode(...new Uint8Array(spki)))
@@ -33,7 +36,7 @@ export class KeyManager {
       raw,
       { name: "RSA-OAEP", hash: "SHA-256" },
       false,
-      ["unwrapKey"]
+      ["unwrapKey"],
     )
   }
 

@@ -34,9 +34,12 @@ export default function ProfilesManagement() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 md:px-6 py-8">
-      <h1 className="text-2xl font-semibold mb-4">Zarządzanie profilami (super-admin)</h1>
+      <h1 className="text-2xl font-semibold mb-4">
+        Zarządzanie profilami (super-admin)
+      </h1>
       <p className="text-sm text-muted-foreground mb-4">
-        Dodawanie, modyfikowanie i usuwanie profili użytkowników. (UI w przygotowaniu)
+        Dodawanie, modyfikowanie i usuwanie profili użytkowników. (UI w
+        przygotowaniu)
       </p>
       {/* TODO: implement list + actions with confirmations */}
     </div>

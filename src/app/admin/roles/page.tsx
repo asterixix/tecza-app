@@ -31,7 +31,12 @@ export default function RolesAdmin() {
   const [allowed, setAllowed] = useState(false)
   const [query, setQuery] = useState("")
   const [list, setList] = useState<
-    Array<{ id: string; username: string | null; roles: string[]; badges: string[] }>
+    Array<{
+      id: string
+      username: string | null
+      roles: string[]
+      badges: string[]
+    }>
   >([])
 
   const refresh = useCallback(async () => {
@@ -53,7 +58,7 @@ export default function RolesAdmin() {
         username: r.username,
         roles: r.roles || [],
         badges: r.badges || [],
-      }))
+      })),
     )
   }, [supabase])
 
@@ -69,7 +74,9 @@ export default function RolesAdmin() {
         .eq("id", u.id)
         .maybeSingle()
       const roles = (prof?.roles as string[] | undefined) || []
-      const ok = roles.some((r) => ["administrator", "super-administrator"].includes(r))
+      const ok = roles.some((r) =>
+        ["administrator", "super-administrator"].includes(r),
+      )
       setAllowed(ok)
       if (!ok) return
       await refresh()
@@ -88,7 +95,8 @@ export default function RolesAdmin() {
       p_user_id: userId,
       p_roles: nextArr,
     })
-    if (!error) setList(list.map((x) => (x.id === userId ? { ...x, roles: nextArr } : x)))
+    if (!error)
+      setList(list.map((x) => (x.id === userId ? { ...x, roles: nextArr } : x)))
   }
 
   async function toggleBadge(userId: string, badge: string) {
@@ -103,7 +111,10 @@ export default function RolesAdmin() {
       p_user_id: userId,
       p_badges: nextArr,
     })
-    if (!error) setList(list.map((x) => (x.id === userId ? { ...x, badges: nextArr } : x)))
+    if (!error)
+      setList(
+        list.map((x) => (x.id === userId ? { ...x, badges: nextArr } : x)),
+      )
   }
 
   if (!allowed) return null
@@ -134,7 +145,11 @@ export default function RolesAdmin() {
           <tbody>
             {list
               .filter(
-                (x) => !query || (x.username || "").toLowerCase().includes(query.toLowerCase())
+                (x) =>
+                  !query ||
+                  (x.username || "")
+                    .toLowerCase()
+                    .includes(query.toLowerCase()),
               )
               .map((u) => (
                 <tr key={u.id} className="border-t">
@@ -179,7 +194,11 @@ export default function RolesAdmin() {
           <tbody>
             {list
               .filter(
-                (x) => !query || (x.username || "").toLowerCase().includes(query.toLowerCase())
+                (x) =>
+                  !query ||
+                  (x.username || "")
+                    .toLowerCase()
+                    .includes(query.toLowerCase()),
               )
               .map((u) => (
                 <tr key={u.id} className="border-t">

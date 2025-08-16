@@ -1,11 +1,21 @@
 "use client"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import Textarea from "@/components/ui/textarea"
 import { getSupabase } from "@/lib/supabase-browser"
 
-type Reason = "hate_speech" | "harassment" | "spam" | "inappropriate_content" | "other"
+type Reason =
+  | "hate_speech"
+  | "harassment"
+  | "spam"
+  | "inappropriate_content"
+  | "other"
 
 export function ReportButton({
   targetType,
@@ -13,7 +23,14 @@ export function ReportButton({
   meta,
   label = "Zgłoś",
 }: {
-  targetType: "user" | "post" | "comment" | "message" | "event" | "community" | "profile_media"
+  targetType:
+    | "user"
+    | "post"
+    | "comment"
+    | "message"
+    | "event"
+    | "community"
+    | "profile_media"
   targetId?: string
   meta?: Record<string, unknown>
   label?: string
@@ -64,7 +81,9 @@ export function ReportButton({
               value={reason}
               onChange={(e) => setReason(e.target.value as Reason)}
             >
-              <option value="inappropriate_content">Nieodpowiednia treść</option>
+              <option value="inappropriate_content">
+                Nieodpowiednia treść
+              </option>
               <option value="hate_speech">Mowa nienawiści</option>
               <option value="harassment">Nękanie</option>
               <option value="spam">Spam</option>

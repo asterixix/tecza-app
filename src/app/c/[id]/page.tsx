@@ -40,7 +40,11 @@ export default function CommunityPage() {
       if (bySlug.data) {
         found = bySlug.data as Community
       } else {
-        const byId = await supabase.from("communities").select("*").eq("id", idOrSlug).maybeSingle()
+        const byId = await supabase
+          .from("communities")
+          .select("*")
+          .eq("id", idOrSlug)
+          .maybeSingle()
         if (byId.data) found = byId.data as Community
       }
       setCommunity(found)
@@ -81,13 +85,19 @@ export default function CommunityPage() {
     setIsMember(false)
   }
 
-  if (!community) return <div className="mx-auto max-w-4xl p-4 md:p-6">Wczytywanie…</div>
+  if (!community)
+    return <div className="mx-auto max-w-4xl p-4 md:p-6">Wczytywanie…</div>
 
   return (
     <div className="mx-auto max-w-4xl p-0 md:p-6">
       <div className="relative h-40 w-full overflow-hidden">
         {community.cover_image_url ? (
-          <Image src={community.cover_image_url} alt="Okładka" fill className="object-cover" />
+          <Image
+            src={community.cover_image_url}
+            alt="Okładka"
+            fill
+            className="object-cover"
+          />
         ) : (
           <div className="h-full w-full bg-muted" />
         )}
@@ -136,7 +146,8 @@ export default function CommunityPage() {
           <CardContent className="p-4">
             <h2 className="text-lg font-semibold mb-1">Członkowie i treści</h2>
             <p className="text-sm text-muted-foreground">
-              Wersja MVP: lista członków i postów społeczności do dodania w kolejnych iteracjach.
+              Wersja MVP: lista członków i postów społeczności do dodania w
+              kolejnych iteracjach.
             </p>
           </CardContent>
         </Card>

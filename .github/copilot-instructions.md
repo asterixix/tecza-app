@@ -56,6 +56,7 @@ interface UserProfile {
   bio: string
   avatar_url: string
   cover_image_url: string
+  private_key_vault JSONB,
 
   // Informacje LGBTQ-specyficzne
   sexual_orientation?: string[]
@@ -86,6 +87,9 @@ interface UserProfile {
   roles: app_role[]
   badges: string[]
   onboarded_at: string // Tracks onboarding completion
+  suspended_at TIMESTAMP WITH TIME ZONE,
+  suspended_reason TEXT,
+  suspended_by UUID REFERENCES users(id) ON DELETE SET NULL
 }
 ```
 
@@ -395,7 +399,12 @@ interface ModerationReport {
   reporter_id: string
   reported_id: string // user or post ID
   type: "user" | "post" | "comment" | "message"
-  reason: "hate_speech" | "harassment" | "spam" | "inappropriate_content" | "other"
+  reason:
+    | "hate_speech"
+    | "harassment"
+    | "spam"
+    | "inappropriate_content"
+    | "other"
   description: string
   status: "pending" | "reviewed" | "resolved" | "dismissed"
   created_at: string
@@ -695,9 +704,12 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 serve(async (req) => {
   // Placeholder - implement ffmpeg transcoding here
-  return new Response(JSON.stringify({ success: false, message: "Not implemented" }), {
-    status: 501,
-  })
+  return new Response(
+    JSON.stringify({ success: false, message: "Not implemented" }),
+    {
+      status: 501,
+    },
+  )
 })
 ```
 
@@ -709,9 +721,12 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 serve(async (req) => {
   // Placeholder - implement virus scanning here
-  return new Response(JSON.stringify({ success: false, message: "Not implemented" }), {
-    status: 501,
-  })
+  return new Response(
+    JSON.stringify({ success: false, message: "Not implemented" }),
+    {
+      status: 501,
+    },
+  )
 })
 ```
 
@@ -723,9 +738,12 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 serve(async (req) => {
   // Placeholder - implement secure message purging here
-  return new Response(JSON.stringify({ success: false, message: "Not implemented" }), {
-    status: 501,
-  })
+  return new Response(
+    JSON.stringify({ success: false, message: "Not implemented" }),
+    {
+      status: 501,
+    },
+  )
 })
 ```
 
@@ -996,8 +1014,4 @@ module.exports = nextConfig
 - Privacy Policy: `/pp`
 - Admin: `/admin`
 
-### Onboarding Flow
-
-- New users and first-time OAuth users must be guided through an onboarding
-  - For OAuth users add additional process to setup visible name, username and password with confirmation
-  - For
+###

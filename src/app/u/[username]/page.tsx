@@ -7,7 +7,11 @@ import { getSupabase } from "@/lib/supabase-browser"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
 import Textarea from "@/components/ui/textarea"
 import {
@@ -17,9 +21,20 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet"
-import { MapPin, Link as LinkIcon, Globe, AtSign, Loader2, Camera, Trash2 } from "lucide-react"
+import {
+  MapPin,
+  Link as LinkIcon,
+  Globe,
+  AtSign,
+  Loader2,
+  Camera,
+  Trash2,
+} from "lucide-react"
 import { toast } from "sonner"
-import { PostItem, PostRecord as FeedPost } from "@/components/dashboard/post-item"
+import {
+  PostItem,
+  PostRecord as FeedPost,
+} from "@/components/dashboard/post-item"
 
 // Lightweight crop view components (drag to pan, wheel/slider to zoom)
 type CropCommonProps = {
@@ -85,13 +100,18 @@ function CropRect(props: CropCommonProps) {
     try {
       const u = new URL(
         raw,
-        typeof window !== "undefined" ? window.location.origin : "http://localhost"
+        typeof window !== "undefined"
+          ? window.location.origin
+          : "http://localhost",
       )
       const proto = u.protocol
-      if (proto === "http:" || proto === "https:" || proto === "blob:") return u.toString()
+      if (proto === "http:" || proto === "https:" || proto === "blob:")
+        return u.toString()
       if (proto === "data:") {
         // Only allow data:image/*
-        return /^data:image\/(png|jpeg|jpg|webp|gif|avif|bmp);/i.test(raw) ? raw : undefined
+        return /^data:image\/(png|jpeg|jpg|webp|gif|avif|bmp);/i.test(raw)
+          ? raw
+          : undefined
       }
       return undefined
     } catch {
@@ -186,9 +206,9 @@ export default function PublicUserPage() {
   const [notFound, setNotFound] = useState(false)
   const [isFriend, setIsFriend] = useState<boolean>(false)
   const [connecting, setConnecting] = useState(false)
-  const [requestStatus, setRequestStatus] = useState<"none" | "pending" | "incoming" | "accepted">(
-    "none"
-  )
+  const [requestStatus, setRequestStatus] = useState<
+    "none" | "pending" | "incoming" | "accepted"
+  >("none")
   const [requestId, setRequestId] = useState<string | null>(null)
   const [friends, setFriends] = useState<
     {
@@ -231,12 +251,18 @@ export default function PublicUserPage() {
   // keep only container ref for avatar auto-crop sizing
   const avatarContainerRef = useRef<HTMLDivElement | null>(null)
 
-  const [bannerNatSize, setBannerNatSize] = useState<{ w: number; h: number } | null>(null)
+  const [bannerNatSize, setBannerNatSize] = useState<{
+    w: number
+    h: number
+  } | null>(null)
   const [bannerScale, setBannerScale] = useState(1)
   const [bannerMinScale, setBannerMinScale] = useState(1)
   const [bannerOffset, setBannerOffset] = useState({ x: 0, y: 0 })
   const [bannerDragging, setBannerDragging] = useState(false)
-  const [bannerLastPt, setBannerLastPt] = useState<{ x: number; y: number } | null>(null)
+  const [bannerLastPt, setBannerLastPt] = useState<{
+    x: number
+    y: number
+  } | null>(null)
   const [bannerFrameW, setBannerFrameW] = useState(600)
   const [bannerFrameH, setBannerFrameH] = useState(200)
   const bannerAreaRef = useRef<HTMLDivElement | null>(null)
@@ -248,7 +274,7 @@ export default function PublicUserPage() {
       const { data: prof } = await supabase
         .from("profiles")
         .select(
-          "id,username,display_name,bio,avatar_url,cover_image_url,sexual_orientation,gender_identity,pronouns,website,social_links,email,city,country,profile_visibility,show_location,show_orientation,show_friends,roles,badges"
+          "id,username,display_name,bio,avatar_url,cover_image_url,sexual_orientation,gender_identity,pronouns,website,social_links,email,city,country,profile_visibility,show_location,show_orientation,show_friends,roles,badges",
         )
         .ilike("username", String(username))
         .maybeSingle()
@@ -265,9 +291,9 @@ export default function PublicUserPage() {
       if (me) {
         // Determine ownership by multiple signals (id or username matches)
         const urlUsername = String(username).toLowerCase()
-        const metaUsername = (me.user_metadata as Record<string, unknown> | null)?.username as
-          | string
-          | undefined
+        const metaUsername = (
+          me.user_metadata as Record<string, unknown> | null
+        )?.username as string | undefined
         let amOwner = me.id === profRow.id
         if (!amOwner && metaUsername) {
           amOwner = urlUsername === metaUsername.toLowerCase()
@@ -287,7 +313,7 @@ export default function PublicUserPage() {
           .from("friendships")
           .select("id")
           .or(
-            `and(user1_id.eq.${me.id},user2_id.eq.${profRow.id}),and(user1_id.eq.${profRow.id},user2_id.eq.${me.id})`
+            `and(user1_id.eq.${me.id},user2_id.eq.${profRow.id}),and(user1_id.eq.${profRow.id},user2_id.eq.${me.id})`,
           )
           .eq("status", "active")
         setIsFriend(!!edges && edges.length > 0)
@@ -303,7 +329,9 @@ export default function PublicUserPage() {
             .limit(1)
           if (reqOut && reqOut.length) {
             setRequestId(reqOut[0].id)
-            setRequestStatus(reqOut[0].status === "pending" ? "pending" : "accepted")
+            setRequestStatus(
+              reqOut[0].status === "pending" ? "pending" : "accepted",
+            )
           } else {
             const { data: reqIn } = await supabase
               .from("friend_requests")
@@ -314,7 +342,9 @@ export default function PublicUserPage() {
               .limit(1)
             if (reqIn && reqIn.length) {
               setRequestId(reqIn[0].id)
-              setRequestStatus(reqIn[0].status === "pending" ? "incoming" : "accepted")
+              setRequestStatus(
+                reqIn[0].status === "pending" ? "incoming" : "accepted",
+              )
             } else {
               setRequestStatus("none")
               setRequestId(null)
@@ -385,7 +415,7 @@ export default function PublicUserPage() {
               username: string | null
               display_name: string | null
               avatar_url: string | null
-            }[]) || []
+            }[]) || [],
           )
         }
       }
@@ -395,13 +425,19 @@ export default function PublicUserPage() {
   }, [supabase, username, isFriend])
 
   const name = profile?.display_name || profile?.username || username
-  const showLocation = profile?.show_location && (profile.city || profile.country)
-  const orients = (profile?.show_orientation ? profile?.sexual_orientation : null) || []
-  const genders = (profile?.show_orientation ? profile?.gender_identity : null) || []
+  const showLocation =
+    profile?.show_location && (profile.city || profile.country)
+  const orients =
+    (profile?.show_orientation ? profile?.sexual_orientation : null) || []
+  const genders =
+    (profile?.show_orientation ? profile?.gender_identity : null) || []
 
   // Badge color+icon definitions for popovers
 
-  const badgeMeta: Record<string, { label: string; color: string; icon: string }> = {
+  const badgeMeta: Record<
+    string,
+    { label: string; color: string; icon: string }
+  > = {
     "user-supporter": {
       label: "Wspierający",
       color: "bg-orange-500/15 text-orange-300 ring-orange-500/30",
@@ -475,7 +511,9 @@ export default function PublicUserPage() {
           .from("avatars")
           .upload(path, avatarFile, { upsert: true })
         if (!upErr) {
-          const { data: pub } = await supabase.storage.from("avatars").getPublicUrl(up.path)
+          const { data: pub } = await supabase.storage
+            .from("avatars")
+            .getPublicUrl(up.path)
           avatar_url = pub?.publicUrl
         }
       }
@@ -490,18 +528,24 @@ export default function PublicUserPage() {
           .from("covers")
           .upload(path, coverFile, { upsert: true })
         if (!upErr) {
-          const { data: pub } = await supabase.storage.from("covers").getPublicUrl(up.path)
+          const { data: pub } = await supabase.storage
+            .from("covers")
+            .getPublicUrl(up.path)
           cover_image_url = pub?.publicUrl
         }
       }
 
       const social_links_entries: [string, string][] = []
-      if (editValues.instagram) social_links_entries.push(["instagram", editValues.instagram])
-      if (editValues.twitter) social_links_entries.push(["twitter", editValues.twitter])
-      if (editValues.tiktok) social_links_entries.push(["tiktok", editValues.tiktok])
-      const social_links: Record<string, string> | null = social_links_entries.length
-        ? Object.fromEntries(social_links_entries)
-        : null
+      if (editValues.instagram)
+        social_links_entries.push(["instagram", editValues.instagram])
+      if (editValues.twitter)
+        social_links_entries.push(["twitter", editValues.twitter])
+      if (editValues.tiktok)
+        social_links_entries.push(["tiktok", editValues.tiktok])
+      const social_links: Record<string, string> | null =
+        social_links_entries.length
+          ? Object.fromEntries(social_links_entries)
+          : null
 
       const sexual_orientation = editValues.sexual_orientation
         .split(",")
@@ -518,7 +562,9 @@ export default function PublicUserPage() {
           display_name: editValues.display_name || null,
           bio: editValues.bio || null,
           pronouns: editValues.pronouns || null,
-          sexual_orientation: sexual_orientation.length ? sexual_orientation : null,
+          sexual_orientation: sexual_orientation.length
+            ? sexual_orientation
+            : null,
           gender_identity: gender_identity.length ? gender_identity : null,
           website: editValues.website || null,
           email: editValues.email || null,
@@ -545,7 +591,9 @@ export default function PublicUserPage() {
           display_name: editValues.display_name || null,
           bio: editValues.bio || null,
           pronouns: editValues.pronouns || null,
-          sexual_orientation: sexual_orientation.length ? sexual_orientation : null,
+          sexual_orientation: sexual_orientation.length
+            ? sexual_orientation
+            : null,
           gender_identity: gender_identity.length ? gender_identity : null,
           website: editValues.website || null,
           email: editValues.email || null,
@@ -585,7 +633,7 @@ export default function PublicUserPage() {
     fw: number,
     fh: number,
     x: number,
-    y: number
+    y: number,
   ) {
     const dw = nw * scale
     const dh = nh * scale
@@ -608,7 +656,18 @@ export default function PublicUserPage() {
     outW: number
     outH: number
   }) {
-    const { srcUrl, natW, natH, frameW, frameH, scale, offsetX, offsetY, outW, outH } = params
+    const {
+      srcUrl,
+      natW,
+      natH,
+      frameW,
+      frameH,
+      scale,
+      offsetX,
+      offsetY,
+      outW,
+      outH,
+    } = params
     return new Promise<string>((resolve, reject) => {
       const img = new Image()
       img.crossOrigin = "anonymous"
@@ -674,7 +733,9 @@ export default function PublicUserPage() {
       })
         .then(async (dataUrl) => {
           const blob = await dataURLToBlob(dataUrl)
-          const file = new File([blob], `avatar-${Date.now()}.webp`, { type: "image/webp" })
+          const file = new File([blob], `avatar-${Date.now()}.webp`, {
+            type: "image/webp",
+          })
           const profId = profile?.id
           if (!profId) return
           const path = `${profId}/avatar-${Date.now()}.webp`
@@ -685,7 +746,9 @@ export default function PublicUserPage() {
             toast.error("Nie udało się wgrać avatara")
             return
           }
-          const { data: pub } = await sb.storage.from("avatars").getPublicUrl(up.path)
+          const { data: pub } = await sb.storage
+            .from("avatars")
+            .getPublicUrl(up.path)
           const newUrl = pub?.publicUrl
           if (!newUrl) {
             toast.error("Brak URL avatara")
@@ -693,7 +756,10 @@ export default function PublicUserPage() {
           }
           await sb
             .from("profiles")
-            .update({ avatar_url: newUrl, updated_at: new Date().toISOString() })
+            .update({
+              avatar_url: newUrl,
+              updated_at: new Date().toISOString(),
+            })
             .eq("id", profId)
           setProfile((prev) => (prev ? { ...prev, avatar_url: newUrl } : prev))
         })
@@ -716,7 +782,8 @@ export default function PublicUserPage() {
       setProfile((prev) => (prev ? { ...prev, avatar_url: null } : prev))
       toast.success("Usunięto avatar")
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Nie udało się usunąć avatara"
+      const msg =
+        e instanceof Error ? e.message : "Nie udało się usunąć avatara"
       toast.error(msg)
     }
   }
@@ -777,12 +844,25 @@ export default function PublicUserPage() {
   // Ensure banner scale respects min after frame or image changes
   useEffect(() => {
     if (!bannerNatSize) return
-    const minS = computeMinScale(bannerNatSize.w, bannerNatSize.h, bannerFrameW, bannerFrameH)
+    const minS = computeMinScale(
+      bannerNatSize.w,
+      bannerNatSize.h,
+      bannerFrameW,
+      bannerFrameH,
+    )
     setBannerMinScale(minS)
     setBannerScale((prev) => {
       const next = Math.max(minS, prev)
       setBannerOffset((o) =>
-        clampOffsets(bannerNatSize.w, bannerNatSize.h, next, bannerFrameW, bannerFrameH, o.x, o.y)
+        clampOffsets(
+          bannerNatSize.w,
+          bannerNatSize.h,
+          next,
+          bannerFrameW,
+          bannerFrameH,
+          o.x,
+          o.y,
+        ),
       )
       return next
     })
@@ -802,7 +882,9 @@ export default function PublicUserPage() {
       outH: 500,
     })
     const blob = await dataURLToBlob(dataUrl)
-    const file = new File([blob], `cover-${Date.now()}.webp`, { type: "image/webp" })
+    const file = new File([blob], `cover-${Date.now()}.webp`, {
+      type: "image/webp",
+    })
     const path = `${profile.id}/cover-${Date.now()}.webp`
     const { data: up, error: upErr } = await supabase.storage
       .from("covers")
@@ -811,7 +893,9 @@ export default function PublicUserPage() {
       toast.error("Nie udało się wgrać tła")
       return
     }
-    const { data: pub } = await supabase.storage.from("covers").getPublicUrl(up.path)
+    const { data: pub } = await supabase.storage
+      .from("covers")
+      .getPublicUrl(up.path)
     const url = pub?.publicUrl
     if (!url) {
       toast.error("Brak URL tła")
@@ -858,10 +942,15 @@ export default function PublicUserPage() {
     try {
       const me = (await supabase.auth.getUser()).data.user
       if (!me) throw new Error("Zaloguj się, aby wysłać zaproszenie")
-      if (me.id === profile.id) throw new Error("Nie możesz połączyć się z samym sobą")
+      if (me.id === profile.id)
+        throw new Error("Nie możesz połączyć się z samym sobą")
       const { data, error } = await supabase
         .from("friend_requests")
-        .insert({ sender_id: me.id, receiver_id: profile.id, status: "pending" })
+        .insert({
+          sender_id: me.id,
+          receiver_id: profile.id,
+          status: "pending",
+        })
         .select("id")
         .single()
       if (error) throw error
@@ -945,7 +1034,8 @@ export default function PublicUserPage() {
       setFollowersCount((c) => Math.max(0, c - 1))
       toast("Przestałeś/aś obserwować")
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Nie udało się przestać obserwować"
+      const msg =
+        e instanceof Error ? e.message : "Nie udało się przestać obserwować"
       toast.error(msg)
     }
   }
@@ -975,7 +1065,11 @@ export default function PublicUserPage() {
       <div className="relative h-40 w-full overflow-hidden rounded-lg border bg-muted">
         {!!profile?.cover_image_url && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={profile.cover_image_url} alt="Okładka" className="h-full w-full object-cover" />
+          <img
+            src={profile.cover_image_url}
+            alt="Okładka"
+            className="h-full w-full object-cover"
+          />
         )}
         {/* Inline banner crop overlay */}
         {bannerSrc && (
@@ -987,7 +1081,10 @@ export default function PublicUserPage() {
               >
                 <div
                   className="mx-auto"
-                  style={{ width: `${bannerFrameW}px`, height: `${bannerFrameH}px` }}
+                  style={{
+                    width: `${bannerFrameW}px`,
+                    height: `${bannerFrameH}px`,
+                  }}
                 >
                   <CropRect
                     src={bannerSrc}
@@ -1017,7 +1114,7 @@ export default function PublicUserPage() {
                         bannerFrameW,
                         bannerFrameH,
                         bannerOffset.x + dx,
-                        bannerOffset.y + dy
+                        bannerOffset.y + dy,
                       )
                       setBannerOffset(next)
                       setBannerLastPt({ x, y })
@@ -1028,7 +1125,10 @@ export default function PublicUserPage() {
                     }}
                     onZoom={(v: number) => {
                       if (!bannerNatSize) return
-                      const s = Math.max(bannerMinScale, Math.min(bannerMinScale * 3, v))
+                      const s = Math.max(
+                        bannerMinScale,
+                        Math.min(bannerMinScale * 3, v),
+                      )
                       setBannerScale(s)
                       setBannerOffset((prev) =>
                         clampOffsets(
@@ -1038,8 +1138,8 @@ export default function PublicUserPage() {
                           bannerFrameW,
                           bannerFrameH,
                           prev.x,
-                          prev.y
-                        )
+                          prev.y,
+                        ),
                       )
                     }}
                   />
@@ -1055,7 +1155,10 @@ export default function PublicUserPage() {
                   onChange={(e) => {
                     const v = Number(e.target.value)
                     if (!bannerNatSize) return
-                    const s = Math.max(bannerMinScale, Math.min(bannerMinScale * 3, v))
+                    const s = Math.max(
+                      bannerMinScale,
+                      Math.min(bannerMinScale * 3, v),
+                    )
                     setBannerScale(s)
                     setBannerOffset((prev) =>
                       clampOffsets(
@@ -1065,13 +1168,17 @@ export default function PublicUserPage() {
                         bannerFrameW,
                         bannerFrameH,
                         prev.x,
-                        prev.y
-                      )
+                        prev.y,
+                      ),
                     )
                   }}
                 />
                 <div className="ml-auto flex gap-2">
-                  <Button variant="outline" size="sm" onClick={cancelBannerCrop}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={cancelBannerCrop}
+                  >
                     Anuluj
                   </Button>
                   <Button size="sm" onClick={saveBannerFromCrop}>
@@ -1148,7 +1255,11 @@ export default function PublicUserPage() {
                                 aria-label={info.label}
                               >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={info.icon} alt="" className="h-4 w-4" />
+                                <img
+                                  src={info.icon}
+                                  alt=""
+                                  className="h-4 w-4"
+                                />
                               </button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-2">
@@ -1157,7 +1268,11 @@ export default function PublicUserPage() {
                                   className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 ring-1 ${info.color}`}
                                 >
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={info.icon} alt="" className="h-4 w-4" />
+                                  <img
+                                    src={info.icon}
+                                    alt=""
+                                    className="h-4 w-4"
+                                  />
                                   {info.label}
                                 </span>
                               </div>
@@ -1169,7 +1284,9 @@ export default function PublicUserPage() {
                   ) : null}
                 </h1>
                 {profile?.username && (
-                  <p className="text-sm text-muted-foreground">@{profile.username}</p>
+                  <p className="text-sm text-muted-foreground">
+                    @{profile.username}
+                  </p>
                 )}
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {orients?.map((o, i) => (
@@ -1241,7 +1358,11 @@ export default function PublicUserPage() {
                       </>
                     ) : requestStatus === "incoming" ? (
                       <>
-                        <Button size="sm" onClick={acceptRequest} disabled={connecting}>
+                        <Button
+                          size="sm"
+                          onClick={acceptRequest}
+                          disabled={connecting}
+                        >
                           {connecting ? "Akceptowanie…" : "Akceptuj"}
                         </Button>
                         <Button
@@ -1254,7 +1375,11 @@ export default function PublicUserPage() {
                         </Button>
                       </>
                     ) : (
-                      <Button size="sm" onClick={sendRequest} disabled={connecting}>
+                      <Button
+                        size="sm"
+                        onClick={sendRequest}
+                        disabled={connecting}
+                      >
                         {connecting ? "Wysyłanie…" : "Połącz się"}
                       </Button>
                     )}
@@ -1273,7 +1398,9 @@ export default function PublicUserPage() {
               )}
             </div>
 
-            {profile?.bio && <p className="mt-3 whitespace-pre-wrap">{profile.bio}</p>}
+            {profile?.bio && (
+              <p className="mt-3 whitespace-pre-wrap">{profile.bio}</p>
+            )}
 
             {/* Hidden file inputs for avatar/banner */}
             <input
@@ -1307,20 +1434,26 @@ export default function PublicUserPage() {
                 <SheetHeader className="px-4 pt-4">
                   <SheetTitle>Edytuj profil</SheetTitle>
                   <SheetDescription>
-                    Uzupełnij informacje o sobie. Zapis następuje po kliknięciu przycisku.
+                    Uzupełnij informacje o sobie. Zapis następuje po kliknięciu
+                    przycisku.
                   </SheetDescription>
                 </SheetHeader>
                 {/* Auto-save status removed */}
                 <div className="px-4 pb-4 grid gap-4">
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium">Wyświetlana nazwa</label>
+                      <label className="text-sm font-medium">
+                        Wyświetlana nazwa
+                      </label>
                       {/* Inline crop handled in preview area; buttons below just trigger file chooser */}
 
                       <Input
                         value={editValues.display_name}
                         onChange={(e) =>
-                          setEditValues((v) => ({ ...v, display_name: e.target.value }))
+                          setEditValues((v) => ({
+                            ...v,
+                            display_name: e.target.value,
+                          }))
                         }
                         placeholder="Twoje imię/pseudonim"
                       />
@@ -1329,27 +1462,42 @@ export default function PublicUserPage() {
                       <label className="text-sm font-medium">Zaimki</label>
                       <Input
                         value={editValues.pronouns}
-                        onChange={(e) => setEditValues((v) => ({ ...v, pronouns: e.target.value }))}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            pronouns: e.target.value,
+                          }))
+                        }
                         placeholder="np. ona/jej, on/jego, they/them"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Orientacja seksualna</label>
+                    <label className="text-sm font-medium">
+                      Orientacja seksualna
+                    </label>
                     <Input
                       value={editValues.sexual_orientation}
                       onChange={(e) =>
-                        setEditValues((v) => ({ ...v, sexual_orientation: e.target.value }))
+                        setEditValues((v) => ({
+                          ...v,
+                          sexual_orientation: e.target.value,
+                        }))
                       }
                       placeholder="oddziel przecinkami (np. lesbijska, bi, pan, ace)"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Tożsamość płciowa</label>
+                    <label className="text-sm font-medium">
+                      Tożsamość płciowa
+                    </label>
                     <Input
                       value={editValues.gender_identity}
                       onChange={(e) =>
-                        setEditValues((v) => ({ ...v, gender_identity: e.target.value }))
+                        setEditValues((v) => ({
+                          ...v,
+                          gender_identity: e.target.value,
+                        }))
                       }
                       placeholder="oddziel przecinkami (np. trans, niebinarna, cis)"
                     />
@@ -1359,7 +1507,9 @@ export default function PublicUserPage() {
                     <Textarea
                       rows={4}
                       value={editValues.bio}
-                      onChange={(e) => setEditValues((v) => ({ ...v, bio: e.target.value }))}
+                      onChange={(e) =>
+                        setEditValues((v) => ({ ...v, bio: e.target.value }))
+                      }
                       placeholder="Krótko o Tobie"
                     />
                   </div>
@@ -1368,7 +1518,9 @@ export default function PublicUserPage() {
                       <label className="text-sm font-medium">Miasto</label>
                       <Input
                         value={editValues.city}
-                        onChange={(e) => setEditValues((v) => ({ ...v, city: e.target.value }))}
+                        onChange={(e) =>
+                          setEditValues((v) => ({ ...v, city: e.target.value }))
+                        }
                         placeholder="np. Warszawa"
                       />
                     </div>
@@ -1376,7 +1528,12 @@ export default function PublicUserPage() {
                       <label className="text-sm font-medium">Kraj</label>
                       <Input
                         value={editValues.country}
-                        onChange={(e) => setEditValues((v) => ({ ...v, country: e.target.value }))}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            country: e.target.value,
+                          }))
+                        }
                         placeholder="np. Poland"
                       />
                     </div>
@@ -1386,16 +1543,28 @@ export default function PublicUserPage() {
                       <label className="text-sm font-medium">Strona www</label>
                       <Input
                         value={editValues.website}
-                        onChange={(e) => setEditValues((v) => ({ ...v, website: e.target.value }))}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            website: e.target.value,
+                          }))
+                        }
                         placeholder="https://..."
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium">Email (publiczny)</label>
+                      <label className="text-sm font-medium">
+                        Email (publiczny)
+                      </label>
                       <Input
                         type="email"
                         value={editValues.email}
-                        onChange={(e) => setEditValues((v) => ({ ...v, email: e.target.value }))}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            email: e.target.value,
+                          }))
+                        }
                         placeholder="you@example.com"
                       />
                     </div>
@@ -1406,7 +1575,10 @@ export default function PublicUserPage() {
                       <Input
                         value={editValues.instagram}
                         onChange={(e) =>
-                          setEditValues((v) => ({ ...v, instagram: e.target.value }))
+                          setEditValues((v) => ({
+                            ...v,
+                            instagram: e.target.value,
+                          }))
                         }
                         placeholder="https://instagram.com/..."
                       />
@@ -1415,7 +1587,12 @@ export default function PublicUserPage() {
                       <label className="text-sm font-medium">Twitter/X</label>
                       <Input
                         value={editValues.twitter}
-                        onChange={(e) => setEditValues((v) => ({ ...v, twitter: e.target.value }))}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            twitter: e.target.value,
+                          }))
+                        }
                         placeholder="https://twitter.com/..."
                       />
                     </div>
@@ -1423,7 +1600,12 @@ export default function PublicUserPage() {
                       <label className="text-sm font-medium">TikTok</label>
                       <Input
                         value={editValues.tiktok}
-                        onChange={(e) => setEditValues((v) => ({ ...v, tiktok: e.target.value }))}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            tiktok: e.target.value,
+                          }))
+                        }
                         placeholder="https://tiktok.com/@..."
                       />
                     </div>
@@ -1442,7 +1624,8 @@ export default function PublicUserPage() {
                     <Button onClick={saveEdits} disabled={isSaving}>
                       {isSaving ? (
                         <span className="inline-flex items-center gap-1">
-                          <Loader2 className="size-4 animate-spin" /> Zapisywanie
+                          <Loader2 className="size-4 animate-spin" />{" "}
+                          Zapisywanie
                         </span>
                       ) : (
                         "Zapisz teraz"
@@ -1460,7 +1643,9 @@ export default function PublicUserPage() {
                   <PostItem key={p.id} post={p} />
                 ))}
                 {posts.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Brak postów do wyświetlenia.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Brak postów do wyświetlenia.
+                  </p>
                 )}
               </div>
             </div>
@@ -1474,16 +1659,22 @@ export default function PublicUserPage() {
               <div className="grid gap-3 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <span>Obserwujący:</span>
-                  <span className="text-foreground font-medium">{followersCount}</span>
+                  <span className="text-foreground font-medium">
+                    {followersCount}
+                  </span>
                   <span aria-hidden>•</span>
                   <span>Obserwowani:</span>
-                  <span className="text-foreground font-medium">{followingCount}</span>
+                  <span className="text-foreground font-medium">
+                    {followingCount}
+                  </span>
                 </div>
                 {showLocation && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <MapPin className="size-4" aria-hidden />
                     <span className="text-foreground">
-                      {[profile?.city, profile?.country].filter(Boolean).join(", ")}
+                      {[profile?.city, profile?.country]
+                        .filter(Boolean)
+                        .join(", ")}
                     </span>
                   </div>
                 )}
@@ -1500,24 +1691,25 @@ export default function PublicUserPage() {
                     </a>
                   </div>
                 )}
-                {profile?.show_orientation && (orients.length > 0 || genders.length > 0) && (
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Globe className="size-4" aria-hidden />
-                      <span>Tożsamość i orientacja</span>
+                {profile?.show_orientation &&
+                  (orients.length > 0 || genders.length > 0) && (
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Globe className="size-4" aria-hidden />
+                        <span>Tożsamość i orientacja</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {orients.map((o, i) => (
+                          <Badge key={`io-${i}`} variant="secondary">
+                            {o}
+                          </Badge>
+                        ))}
+                        {genders.map((g, i) => (
+                          <Badge key={`ig-${i}`}>{g}</Badge>
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-1">
-                      {orients.map((o, i) => (
-                        <Badge key={`io-${i}`} variant="secondary">
-                          {o}
-                        </Badge>
-                      ))}
-                      {genders.map((g, i) => (
-                        <Badge key={`ig-${i}`}>{g}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                  )}
                 {profile?.social_links && (
                   <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
                     <AtSign className="size-4" aria-hidden />
@@ -1543,7 +1735,9 @@ export default function PublicUserPage() {
               <CardContent className="p-4">
                 <h3 className="font-medium mb-3">Znajomi</h3>
                 {friends.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Brak znajomych do wyświetlenia.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Brak znajomych do wyświetlenia.
+                  </p>
                 ) : (
                   <ul className="grid gap-2">
                     {friends.map((f) => (
@@ -1554,7 +1748,11 @@ export default function PublicUserPage() {
                         >
                           {f.avatar_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={f.avatar_url} alt="" className="h-full w-full object-cover" />
+                            <img
+                              src={f.avatar_url}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
                           ) : null}
                         </div>
                         <div className="truncate">
@@ -1562,7 +1760,9 @@ export default function PublicUserPage() {
                             {f.display_name || f.username || "Użytkownik"}
                           </div>
                           {f.username && (
-                            <div className="text-xs text-muted-foreground">@{f.username}</div>
+                            <div className="text-xs text-muted-foreground">
+                              @{f.username}
+                            </div>
                           )}
                         </div>
                       </li>

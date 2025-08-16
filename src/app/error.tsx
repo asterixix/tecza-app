@@ -26,17 +26,23 @@ export default function GlobalError({
       pathname,
       message: error?.message,
       digest: error?.digest,
-      referrer: typeof document !== "undefined" ? document.referrer || undefined : undefined,
-      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+      referrer:
+        typeof document !== "undefined"
+          ? document.referrer || undefined
+          : undefined,
+      userAgent:
+        typeof navigator !== "undefined" ? navigator.userAgent : undefined,
       timestamp: new Date().toISOString(),
     }),
-    [error?.digest, error?.message, pathname]
+    [error?.digest, error?.message, pathname],
   )
 
   const issueUrl = useMemo(() => {
-    const title = encodeURIComponent(`Błąd: ${error?.message || "Application error"}`)
+    const title = encodeURIComponent(
+      `Błąd: ${error?.message || "Application error"}`,
+    )
     const body = encodeURIComponent(
-      `## Opis\n\nCo robiłeś/aś?\n\n## Szczegóły\n\n\`\`\`json\n${JSON.stringify(details, null, 2)}\n\`\`\`\n`
+      `## Opis\n\nCo robiłeś/aś?\n\n## Szczegóły\n\n\`\`\`json\n${JSON.stringify(details, null, 2)}\n\`\`\`\n`,
     )
     return `https://github.com/asterixix/tecza-app/issues/new?title=${title}&body=${body}`
   }, [details, error?.message])
@@ -56,7 +62,9 @@ export default function GlobalError({
           Błąd aplikacji
         </Badge>
       </div>
-      <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Coś poszło nie tak</h1>
+      <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+        Coś poszło nie tak
+      </h1>
       <p className="mt-2 text-muted-foreground">
         Spróbuj odświeżyć stronę lub wrócić do poprzedniej.
       </p>
@@ -74,7 +82,11 @@ export default function GlobalError({
         >
           <ArrowLeft className="size-4" /> Wróć
         </Button>
-        <Button variant="secondary" onClick={() => reset()} aria-label="Spróbuj ponownie">
+        <Button
+          variant="secondary"
+          onClick={() => reset()}
+          aria-label="Spróbuj ponownie"
+        >
           <AlertTriangle className="size-4" /> Spróbuj ponownie
         </Button>
         <Button asChild variant="secondary" aria-label="Zgłoś problem w GitHub">
@@ -82,8 +94,13 @@ export default function GlobalError({
             <Bug className="size-4" /> Zgłoś problem
           </a>
         </Button>
-        <Button variant="ghost" onClick={copyDetails} aria-label="Skopiuj dane diagnostyczne">
-          <Copy className="size-4" /> {copied ? "Skopiowano" : "Kopiuj szczegóły"}
+        <Button
+          variant="ghost"
+          onClick={copyDetails}
+          aria-label="Skopiuj dane diagnostyczne"
+        >
+          <Copy className="size-4" />{" "}
+          {copied ? "Skopiowano" : "Kopiuj szczegóły"}
         </Button>
       </div>
 

@@ -13,7 +13,10 @@ export async function POST(req: NextRequest) {
     }
     const apiKey = process.env.OPENROUTER_API_KEY
     if (!apiKey) {
-      return NextResponse.json({ error: "Server not configured" }, { status: 500 })
+      return NextResponse.json(
+        { error: "Server not configured" },
+        { status: 500 },
+      )
     }
 
     const prompt = `You are an automated trust & safety classifier for an LGBTQ+ social app in ${
@@ -44,7 +47,10 @@ Text:\n${body.content.slice(0, 4000)}`
 
     if (!res.ok) {
       const text = await res.text()
-      return NextResponse.json({ error: "LLM error", detail: text }, { status: 502 })
+      return NextResponse.json(
+        { error: "LLM error", detail: text },
+        { status: 502 },
+      )
     }
     const json = await res.json()
     const raw = json?.choices?.[0]?.message?.content
@@ -52,7 +58,10 @@ Text:\n${body.content.slice(0, 4000)}`
     try {
       parsed = JSON.parse(raw)
     } catch {
-      return NextResponse.json({ error: "Invalid JSON from model", raw }, { status: 502 })
+      return NextResponse.json(
+        { error: "Invalid JSON from model", raw },
+        { status: 502 },
+      )
     }
     return NextResponse.json({ ok: true, result: parsed })
   } catch (e) {

@@ -52,8 +52,10 @@ export function RainbowLikeButton({
   }
 
   const currentColor =
-    currentUserLike?.rainbow_color || rainbowColors[autoIdx % rainbowColors.length].name
-  const colorClass = rainbowColors.find((c) => c.name === currentColor)?.color || "text-red-500"
+    currentUserLike?.rainbow_color ||
+    rainbowColors[autoIdx % rainbowColors.length].name
+  const colorClass =
+    rainbowColors.find((c) => c.name === currentColor)?.color || "text-red-500"
 
   return (
     <div className="relative">
@@ -66,8 +68,10 @@ export function RainbowLikeButton({
         <Heart
           className={cn(
             "size-4 transition-all duration-300",
-            isLiked ? `${colorClass} fill-current` : "text-muted-foreground hover:text-red-400",
-            isAnimating && "animate-bounce scale-125"
+            isLiked
+              ? `${colorClass} fill-current`
+              : "text-muted-foreground hover:text-red-400",
+            isAnimating && "animate-bounce scale-125",
           )}
         />
         <span className="text-sm">{likesCount}</span>
@@ -78,7 +82,10 @@ export function RainbowLikeButton({
             {rainbowColors.map((color, i) => (
               <div
                 key={color.name}
-                className={cn("absolute w-1 h-1 rounded-full animate-ping", color.bg)}
+                className={cn(
+                  "absolute w-1 h-1 rounded-full animate-ping",
+                  color.bg,
+                )}
                 style={{
                   left: "50%",
                   top: "50%",
@@ -95,7 +102,9 @@ export function RainbowLikeButton({
       {/* Color picker dropdown */}
       {showColorPicker && (
         <div className="absolute bottom-full left-0 mb-2 p-2 bg-popover border rounded-lg shadow-lg z-50">
-          <div className="text-xs text-muted-foreground mb-2">Wybierz kolor tęczy:</div>
+          <div className="text-xs text-muted-foreground mb-2">
+            Wybierz kolor tęczy:
+          </div>
           <div className="flex gap-1">
             {rainbowColors.map((color) => (
               <button
@@ -103,7 +112,7 @@ export function RainbowLikeButton({
                 onClick={() => handleLike(color.name)}
                 className={cn(
                   "w-6 h-6 rounded-full transition-transform hover:scale-110",
-                  color.bg
+                  color.bg,
                 )}
                 title={color.name}
               />

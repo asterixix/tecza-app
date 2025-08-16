@@ -36,7 +36,8 @@ export default function NewEventPage() {
 
   async function createEvent() {
     if (!supabase) return toast.error("Brak konfiguracji Supabase")
-    if (!title.trim() || !start) return toast.error("Podaj tytuł i datę rozpoczęcia")
+    if (!title.trim() || !start)
+      return toast.error("Podaj tytuł i datę rozpoczęcia")
     setLoading(true)
     try {
       const me = (await supabase.auth.getUser()).data.user
@@ -69,7 +70,8 @@ export default function NewEventPage() {
       toast.success("Wydarzenie utworzone")
       router.push(`/events/${data!.slug}`)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Nie udało się utworzyć wydarzenia"
+      const msg =
+        e instanceof Error ? e.message : "Nie udało się utworzyć wydarzenia"
       toast.error(msg)
     } finally {
       setLoading(false)
@@ -108,14 +110,23 @@ export default function NewEventPage() {
               />
             </div>
             <div>
-              <div className="text-sm font-medium mb-1">Koniec (opcjonalnie)</div>
-              <Input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} />
+              <div className="text-sm font-medium mb-1">
+                Koniec (opcjonalnie)
+              </div>
+              <Input
+                type="datetime-local"
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+              />
             </div>
           </div>
           <div className="grid md:grid-cols-3 gap-3">
             <div>
               <div className="text-sm font-medium mb-1">Strefa czasowa</div>
-              <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} />
+              <Input
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+              />
             </div>
             <div>
               <div className="text-sm font-medium mb-1">Miasto</div>
@@ -140,7 +151,13 @@ export default function NewEventPage() {
               <Select
                 value={category}
                 onValueChange={(
-                  v: "pride" | "support" | "social" | "activism" | "education" | "other"
+                  v:
+                    | "pride"
+                    | "support"
+                    | "social"
+                    | "activism"
+                    | "education"
+                    | "other",
                 ) => setCategory(v)}
               >
                 <SelectTrigger>

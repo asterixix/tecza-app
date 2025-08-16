@@ -25,7 +25,7 @@ export default function CommunitiesModeration() {
         .maybeSingle()
       const roles = (prof?.roles as string[] | undefined) || []
       const ok = roles.some((r) =>
-        ["moderator", "administrator", "super-administrator"].includes(r)
+        ["moderator", "administrator", "super-administrator"].includes(r),
       )
       setAllowed(ok)
       if (!ok) window.location.href = "/d"
@@ -36,9 +36,12 @@ export default function CommunitiesModeration() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 md:px-6 py-8">
-      <h1 className="text-2xl font-semibold mb-4">Moderacja społeczności i wydarzeń</h1>
+      <h1 className="text-2xl font-semibold mb-4">
+        Moderacja społeczności i wydarzeń
+      </h1>
       <p className="text-sm text-muted-foreground">
-        Widok w przygotowaniu. Tu pojawią się zgłoszenia społeczności i wydarzeń.
+        Widok w przygotowaniu. Tu pojawią się zgłoszenia społeczności i
+        wydarzeń.
       </p>
     </div>
   )

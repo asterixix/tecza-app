@@ -39,7 +39,10 @@ export default function AccountOnboardingPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: useMemo(() => ({ display_name: "", username: "", password: "" }), []),
+    defaultValues: useMemo(
+      () => ({ display_name: "", username: "", password: "" }),
+      [],
+    ),
     mode: "onBlur",
   })
 
@@ -62,7 +65,8 @@ export default function AccountOnboardingPage() {
         return
       }
       form.reset({
-        display_name: profile?.display_name ?? u.user.user_metadata?.full_name ?? "",
+        display_name:
+          profile?.display_name ?? u.user.user_metadata?.full_name ?? "",
         username: profile?.username ?? "",
         password: "",
       })
@@ -84,17 +88,24 @@ export default function AccountOnboardingPage() {
         .eq("username", uname)
         .neq("id", u.user.id)
         .limit(1)
-      if (exists && exists.length > 0) throw new Error("Nazwa użytkownika zajęta")
+      if (exists && exists.length > 0)
+        throw new Error("Nazwa użytkownika zajęta")
 
       // Optionally set password for OAuth users
       if (values.password && values.password.length >= 8) {
-        const { error: updErr } = await supabase.auth.updateUser({ password: values.password })
+        const { error: updErr } = await supabase.auth.updateUser({
+          password: values.password,
+        })
         if (updErr) throw updErr
       }
 
       const { error: upErr } = await supabase
         .from("profiles")
-        .update({ username: uname, display_name: values.display_name, onboarded_at: null })
+        .update({
+          username: uname,
+          display_name: values.display_name,
+          onboarded_at: null,
+        })
         .eq("id", u.user.id)
       if (upErr) throw upErr
 
@@ -118,7 +129,10 @@ export default function AccountOnboardingPage() {
             Wybierz nazwę użytkownika i nazwę widoczną. Opcjonalnie ustaw hasło.
           </p>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="mt-4 grid gap-3">
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="mt-4 grid gap-3"
+            >
               <FormField
                 name="display_name"
                 control={form.control}
@@ -126,7 +140,11 @@ export default function AccountOnboardingPage() {
                   <FormItem>
                     <FormLabel>Widoczna nazwa</FormLabel>
                     <FormControl>
-                      <Input required placeholder="Twoje imię/pseudonim" {...field} />
+                      <Input
+                        required
+                        placeholder="Twoje imię/pseudonim"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -139,7 +157,11 @@ export default function AccountOnboardingPage() {
                   <FormItem>
                     <FormLabel>Nazwa użytkownika</FormLabel>
                     <FormControl>
-                      <Input required placeholder="nazwa_uzytkownika" {...field} />
+                      <Input
+                        required
+                        placeholder="nazwa_uzytkownika"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
