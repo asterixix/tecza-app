@@ -1,16 +1,16 @@
-import type { NextConfig } from "next";
-import withPWA from "next-pwa";
+import type { NextConfig } from "next"
+import withPWA from "next-pwa"
 
 const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
-  : "your-supabase-project.supabase.co";
+  : "your-supabase-project.supabase.co"
 
 const withPWAFn = withPWA({
   dest: "public",
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
-});
+})
 
 const nextConfig: NextConfig = {
   images: {
@@ -19,7 +19,11 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/communities", destination: "/c", permanent: true },
-      { source: "/communities/:path*", destination: "/c/:path*", permanent: true },
+      {
+        source: "/communities/:path*",
+        destination: "/c/:path*",
+        permanent: true,
+      },
       { source: "/dashboard", destination: "/d", permanent: true },
       { source: "/events", destination: "/w", permanent: true },
       { source: "/events/:path*", destination: "/w/:path*", permanent: true },
@@ -30,10 +34,9 @@ const nextConfig: NextConfig = {
       { source: "/settings", destination: "/s", permanent: true },
       // Profile is now /u/:username; /profile can redirect to /u or homepage
       { source: "/profile", destination: "/u", permanent: false },
-      // Reset password handled on /l; redirect legacy
-      { source: "/reset-password", destination: "/l", permanent: true },
-    ];
+      // Keep /reset-password as a real page to preserve #type=recovery hash and forward client-side
+    ]
   },
-};
+}
 
-export default withPWAFn(nextConfig);
+export default withPWAFn(nextConfig)

@@ -8,7 +8,14 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Toaster } from "@/components/ui/sonner"
@@ -18,7 +25,10 @@ import { Mail, Lock } from "lucide-react"
 const schema = z.object({
   email: z.string().email("Podaj poprawny email"),
   password: z.string().min(8, "Min. 8 znaków"),
-  display_name: z.string().min(1, "Podaj widoczne imię/nazwę").max(50, "Max 50 znaków"),
+  display_name: z
+    .string()
+    .min(1, "Podaj widoczne imię/nazwę")
+    .max(50, "Max 50 znaków"),
   username: z
     .string()
     .min(3, "Min. 3 znaki")
@@ -59,14 +69,18 @@ export default function RegisterPage() {
         email: values.email,
         password: values.password,
         options: {
-          emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/login` : undefined,
+          emailRedirectTo:
+            typeof window !== "undefined"
+              ? `${window.location.origin}/login`
+              : undefined,
           data: { username: uname, display_name: values.display_name.trim() },
         },
       })
       if (error) throw error
       toast.success("Sprawdź email i potwierdź rejestrację")
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Nie udało się zarejestrować"
+      const message =
+        e instanceof Error ? e.message : "Nie udało się zarejestrować"
       toast.error(message)
     } finally {
       setLoading(false)
@@ -76,14 +90,21 @@ export default function RegisterPage() {
   return (
     <div className="mx-auto max-w-md px-4 md:px-6 py-10 md:py-14">
       <Toaster richColors position="top-center" />
-      <div className="mb-4"><Badge variant="secondary">Rejestracja</Badge></div>
+      <div className="mb-4">
+        <Badge variant="secondary">Rejestracja</Badge>
+      </div>
       <Card>
         <CardContent className="p-6">
           <h1 className="text-2xl font-bold tracking-tight">Załóż konto</h1>
-          <p className="mt-1 text-muted-foreground">Po rejestracji przejdziesz przez konfigurator ustawień i profilu.</p>
+          <p className="mt-1 text-muted-foreground">
+            Po rejestracji przejdziesz przez konfigurator ustawień i profilu.
+          </p>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="mt-4 grid gap-3">
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="mt-4 grid gap-3"
+            >
               <FormField
                 control={form.control}
                 name="display_name"
@@ -91,7 +112,12 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>Widoczna nazwa</FormLabel>
                     <FormControl>
-                      <Input placeholder="Twoje imię/pseudonim" autoComplete="name" required {...field} />
+                      <Input
+                        placeholder="Twoje imię/pseudonim"
+                        autoComplete="name"
+                        required
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -104,7 +130,12 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>Nazwa użytkownika</FormLabel>
                     <FormControl>
-                      <Input placeholder="nazwa_uzytkownika" autoComplete="username" required {...field} />
+                      <Input
+                        placeholder="nazwa_uzytkownika"
+                        autoComplete="username"
+                        required
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -115,9 +146,20 @@ export default function RegisterPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel><span className="inline-flex items-center gap-1"><Mail className="size-4" aria-hidden /> Email</span></FormLabel>
+                    <FormLabel>
+                      <span className="inline-flex items-center gap-1">
+                        <Mail className="size-4" aria-hidden /> Email
+                      </span>
+                    </FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="twoj@adres.pl" autoComplete="email" inputMode="email" required {...field} />
+                      <Input
+                        type="email"
+                        placeholder="twoj@adres.pl"
+                        autoComplete="email"
+                        inputMode="email"
+                        required
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -128,21 +170,44 @@ export default function RegisterPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel><span className="inline-flex items-center gap-1"><Lock className="size-4" aria-hidden />Hasło min. 8 znaków</span></FormLabel>
+                    <FormLabel>
+                      <span className="inline-flex items-center gap-1">
+                        <Lock className="size-4" aria-hidden />
+                        Hasło min. 8 znaków
+                      </span>
+                    </FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" autoComplete="new-password" required {...field} />
+                      <Input
+                        type="password"
+                        placeholder="••••••••"
+                        autoComplete="new-password"
+                        required
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={loading} aria-label="Zarejestruj się">
+              <Button
+                type="submit"
+                disabled={loading}
+                aria-label="Zarejestruj się"
+              >
                 {loading ? "Rejestracja…" : "Zarejestruj się"}
               </Button>
             </form>
           </Form>
 
-          <p className="mt-4 text-sm text-muted-foreground">Masz już konto? <Link className="text-primary underline-offset-4 hover:underline" href="/l">Zaloguj się</Link></p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Masz już konto?{" "}
+            <Link
+              className="text-primary underline-offset-4 hover:underline"
+              href="/l"
+            >
+              Zaloguj się
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </div>

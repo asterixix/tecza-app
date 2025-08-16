@@ -34,7 +34,7 @@ Repozytorium (nie)zawiera działające(go) MVP z fundamentami profili, postów, 
 
 Wymagania: Node 18+, npm, oraz (opcjonalnie) Supabase CLI dla lokalnej bazy.
 
-1) Zależności i środowisko
+1. Zależności i środowisko
 
 - Zainstaluj zależności i utwórz plik `.env.local`:
 
@@ -43,7 +43,7 @@ NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-2) Uruchom tryb deweloperski
+2. Uruchom tryb deweloperski
 
 ```
 npm run dev
@@ -51,7 +51,7 @@ npm run dev
 
 Otwórz http://localhost:3000
 
-3) Build produkcyjny
+3. Build produkcyjny
 
 ```
 npm run build

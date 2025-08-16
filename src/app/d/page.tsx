@@ -19,7 +19,7 @@ function DashboardContent() {
 
   // Handle hashtag from URL parameters
   useEffect(() => {
-    const hashtag = searchParams.get('hashtag')
+    const hashtag = searchParams.get("hashtag")
     if (hashtag) {
       setSelectedHashtag(hashtag.toLowerCase())
     } else {
@@ -28,14 +28,14 @@ function DashboardContent() {
   }, [searchParams])
 
   const handleHashtagClick = (hashtag: string) => {
-    const cleanTag = hashtag.replace('#', '').toLowerCase()
+    const cleanTag = hashtag.replace("#", "").toLowerCase()
     setSelectedHashtag(cleanTag)
     router.push(`/dashboard?hashtag=${encodeURIComponent(cleanTag)}`)
   }
 
   const clearHashtagFilter = () => {
     setSelectedHashtag(null)
-    router.push('/dashboard')
+    router.push("/dashboard")
   }
 
   return (
@@ -60,10 +60,15 @@ function DashboardContent() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" aria-label="Odśwież" onClick={()=>setReloadTick(t=>t+1)}>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Odśwież"
+            onClick={() => setReloadTick((t) => t + 1)}
+          >
             <RotateCw className="size-4" />
           </Button>
-          <Button onClick={()=>setOpen(true)}>Utwórz nowy post</Button>
+          <Button onClick={() => setOpen(true)}>Utwórz nowy post</Button>
         </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -86,7 +91,10 @@ function DashboardContent() {
           )}
         </div>
         <aside className="lg:col-span-4 space-y-6">
-          <TrendingHashtags onHashtagClick={handleHashtagClick} selectedHashtag={selectedHashtag} />
+          <TrendingHashtags
+            onHashtagClick={handleHashtagClick}
+            selectedHashtag={selectedHashtag}
+          />
           <SuggestedProfiles />
         </aside>
       </div>
@@ -96,16 +104,20 @@ function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={
-      <div className="mx-auto max-w-6xl px-4 md:px-6 py-8">
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-sm text-muted-foreground">Ładowanie pulpitu...</p>
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-6xl px-4 md:px-6 py-8">
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-sm text-muted-foreground">
+                Ładowanie pulpitu...
+              </p>
+            </div>
           </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <DashboardContent />
     </Suspense>
   )

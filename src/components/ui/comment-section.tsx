@@ -5,7 +5,12 @@ import { MessageCircle, Reply, Heart, MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
@@ -38,14 +43,14 @@ interface CommentSectionProps {
   className?: string
 }
 
-function CommentItem({ 
-  comment, 
-  onReply, 
-  onLike, 
+function CommentItem({
+  comment,
+  onReply,
+  onLike,
   onUnlike,
   onDelete,
   currentUserId,
-  isReply = false 
+  isReply = false,
 }: {
   comment: Comment
   onReply: (parentId: string, content: string) => Promise<void>
@@ -62,7 +67,7 @@ function CommentItem({
 
   const handleSubmitReply = async () => {
     if (!replyContent.trim()) return
-    
+
     setIsSubmittingReply(true)
     try {
       await onReply(comment.id, replyContent)
@@ -91,8 +96,10 @@ function CommentItem({
   const timeAgo = (date: string) => {
     const now = new Date()
     const commentDate = new Date(date)
-    const diffInMinutes = Math.floor((now.getTime() - commentDate.getTime()) / (1000 * 60))
-    
+    const diffInMinutes = Math.floor(
+      (now.getTime() - commentDate.getTime()) / (1000 * 60),
+    )
+
     if (diffInMinutes < 1) return "teraz"
     if (diffInMinutes < 60) return `${diffInMinutes}m`
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}g`
@@ -107,7 +114,7 @@ function CommentItem({
           {comment.user.display_name?.[0] || comment.user.username[0]}
         </AvatarFallback>
       </Avatar>
-      
+
       <div className="flex-1 min-w-0">
         <div className="bg-muted rounded-2xl px-3 py-2">
           <div className="flex items-center gap-2 mb-1">
@@ -124,23 +131,25 @@ function CommentItem({
             {comment.content}
           </p>
         </div>
-        
+
         <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
           <span>{timeAgo(comment.created_at)}</span>
-          
+
           <Button
             variant="ghost"
             size="sm"
             onClick={handleLikeToggle}
             className={cn(
               "h-auto p-0 text-xs font-medium hover:text-foreground",
-              comment.is_liked && "text-red-500"
+              comment.is_liked && "text-red-500",
             )}
           >
-            <Heart className={cn("h-3 w-3 mr-1", comment.is_liked && "fill-current")} />
+            <Heart
+              className={cn("h-3 w-3 mr-1", comment.is_liked && "fill-current")}
+            />
             {comment.likes_count > 0 && comment.likes_count}
           </Button>
-          
+
           {!isReply && (
             <Button
               variant="ghost"
@@ -152,7 +161,7 @@ function CommentItem({
               Odpowiedz
             </Button>
           )}
-          
+
           {comment.replies_count > 0 && !isReply && (
             <Button
               variant="ghost"
@@ -160,10 +169,11 @@ function CommentItem({
               onClick={() => setShowReplies(!showReplies)}
               className="h-auto p-0 text-xs font-medium hover:text-foreground"
             >
-              {showReplies ? "Ukryj" : "Pokaż"} odpowiedzi ({comment.replies_count})
+              {showReplies ? "Ukryj" : "Pokaż"} odpowiedzi (
+              {comment.replies_count})
             </Button>
           )}
-          
+
           {(currentUserId === comment.user.id || onDelete) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -173,7 +183,7 @@ function CommentItem({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {currentUserId === comment.user.id && onDelete && (
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={() => onDelete(comment.id)}
                     className="text-destructive"
                   >
@@ -184,7 +194,7 @@ function CommentItem({
             </DropdownMenu>
           )}
         </div>
-        
+
         {showReplyForm && (
           <div className="mt-3 space-y-2">
             <Textarea
@@ -214,7 +224,7 @@ function CommentItem({
             </div>
           </div>
         )}
-        
+
         {showReplies && comment.replies && comment.replies.length > 0 && (
           <div className="mt-3 space-y-2">
             {comment.replies.map((reply) => (
@@ -244,7 +254,7 @@ export function CommentSection({
   onUnlikeComment,
   onDeleteComment,
   currentUserId,
-  className
+  className,
 }: CommentSectionProps) {
   const [newComment, setNewComment] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -252,7 +262,7 @@ export function CommentSection({
 
   const handleSubmitComment = async () => {
     if (!newComment.trim()) return
-    
+
     setIsSubmitting(true)
     try {
       await onAddComment(newComment)
@@ -269,8 +279,10 @@ export function CommentSection({
   }
 
   // Show only top-level comments initially, with option to show all
-  const topLevelComments = comments.filter(comment => !comment.parent_id)
-  const displayedComments = showAllComments ? topLevelComments : topLevelComments.slice(0, 3)
+  const topLevelComments = comments.filter((comment) => !comment.parent_id)
+  const displayedComments = showAllComments
+    ? topLevelComments
+    : topLevelComments.slice(0, 3)
 
   if (isLoading) {
     return (
@@ -290,11 +302,12 @@ export function CommentSection({
         <div className="flex items-center gap-2 text-muted-foreground">
           <MessageCircle className="h-4 w-4" />
           <span className="text-sm font-medium">
-            {comments.length} {comments.length === 1 ? "komentarz" : "komentarzy"}
+            {comments.length}{" "}
+            {comments.length === 1 ? "komentarz" : "komentarzy"}
           </span>
         </div>
       )}
-      
+
       {/* Add Comment Form */}
       <div className="space-y-3">
         <Textarea
@@ -311,7 +324,7 @@ export function CommentSection({
           {isSubmitting ? "Wysyłanie..." : "Dodaj komentarz"}
         </Button>
       </div>
-      
+
       {/* Comments List */}
       {displayedComments.length > 0 && (
         <div className="space-y-4">
@@ -326,7 +339,7 @@ export function CommentSection({
               currentUserId={currentUserId}
             />
           ))}
-          
+
           {!showAllComments && topLevelComments.length > 3 && (
             <Button
               variant="ghost"
@@ -338,7 +351,7 @@ export function CommentSection({
           )}
         </div>
       )}
-      
+
       {comments.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
           <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />

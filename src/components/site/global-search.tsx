@@ -4,14 +4,35 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { getSupabase } from "@/lib/supabase-browser"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Search, Users, Hash, Calendar, Layers } from "lucide-react"
 
-type UserRow = { id: string; username: string | null; display_name: string | null; avatar_url: string | null }
-type CommunityRow = { id: string; name: string; slug: string | null; avatar_url: string | null }
-type EventRow = { id: string; title: string; slug: string | null; city: string | null; start_date: string | null }
+type UserRow = {
+  id: string
+  username: string | null
+  display_name: string | null
+  avatar_url: string | null
+}
+type CommunityRow = {
+  id: string
+  name: string
+  slug: string | null
+  avatar_url: string | null
+}
+type EventRow = {
+  id: string
+  title: string
+  slug: string | null
+  city: string | null
+  start_date: string | null
+}
 
 export function GlobalSearch() {
   const router = useRouter()
@@ -56,7 +77,11 @@ export function GlobalSearch() {
     if (!supabase) return
     const query = q.trim()
     if (query.length === 0) {
-      setUsers([]); setCommunities([]); setEvents([]); setTags([]); setActiveIndex(-1)
+      setUsers([])
+      setCommunities([])
+      setEvents([])
+      setTags([])
+      setActiveIndex(-1)
       return
     }
     setLoading(true)
@@ -70,7 +95,7 @@ export function GlobalSearch() {
           .or(`username.ilike.${like},display_name.ilike.${like}`)
           .order("username", { ascending: true })
           .limit(8)
-        setUsers(((u as unknown) as UserRow[]) || [])
+        setUsers((u as unknown as UserRow[]) || [])
 
         // Communities
         const { data: c } = await supabase
@@ -79,7 +104,7 @@ export function GlobalSearch() {
           .or(`name.ilike.${like}`)
           .order("name", { ascending: true })
           .limit(6)
-        setCommunities(((c as unknown) as CommunityRow[]) || [])
+        setCommunities((c as unknown as CommunityRow[]) || [])
 
         // Events
         const { data: ev } = await supabase
@@ -88,7 +113,7 @@ export function GlobalSearch() {
           .or(`title.ilike.${like},city.ilike.${like}`)
           .order("start_date", { ascending: true })
           .limit(6)
-        setEvents(((ev as unknown) as EventRow[]) || [])
+        setEvents((ev as unknown as EventRow[]) || [])
 
         // Tags: if query starts with '#', offer direct suggestion; otherwise leave as suggestion only
         if (query.startsWith("#")) {
@@ -105,10 +130,20 @@ export function GlobalSearch() {
     return () => clearTimeout(h)
   }, [q, open, supabase])
 
-  const total = users.length + communities.length + events.length + (tags.length > 0 ? 1 : 0)
+  const total =
+    users.length +
+    communities.length +
+    events.length +
+    (tags.length > 0 ? 1 : 0)
 
   const items = useMemo(() => {
-    const out: Array<{ key: string; href: string; icon: React.ReactNode; title: string; subtitle?: string }> = []
+    const out: Array<{
+      key: string
+      href: string
+      icon: React.ReactNode
+      title: string
+      subtitle?: string
+    }> = []
     users.forEach((u) => {
       out.push({
         key: `u:${u.id}`,
@@ -149,19 +184,26 @@ export function GlobalSearch() {
     return out
   }, [users, communities, events, tags])
 
-  const onKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (!items.length) return
-    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIndex((i) => Math.min(items.length - 1, i + 1)) }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIndex((i) => Math.max(0, i - 1)) }
-    else if (e.key === "Enter") {
-      e.preventDefault()
-      const sel = items[activeIndex] || items[0]
-      if (sel) {
-        setOpen(false)
-        router.push(sel.href)
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!items.length) return
+      if (e.key === "ArrowDown") {
+        e.preventDefault()
+        setActiveIndex((i) => Math.min(items.length - 1, i + 1))
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault()
+        setActiveIndex((i) => Math.max(0, i - 1))
+      } else if (e.key === "Enter") {
+        e.preventDefault()
+        const sel = items[activeIndex] || items[0]
+        if (sel) {
+          setOpen(false)
+          router.push(sel.href)
+        }
       }
-    }
-  }, [items, activeIndex, router])
+    },
+    [items, activeIndex, router],
+  )
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -171,7 +213,10 @@ export function GlobalSearch() {
         </DialogHeader>
         <div className="px-3 pb-3">
           <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" aria-hidden />
+            <Search
+              className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
+              aria-hidden
+            />
             <Input
               ref={inputRef}
               value={q}
@@ -189,21 +234,45 @@ export function GlobalSearch() {
         </div>
         <div className="border-t">
           <ScrollArea className="max-h-[60vh]">
-            <ul id="global-search-list" role="listbox" aria-label="Wyniki wyszukiwania" className="p-2">
-              {loading && <li className="px-2 py-2 text-sm text-muted-foreground">Wyszukiwanie…</li>}
+            <ul
+              id="global-search-list"
+              role="listbox"
+              aria-label="Wyniki wyszukiwania"
+              className="p-2"
+            >
+              {loading && (
+                <li className="px-2 py-2 text-sm text-muted-foreground">
+                  Wyszukiwanie…
+                </li>
+              )}
               {!loading && total === 0 && q.trim().length > 0 && (
-                <li className="px-2 py-2 text-sm text-muted-foreground">Brak wyników dla „{q}”.</li>
+                <li className="px-2 py-2 text-sm text-muted-foreground">
+                  Brak wyników dla „{q}”.
+                </li>
               )}
               {items.map((it, idx) => (
-                <li key={it.key} role="option" aria-selected={idx === activeIndex} className={
-                  "rounded-md px-2 py-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-                  (idx === activeIndex ? "bg-muted" : "hover:bg-muted")
-                }>
-                  <Link href={it.href} onClick={() => setOpen(false)} className="flex items-center gap-3">
+                <li
+                  key={it.key}
+                  role="option"
+                  aria-selected={idx === activeIndex}
+                  className={
+                    "rounded-md px-2 py-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                    (idx === activeIndex ? "bg-muted" : "hover:bg-muted")
+                  }
+                >
+                  <Link
+                    href={it.href}
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-3"
+                  >
                     <span className="flex-none">{it.icon}</span>
                     <span className="min-w-0">
                       <span className="block truncate">{it.title}</span>
-                      {it.subtitle ? <span className="block text-xs text-muted-foreground truncate">{it.subtitle}</span> : null}
+                      {it.subtitle ? (
+                        <span className="block text-xs text-muted-foreground truncate">
+                          {it.subtitle}
+                        </span>
+                      ) : null}
                     </span>
                   </Link>
                 </li>
@@ -212,7 +281,8 @@ export function GlobalSearch() {
           </ScrollArea>
         </div>
         <div className="border-t px-3 py-2 text-xs text-muted-foreground">
-          Wskazówka: naciśnij Ctrl+K / Cmd+K aby otworzyć. Strzałki aby nawigować, Enter aby przejść.
+          Wskazówka: naciśnij Ctrl+K / Cmd+K aby otworzyć. Strzałki aby
+          nawigować, Enter aby przejść.
         </div>
       </DialogContent>
     </Dialog>

@@ -14,7 +14,12 @@ export function ThemeToggle() {
   if (!mounted) {
     // Render a static, accessible placeholder to avoid SSR/CSR mismatches
     return (
-      <Button size="icon" variant="ghost" aria-label="Przełącz motyw" suppressHydrationWarning>
+      <Button
+        size="icon"
+        variant="ghost"
+        aria-label="Przełącz motyw"
+        suppressHydrationWarning
+      >
         <Sun className="h-5 w-5" />
       </Button>
     )

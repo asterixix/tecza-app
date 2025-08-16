@@ -6,25 +6,66 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 import { toast } from "sonner"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { Image as ImageIcon, Video as VideoIcon, X, Smile } from "lucide-react"
+import { moderateContent } from "@/lib/moderation"
 
 const schema = z.object({
   content: z.string().min(1, "Wpis nie może być pusty").max(5000),
-  visibility: z.enum(["public","friends","private","unlisted"]),
+  visibility: z.enum(["public", "friends", "private", "unlisted"]),
 })
 
-export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () => void; open?: boolean; onOpenChange?: (o: boolean) => void }) {
+export function PostComposer({
+  onPosted,
+  open,
+  onOpenChange,
+}: {
+  onPosted?: () => void
+  open?: boolean
+  onOpenChange?: (o: boolean) => void
+}) {
+  // Validate that a preview URL is a blob: URL to avoid DOM XSS via reinterpreted strings
+  const safeBlobUrl = (val: string | null): string | null => {
+    if (!val) return null
+    try {
+      const u = new URL(val)
+      return u.protocol === "blob:" ? u.toString() : null
+    } catch {
+      return null
+    }
+  }
   const [loading, setLoading] = useState(false)
   const supabase = getSupabase()
   type FormValues = z.infer<typeof schema>
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-  defaultValues: { content: "", visibility: "public" },
+    defaultValues: { content: "", visibility: "public" },
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [videoFile, setVideoFile] = useState<File | null>(null)
@@ -43,15 +84,49 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
   // No Tenor GIF support (removed)
 
   // Emoji picker (lightweight list)
-  const emojis = useMemo(() => [
-    "😀","😁","😂","🤣","😊","😍","😎","😉","🥰","😇",
-    "🤔","😴","🤩","😢","😭","😡","🤗","🙌","👏","👍",
-    "🌈","🏳️‍🌈","🏳️‍⚧️","💖","✨","⭐","🔥","🎉","🥳","🍀"
-  ], [])
+  const emojis = useMemo(
+    () => [
+      "😀",
+      "😁",
+      "😂",
+      "🤣",
+      "😊",
+      "😍",
+      "😎",
+      "😉",
+      "🥰",
+      "😇",
+      "🤔",
+      "😴",
+      "🤩",
+      "😢",
+      "😭",
+      "😡",
+      "🤗",
+      "🙌",
+      "👏",
+      "👍",
+      "🌈",
+      "🏳️‍🌈",
+      "🏳️‍⚧️",
+      "💖",
+      "✨",
+      "⭐",
+      "🔥",
+      "🎉",
+      "🥳",
+      "🍀",
+    ],
+    [],
+  )
   const addEmoji = (e: string) => {
     const cur = form.getValues("content") || ""
     const ta = textareaRef.current
-    if (ta && typeof ta.selectionStart === 'number' && typeof ta.selectionEnd === 'number') {
+    if (
+      ta &&
+      typeof ta.selectionStart === "number" &&
+      typeof ta.selectionEnd === "number"
+    ) {
       const start = ta.selectionStart
       const end = ta.selectionEnd
       const next = cur.slice(0, start) + e + cur.slice(end)
@@ -119,11 +194,13 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
   useEffect(() => {
     const sub = form.watch((vals) => {
       const text = vals.content || ""
-      const urls = Array.from(text.matchAll(/https?:\/\/[^\s)]+/gi)).map(m=>m[0])
+      const urls = Array.from(text.matchAll(/https?:\/\/[^\s)]+/gi)).map(
+        (m) => m[0],
+      )
       setFirstUrl(urls[0] || "")
     })
     return () => sub.unsubscribe?.()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [attachLink, setAttachLink] = useState(true)
   // Simple heuristic providers (YouTube) — can be extended later
@@ -140,7 +217,9 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
   }
 
   async function uploadToStorage(bucket: string, path: string, file: File) {
-    const { data, error } = await supabase!.storage.from(bucket).upload(path, file, { upsert: true })
+    const { data, error } = await supabase!.storage
+      .from(bucket)
+      .upload(path, file, { upsert: true })
     if (error) throw error
     const pub = await supabase!.storage.from(bucket).getPublicUrl(data.path)
     return pub.data.publicUrl
@@ -150,6 +229,31 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
     if (!supabase) return toast.error("Brak konfiguracji Supabase")
     try {
       setLoading(true)
+      // AI moderation pre-check for text content
+      const moderation = await moderateContent({
+        type: "post",
+        content: values.content,
+      })
+      if (moderation?.decision === "block") {
+        toast.error("Treść odrzucona przez moderację AI")
+        // Try to create a moderation report for audit
+        try {
+          const u = (await supabase.auth.getUser()).data.user
+          if (u) {
+            await supabase.from("moderation_reports").insert({
+              reporter_id: u.id,
+              target_type: "post",
+              target_id: null,
+              reason: "inappropriate_content",
+              description: (moderation.reasons || []).join(", ") || "AI block",
+              status: "pending",
+              target_meta: { preview: values.content.slice(0, 280) },
+            })
+          }
+        } catch {}
+        setLoading(false)
+        return
+      }
       const user = (await supabase.auth.getUser()).data.user
       if (!user) throw new Error("Brak zalogowanego użytkownika")
       const mediaUrls: string[] = []
@@ -164,11 +268,20 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
           try {
             const bmp = await createImageBitmap(imageFile)
             const canvas = document.createElement("canvas")
-            canvas.width = bmp.width; canvas.height = bmp.height
+            canvas.width = bmp.width
+            canvas.height = bmp.height
             const ctx = canvas.getContext("2d")!
             ctx.drawImage(bmp, 0, 0)
-            const blob = await new Promise<Blob>((res) => canvas.toBlob((b)=>res(b!), "image/webp", 0.9))
-            fileToUpload = new File([blob], imageFile.name.replace(/\.[^.]+$/, ".webp"), { type: "image/webp" })
+            const blob = await new Promise<Blob>((res) =>
+              canvas.toBlob((b) => res(b!), "image/webp", 0.9),
+            )
+            fileToUpload = new File(
+              [blob],
+              imageFile.name.replace(/\.[^.]+$/, ".webp"),
+              {
+                type: "image/webp",
+              },
+            )
           } catch {}
         }
         const imgPath = `${user.id}/images/${Date.now()}-${fileToUpload.name}`
@@ -180,6 +293,23 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
         const vidPath = `${user.id}/videos/${Date.now()}-${videoFile.name}`
         const url = await uploadToStorage("posts", vidPath, videoFile)
         mediaUrls.push(url)
+        // Try to transcode server-side via Edge Function (best-effort)
+        try {
+          const res = await fetch("/api/video-transcode", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ bucket: "posts", path: vidPath }),
+          })
+          if (res.ok) {
+            const j = await res.json()
+            if (j?.ok && typeof j.outputPath === "string") {
+              const pub = await supabase.storage
+                .from("posts")
+                .getPublicUrl(j.outputPath)
+              if (pub.data?.publicUrl) mediaUrls.push(pub.data.publicUrl)
+            }
+          }
+        } catch {}
       }
 
       // Attach detected link preview if enabled
@@ -192,7 +322,13 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
       const { error } = await supabase.from("posts").insert({
         user_id: user.id,
         content: values.content,
-        type: mediaUrls.length ? (videoFile ? "video" : imageFile ? "image" : "text") : "text",
+        type: mediaUrls.length
+          ? videoFile
+            ? "video"
+            : imageFile
+              ? "image"
+              : "text"
+          : "text",
         media_urls: mediaUrls.length ? mediaUrls : null,
         hashtags: hashtags.length ? hashtags : null,
         // Mentions: we store usernames; server can map to user IDs if needed later
@@ -200,10 +336,30 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
         visibility: values.visibility,
       })
       if (error) throw error
+      if (moderation?.decision === "review") {
+        toast.message("Treść oznaczona do weryfikacji przez AI", {
+          description: "Moderator sprawdzi wpis wkrótce.",
+        })
+        try {
+          const u = (await supabase.auth.getUser()).data.user
+          if (u) {
+            await supabase.from("moderation_reports").insert({
+              reporter_id: u.id,
+              target_type: "post",
+              target_id: null,
+              reason: "inappropriate_content",
+              description: (moderation.reasons || []).join(", ") || "AI review",
+              status: "pending",
+              target_meta: { preview: values.content.slice(0, 280) },
+            })
+          }
+        } catch {}
+      }
       toast.success("Opublikowano post")
-  form.reset({ content: "", visibility: values.visibility })
-      setImageFile(null); setVideoFile(null)
-  setAttachLink(true)
+      form.reset({ content: "", visibility: values.visibility })
+      setImageFile(null)
+      setVideoFile(null)
+      setAttachLink(true)
       setOpen(false)
       onPosted?.()
     } catch (e) {
@@ -238,8 +394,11 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
                           {...rest}
                           onPaste={handlePaste}
                           ref={(el: HTMLTextAreaElement | null) => {
-                            if (typeof rhfRef === 'function') rhfRef(el)
-                            else if (rhfRef) (rhfRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el
+                            if (typeof rhfRef === "function") rhfRef(el)
+                            else if (rhfRef)
+                              (
+                                rhfRef as React.MutableRefObject<HTMLTextAreaElement | null>
+                              ).current = el
                             textareaRef.current = el
                           }}
                         />
@@ -258,9 +417,18 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={(e)=>{ const f=e.target.files?.[0]||null; setImageFile(f || null) }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0] || null
+                  setImageFile(f || null)
+                }}
               />
-              <Button type="button" variant="ghost" size="icon" title="Dodaj obraz" onClick={() => imgInputRef.current?.click()}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                title="Dodaj obraz"
+                onClick={() => imgInputRef.current?.click()}
+              >
                 <ImageIcon className="size-4" />
               </Button>
 
@@ -269,20 +437,47 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
                 type="file"
                 accept="video/*"
                 className="hidden"
-                onChange={(e)=>{ const f=e.target.files?.[0]||null; setVideoFile(f || null) }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0] || null
+                  setVideoFile(f || null)
+                }}
               />
-              <Button type="button" variant="ghost" size="icon" title="Dodaj wideo" onClick={() => vidInputRef.current?.click()}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                title="Dodaj wideo"
+                onClick={() => vidInputRef.current?.click()}
+              >
                 <VideoIcon className="size-4" />
               </Button>
 
               <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
                 <PopoverTrigger asChild>
-                  <Button type="button" variant="ghost" size="icon" title="Wstaw emoji"><Smile className="size-4" /></Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    title="Wstaw emoji"
+                  >
+                    <Smile className="size-4" />
+                  </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-60" onOpenAutoFocus={(e)=>e.preventDefault()}>
+                <PopoverContent
+                  className="w-60"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                >
                   <div className="grid grid-cols-8 gap-1">
                     {emojis.map((e) => (
-                      <button key={e} type="button" className="rounded hover:bg-accent p-1 text-lg" onClick={()=>{ addEmoji(e); setEmojiOpen(false) }}>
+                      <button
+                        key={e}
+                        type="button"
+                        className="rounded hover:bg-accent p-1 text-lg"
+                        onClick={() => {
+                          addEmoji(e)
+                          setEmojiOpen(false)
+                        }}
+                      >
                         {e}
                       </button>
                     ))}
@@ -292,27 +487,36 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
 
               {/* Selected attachments preview */}
               <div className="ml-auto flex items-center gap-3">
-                {imageFile && imagePreview && (
+                {imageFile && imagePreview && safeBlobUrl(imagePreview) && (
                   <div className="relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={imagePreview} alt="Podgląd obrazu" className="h-20 w-auto max-w-[160px] rounded object-cover border" />
+                    <img
+                      src={safeBlobUrl(imagePreview) ?? undefined}
+                      alt="Podgląd obrazu"
+                      className="h-20 w-auto max-w-[160px] rounded object-cover border"
+                    />
                     <button
                       type="button"
                       aria-label="Usuń obraz"
-                      onClick={()=>setImageFile(null)}
+                      onClick={() => setImageFile(null)}
                       className="absolute -right-2 -top-2 inline-flex items-center justify-center rounded-full bg-background border p-1 shadow"
                     >
                       <X className="size-3" />
                     </button>
                   </div>
                 )}
-                {videoFile && videoPreview && (
+                {videoFile && videoPreview && safeBlobUrl(videoPreview) && (
                   <div className="relative">
-                    <video src={videoPreview} className="h-20 w-auto max-w-[200px] rounded border" controls muted />
+                    <video
+                      src={safeBlobUrl(videoPreview) ?? undefined}
+                      className="h-20 w-auto max-w-[200px] rounded border"
+                      controls
+                      muted
+                    />
                     <button
                       type="button"
                       aria-label="Usuń wideo"
-                      onClick={()=>setVideoFile(null)}
+                      onClick={() => setVideoFile(null)}
                       className="absolute -right-2 -top-2 inline-flex items-center justify-center rounded-full bg-background border p-1 shadow"
                     >
                       <X className="size-3" />
@@ -327,11 +531,19 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
               <div className="rounded-md border p-3 text-sm flex items-start gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="font-medium truncate">Podgląd linku</div>
-                  <div className="text-muted-foreground truncate max-w-[32ch]">{firstUrl}</div>
+                  <div className="text-muted-foreground truncate max-w-[32ch]">
+                    {firstUrl}
+                  </div>
                   <OGPreview url={firstUrl} />
                 </div>
                 <label className="ml-2 inline-flex items-center gap-2 text-xs select-none">
-                  <input type="checkbox" className="size-4" checked={attachLink} onChange={(e)=>setAttachLink(e.target.checked)} /> Dołącz podgląd
+                  <input
+                    type="checkbox"
+                    className="size-4"
+                    checked={attachLink}
+                    onChange={(e) => setAttachLink(e.target.checked)}
+                  />{" "}
+                  Dołącz podgląd
                 </label>
               </div>
             )}
@@ -350,14 +562,18 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
                       <SelectContent>
                         <SelectItem value="public">Publiczny</SelectItem>
                         <SelectItem value="friends">Tylko znajomi</SelectItem>
-                        <SelectItem value="unlisted">Nielistowany (z linkiem)</SelectItem>
+                        <SelectItem value="unlisted">
+                          Nielistowany (z linkiem)
+                        </SelectItem>
                         <SelectItem value="private">Prywatny</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={loading}>{loading ? "Publikuję…" : "Opublikuj"}</Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? "Publikuję…" : "Opublikuj"}
+              </Button>
             </div>
           </form>
         </Form>
@@ -367,14 +583,32 @@ export function PostComposer({ onPosted, open, onOpenChange }: { onPosted?: () =
 }
 
 function OGPreview({ url }: { url: string }) {
-  const [data, setData] = useState<{ title?: string; description?: string; image?: string; siteName?: string } | null>(null)
+  const [data, setData] = useState<{
+    title?: string
+    description?: string
+    image?: string
+    siteName?: string
+  } | null>(null)
   const [loading, setLoading] = useState(false)
+  const safeHttpUrl = (val?: string | null): string | null => {
+    if (!val) return null
+    try {
+      const u = new URL(val)
+      return u.protocol === "http:" || u.protocol === "https:"
+        ? u.toString()
+        : null
+    } catch {
+      return null
+    }
+  }
   useEffect(() => {
     let cancelled = false
     async function run() {
       setLoading(true)
       try {
-        const res = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`)
+        const res = await fetch(
+          `/api/link-preview?url=${encodeURIComponent(url)}`,
+        )
         if (!res.ok) return
         const j = await res.json()
         if (!cancelled) setData(j)
@@ -383,20 +617,41 @@ function OGPreview({ url }: { url: string }) {
       }
     }
     void run()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [url])
-  if (loading && !data) return <div className="mt-2 text-xs text-muted-foreground">Ładowanie podglądu…</div>
+  if (loading && !data)
+    return (
+      <div className="mt-2 text-xs text-muted-foreground">
+        Ładowanie podglądu…
+      </div>
+    )
   if (!data) return null
   return (
     <div className="mt-2 flex gap-3 rounded border bg-muted/30 p-2">
-      {data.image && (
+      {safeHttpUrl(data.image) && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={data.image} alt="" className="h-16 w-16 object-cover rounded" />
+        <img
+          src={safeHttpUrl(data.image) ?? undefined}
+          alt=""
+          className="h-16 w-16 object-cover rounded"
+        />
       )}
       <div className="min-w-0">
-        <div className="text-sm font-medium truncate">{data.title || new URL(url).hostname}</div>
-        {data.siteName && <div className="text-xs text-muted-foreground truncate">{data.siteName}</div>}
-        {data.description && <div className="text-xs text-muted-foreground line-clamp-2">{data.description}</div>}
+        <div className="text-sm font-medium truncate">
+          {data.title || new URL(url).hostname}
+        </div>
+        {data.siteName && (
+          <div className="text-xs text-muted-foreground truncate">
+            {data.siteName}
+          </div>
+        )}
+        {data.description && (
+          <div className="text-xs text-muted-foreground line-clamp-2">
+            {data.description}
+          </div>
+        )}
       </div>
     </div>
   )

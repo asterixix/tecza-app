@@ -6,5 +6,7 @@ declare module "next-pwa" {
     skipWaiting?: boolean
     disable?: boolean
   }
-  export default function withPWA(options?: PwaOptions): (config: NextConfig) => NextConfig
+  export default function withPWA(
+    options?: PwaOptions,
+  ): (config: NextConfig) => NextConfig
 }

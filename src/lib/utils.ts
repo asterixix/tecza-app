@@ -9,14 +9,14 @@ export function cn(...inputs: ClassValue[]) {
 export function slugify(input: string, maxLength = 72): string {
   const normalized = input
     .toString()
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '') // strip accents
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "") // strip accents
     .toLowerCase()
   const slug = normalized
-    .replace(/[^a-z0-9\s-]/g, '') // remove non-alphanum
+    .replace(/[^a-z0-9\s-]/g, "") // remove non-alphanum
     .trim()
-    .replace(/\s+/g, '-') // spaces to dashes
-    .replace(/-+/g, '-') // collapse dashes
-    .replace(/^-+|-+$/g, '') // trim dashes
+    .replace(/\s+/g, "-") // spaces to dashes
+    .replace(/-+/g, "-") // collapse dashes
+    .replace(/^-+|-+$/g, "") // trim dashes
   return slug.slice(0, maxLength)
 }
