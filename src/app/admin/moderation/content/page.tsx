@@ -1,11 +1,34 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { getSupabase } from "@/lib/supabase-browser"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import Textarea from "@/components/ui/textarea"
+
+type Report = {
+  id: string
+  reporter_id: string
+  target_type: 'user'|'post'|'comment'|'message'|'event'|'community'|'profile_media'
+  target_id: string | null
+  reason: 'hate_speech'|'harassment'|'spam'|'inappropriate_content'|'other'
+  description: string | null
+  status: 'pending'|'reviewed'|'resolved'|'dismissed'
+  created_at: string
+  updated_at: string
+  target_meta?: Record<string, unknown>
+}
 
 export default function ContentModeration() {
   const supabase = getSupabase()
   const [allowed, setAllowed] = useState<boolean | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [reports, setReports] = useState<Report[]>([])
+  const [statusFilter, setStatusFilter] = useState<Report['status'] | 'all'>('pending')
+  const [typeFilter, setTypeFilter] = useState<Report['target_type'] | 'all'>('all')
+  const [actionNotes, setActionNotes] = useState("")
 
   useEffect(() => {
     (async () => {
@@ -16,16 +39,118 @@ export default function ContentModeration() {
       const roles = (prof?.roles as string[]|undefined) || []
       const ok = roles.some(r => ['moderator','administrator','super-administrator'].includes(r))
       setAllowed(ok)
-      if (!ok) window.location.href = "/d"
+      if (!ok) { window.location.href = "/d"; return }
+      await loadReports()
     })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase])
+
+  async function loadReports() {
+    if (!supabase) return
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('moderation_reports')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (error) return
+      setReports((data as Report[]) || [])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filtered = useMemo(() => {
+    return reports.filter(r => (statusFilter === 'all' || r.status === statusFilter) && (typeFilter === 'all' || r.target_type === typeFilter))
+  }, [reports, statusFilter, typeFilter])
+
+  async function updateStatus(report: Report, status: Report['status']) {
+    if (!supabase) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { error } = await supabase.from('moderation_reports').update({ status }).eq('id', report.id)
+    if (!error) {
+      setReports(prev => prev.map(r => r.id === report.id ? { ...r, status } : r))
+      // log action
+      await supabase.from('moderation_actions').insert({
+        actor_id: user.id,
+        action: status === 'dismissed' ? 'note' : status === 'resolved' ? 'restore' : 'note',
+        target_type: report.target_type,
+        target_id: report.target_id,
+        notes: actionNotes || null,
+      })
+      setActionNotes("")
+    }
+  }
 
   if (allowed === null || !allowed) return null
 
   return (
-    <div className="mx-auto max-w-5xl px-4 md:px-6 py-8">
+    <div className="mx-auto max-w-6xl px-4 md:px-6 py-8">
       <h1 className="text-2xl font-semibold mb-4">Moderacja treści</h1>
-      <p className="text-sm text-muted-foreground">Widok w przygotowaniu. Tu pojawią się zgłoszenia treści (posty, komentarze, wiadomości).</p>
+
+      <div className="flex flex-wrap gap-3 items-center mb-4">
+        <Select value={statusFilter} onValueChange={(v)=> setStatusFilter(v as typeof statusFilter)}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Wszystkie statusy</SelectItem>
+            <SelectItem value="pending">Oczekujące</SelectItem>
+            <SelectItem value="reviewed">Sprawdzone</SelectItem>
+            <SelectItem value="resolved">Rozwiązane</SelectItem>
+            <SelectItem value="dismissed">Odrzucone</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={typeFilter} onValueChange={(v)=> setTypeFilter(v as typeof typeFilter)}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="Typ" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Wszystkie typy</SelectItem>
+            <SelectItem value="post">Posty</SelectItem>
+            <SelectItem value="comment">Komentarze</SelectItem>
+            <SelectItem value="message">Wiadomości</SelectItem>
+            <SelectItem value="user">Użytkownicy</SelectItem>
+            <SelectItem value="event">Wydarzenia</SelectItem>
+            <SelectItem value="community">Społeczności</SelectItem>
+            <SelectItem value="profile_media">Media profilu</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" onClick={loadReports}>Odśwież</Button>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Ładowanie…</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Brak zgłoszeń do wyświetlenia.</p>
+      ) : (
+        <div className="grid gap-3">
+          {filtered.map((r) => (
+            <Card key={r.id}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <span className="font-medium">{r.target_type}</span>
+                  <Badge variant="outline">{r.status}</Badge>
+                  <span className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm space-y-2">
+                <div className="text-muted-foreground">Powód: <span className="text-foreground font-medium">{r.reason}</span></div>
+                {r.description && <div>Opis: {r.description}</div>}
+                {r.target_id && <div className="text-xs">ID: {r.target_id}</div>}
+                <div className="grid gap-2 md:grid-cols-2 md:items-end">
+                  <div>
+                    <label className="text-xs font-medium">Notatka (opcjonalna, do dziennika działań)</label>
+                    <Textarea rows={2} value={actionNotes} onChange={(e)=> setActionNotes(e.target.value)} placeholder="Dodaj krótką notatkę do akcji" />
+                  </div>
+                  <div className="flex gap-2 md:justify-end">
+                    <Button size="sm" variant="secondary" onClick={()=> updateStatus(r, 'reviewed')}>Oznacz jako sprawdzone</Button>
+                    <Button size="sm" onClick={()=> updateStatus(r, 'resolved')}>Rozwiązane</Button>
+                    <Button size="sm" variant="destructive" onClick={()=> updateStatus(r, 'dismissed')}>Odrzuć</Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

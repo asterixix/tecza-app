@@ -12,6 +12,9 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Logo } from "./logo"
 import { MessagesPopover } from "@/components/messages/messages-popover"
 import { ThemeToggle } from "./theme-toggle"
+import { GlobalSearch } from "./global-search"
+import { Button as UIButton } from "@/components/ui/button"
+import { Search } from "lucide-react"
 
 const nav = [
   { href: "/d", label: "Pulpit" },
@@ -144,6 +147,36 @@ export function UserHeader() {
           </nav>
         </div>
         <div className="flex items-center gap-2">
+          {/* Search trigger (Cmd/Ctrl+K also opens) */}
+          <GlobalSearch />
+          <UIButton
+            type="button"
+            variant="outline"
+            className="hidden md:inline-flex items-center gap-2"
+            aria-label="Otwórz wyszukiwarkę (Ctrl+K / Cmd+K)"
+            onClick={() => {
+              // Dispatch cmd+k programmatically to open dialog from GlobalSearch
+              const ev = new KeyboardEvent("keydown", { key: "k", ctrlKey: true })
+              window.dispatchEvent(ev)
+            }}
+          >
+            <Search className="size-4" aria-hidden />
+            <span className="text-sm">Szukaj</span>
+            <kbd className="ml-2 hidden lg:inline-flex h-5 items-center rounded border bg-muted px-1.5 text-[10px] font-medium">Ctrl+K</kbd>
+          </UIButton>
+          <UIButton
+            type="button"
+            size="icon"
+            variant="outline"
+            className="md:hidden"
+            aria-label="Szukaj"
+            onClick={() => {
+              const ev = new KeyboardEvent("keydown", { key: "k", ctrlKey: true })
+              window.dispatchEvent(ev)
+            }}
+          >
+            <Search className="size-5" aria-hidden />
+          </UIButton>
           <ThemeToggle />
           <MessagesPopover />
           <DropdownMenu>

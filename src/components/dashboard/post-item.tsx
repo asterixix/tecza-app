@@ -10,7 +10,7 @@ import { getSupabase } from "@/lib/supabase-browser"
 import { useEffect, useState } from "react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { MoreHorizontal, Pencil, Trash2, MessageCircle } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, MessageCircle, Flag } from "lucide-react"
 import Textarea from "@/components/ui/textarea"
 import { RainbowLikeButton } from "@/components/ui/rainbow-like-button"
 import { CommentSection } from "@/components/ui/comment-section"
@@ -45,6 +45,11 @@ export function PostItem({ post, canManage, onChange }: { post: PostRecord; canM
   const [editing, setEditing] = useState(false)
   const [contentDraft, setContentDraft] = useState(post.content)
   const [busy, setBusy] = useState(false)
+  // Report dialog state
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportReason, setReportReason] = useState<"hate_speech" | "harassment" | "spam" | "inappropriate_content" | "other">("inappropriate_content")
+  const [reportDesc, setReportDesc] = useState("")
+  const [reportBusy, setReportBusy] = useState(false)
   // Interactions state
   const [likesCount, setLikesCount] = useState<number>(0)
   const [commentsCount, setCommentsCount] = useState<number>(0)
@@ -382,6 +387,27 @@ export function PostItem({ post, canManage, onChange }: { post: PostRecord; canM
     }
   }
 
+  async function submitReport() {
+    if (!supabase) return
+    try {
+      setReportBusy(true)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      await supabase.from('moderation_reports').insert({
+        reporter_id: user.id,
+        target_type: 'post',
+        target_id: post.id,
+        reason: reportReason,
+        description: reportDesc || null,
+        target_meta: { author_id: post.user_id, created_at: post.created_at }
+      })
+      setReportOpen(false)
+      setReportDesc("")
+    } finally {
+      setReportBusy(false)
+    }
+  }
+
   return (
     <>
   <Card className="py-0">
@@ -405,23 +431,28 @@ export function PostItem({ post, canManage, onChange }: { post: PostRecord; canM
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline">{visibilityLabel(post.visibility)}</Badge>
-            {owner && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" aria-label="Akcje posta">
-                    <MoreHorizontal className="size-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Akcje posta">
+                  <MoreHorizontal className="size-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {owner && (
                   <DropdownMenuItem onClick={() => { setContentDraft(post.content); setEditing(true) }}>
                     <Pencil className="size-4" /> Edytuj
                   </DropdownMenuItem>
+                )}
+                {owner && (
                   <DropdownMenuItem onClick={removePost} className="text-red-600 focus:text-red-700">
                     <Trash2 className="size-4" /> Usuń
                   </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+                )}
+                <DropdownMenuItem onClick={() => setReportOpen(true)}>
+                  <Flag className="size-4" /> Zgłoś
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap">{renderContent(post.content)}</div>
@@ -520,6 +551,35 @@ export function PostItem({ post, canManage, onChange }: { post: PostRecord; canM
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={()=>setEditing(false)}>Anuluj</Button>
             <Button onClick={saveEdit} disabled={busy}>{busy ? "Zapisywanie…" : "Zapisz"}</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    
+    {/* Report dialog */}
+    <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Zgłoś post</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <label className="text-sm font-medium">Powód</label>
+          <select
+            className="rounded-md border bg-background px-2 py-1 text-sm"
+            value={reportReason}
+            onChange={(e)=> setReportReason(e.target.value as typeof reportReason)}
+          >
+            <option value="inappropriate_content">Nieodpowiednia treść</option>
+            <option value="hate_speech">Mowa nienawiści</option>
+            <option value="harassment">Nękanie</option>
+            <option value="spam">Spam</option>
+            <option value="other">Inne</option>
+          </select>
+          <label className="text-sm font-medium">Opis (opcjonalnie)</label>
+          <Textarea rows={4} value={reportDesc} onChange={(e)=> setReportDesc(e.target.value)} placeholder="Dodaj szczegóły dla moderatora" />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={()=> setReportOpen(false)}>Anuluj</Button>
+            <Button onClick={submitReport} disabled={reportBusy}>{reportBusy ? "Wysyłanie…" : "Wyślij zgłoszenie"}</Button>
           </div>
         </div>
       </DialogContent>

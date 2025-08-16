@@ -80,6 +80,7 @@ interface UserProfile {
   updated_at: string
   roles: app_role[];
   badges: string[];
+  onboarded_at: string; // Tracks onboarding completion
 }
 ```
 
@@ -556,7 +557,8 @@ CREATE TABLE users (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   roles app_role[] DEFAULT ARRAY['user']::app_role[],
-  badges TEXT[] DEFAULT ARRAY[]::TEXT[]
+  badges TEXT[] DEFAULT ARRAY[]::TEXT[],
+  onboarded_at TIMESTAMPTZ
 );
 
 -- Posts table
@@ -682,10 +684,10 @@ serve(async (req) => {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    ppr: true,
+    ppr: false,
   },
   images: {
-    domains: ['your-supabase-project.supabase.co'],
+    domains: [],
   },
   async rewrites() {
     return [
@@ -752,6 +754,11 @@ const nextConfig = {
         destination: '/pp',
         permanent: true,
       },
+      {
+        source: '/messages/[conversationId]',
+        destination: '/m/[conversationId]',
+        permanent: true,
+      },
     ];
   },
 }
@@ -785,7 +792,7 @@ module.exports = nextConfig
 }
 ```
 
-## Monitoring i Analytics
+### Monitoring i Analytics
 
 ### Privacy-First Analytics
 - **Plausible Analytics** zamiast Google Analytics
@@ -917,9 +924,5 @@ module.exports = nextConfig
 *   Privacy Policy: `/pp`
 *   Admin: `/admin`
 
-## WORKFLOW & RELEASE RULES
-*   Build Vercel pipeline ci/cd and prepare proper implementation code to production
-
-## DEBUGGING
-*   To minimize hydration mismatches: add `suppressHydrationWarning` to the body and html.
-*   To further minimize hydration mismatches, the theme toggle should render a neutral,
+### Onboarding Flow
+*   New users and first-time OAuth users must be guided through an onboarding
