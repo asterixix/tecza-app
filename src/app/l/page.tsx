@@ -28,15 +28,27 @@ export default function LoginPage() {
   const [needsOtp, setNeedsOtp] = useState(false)
   const supabase = getSupabase()
 
-  // Jeśli zalogowany (lub login przez OAuth), redirect do dashboardu
+  // Jeśli zalogowany (lub login przez OAuth), redirect do onboarding lub dashboardu
   useEffect(() => {
     if (!supabase) return
-    supabase.auth.getSession().then(({ data }) => {
-  if (data.session) window.location.href = "/d"
-    })
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-  if (session) window.location.href = "/d"
-    })
+    const route = async () => {
+      const { data } = await supabase.auth.getSession()
+      const session = data.session
+      if (!session) return
+      const { data: profile } = await supabase
+        .from("profiles").select("id, username, display_name, onboarded_at").eq("id", session.user.id).single()
+      if (!profile?.username || !profile?.display_name) {
+        window.location.href = "/onboarding/account"
+        return
+      }
+      if (!profile?.onboarded_at) {
+        window.location.href = "/onboarding/profile"
+        return
+      }
+      window.location.href = "/d"
+    }
+    route()
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => { if (session) route() })
     return () => { sub.subscription.unsubscribe() }
   }, [supabase])
 
@@ -53,7 +65,7 @@ export default function LoginPage() {
     }
     setLoading(true)
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+  const { error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       })
@@ -64,7 +76,7 @@ export default function LoginPage() {
       }
   // Success login + 2FA support
   toast.success("Zalogowano")
-  window.location.href = "/d"
+  // redirect handled by onAuthStateChange route()
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : ""
       const status = (e as { status?: string })?.status || ""
