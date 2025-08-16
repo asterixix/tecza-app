@@ -56,4 +56,5 @@ node_modules
 .github/prompts
 supabase
 .supabase
+tests
 

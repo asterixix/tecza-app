@@ -25,6 +25,7 @@ import { toast } from "sonner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Image as ImageIcon, Video as VideoIcon, X, Smile } from "lucide-react"
+import { moderateContent } from "@/lib/moderation"
 
 const schema = z.object({
   content: z.string().min(1, "Wpis nie może być pusty").max(5000),
@@ -40,6 +41,16 @@ export function PostComposer({
   open?: boolean
   onOpenChange?: (o: boolean) => void
 }) {
+  // Validate that a preview URL is a blob: URL to avoid DOM XSS via reinterpreted strings
+  const safeBlobUrl = (val: string | null): string | null => {
+    if (!val) return null
+    try {
+      const u = new URL(val)
+      return u.protocol === "blob:" ? u.toString() : null
+    } catch {
+      return null
+    }
+  }
   const [loading, setLoading] = useState(false)
   const supabase = getSupabase()
   type FormValues = z.infer<typeof schema>
@@ -203,6 +214,28 @@ export function PostComposer({
     if (!supabase) return toast.error("Brak konfiguracji Supabase")
     try {
       setLoading(true)
+      // AI moderation pre-check for text content
+      const moderation = await moderateContent({ type: "post", content: values.content })
+      if (moderation?.decision === "block") {
+        toast.error("Treść odrzucona przez moderację AI")
+        // Try to create a moderation report for audit
+        try {
+          const u = (await supabase.auth.getUser()).data.user
+          if (u) {
+            await supabase.from("moderation_reports").insert({
+              reporter_id: u.id,
+              target_type: "post",
+              target_id: null,
+              reason: "inappropriate_content",
+              description: (moderation.reasons || []).join(", ") || "AI block",
+              status: "pending",
+              target_meta: { preview: values.content.slice(0, 280) },
+            })
+          }
+        } catch {}
+        setLoading(false)
+        return
+      }
       const user = (await supabase.auth.getUser()).data.user
       if (!user) throw new Error("Brak zalogowanego użytkownika")
       const mediaUrls: string[] = []
@@ -238,6 +271,21 @@ export function PostComposer({
         const vidPath = `${user.id}/videos/${Date.now()}-${videoFile.name}`
         const url = await uploadToStorage("posts", vidPath, videoFile)
         mediaUrls.push(url)
+        // Try to transcode server-side via Edge Function (best-effort)
+        try {
+          const res = await fetch("/api/video-transcode", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ bucket: "posts", path: vidPath }),
+          })
+          if (res.ok) {
+            const j = await res.json()
+            if (j?.ok && typeof j.outputPath === "string") {
+              const pub = await supabase.storage.from("posts").getPublicUrl(j.outputPath)
+              if (pub.data?.publicUrl) mediaUrls.push(pub.data.publicUrl)
+            }
+          }
+        } catch {}
       }
 
       // Attach detected link preview if enabled
@@ -258,6 +306,25 @@ export function PostComposer({
         visibility: values.visibility,
       })
       if (error) throw error
+      if (moderation?.decision === "review") {
+        toast.message("Treść oznaczona do weryfikacji przez AI", {
+          description: "Moderator sprawdzi wpis wkrótce.",
+        })
+        try {
+          const u = (await supabase.auth.getUser()).data.user
+          if (u) {
+            await supabase.from("moderation_reports").insert({
+              reporter_id: u.id,
+              target_type: "post",
+              target_id: null,
+              reason: "inappropriate_content",
+              description: (moderation.reasons || []).join(", ") || "AI review",
+              status: "pending",
+              target_meta: { preview: values.content.slice(0, 280) },
+            })
+          }
+        } catch {}
+      }
       toast.success("Opublikowano post")
       form.reset({ content: "", visibility: values.visibility })
       setImageFile(null)
@@ -382,11 +449,11 @@ export function PostComposer({
 
               {/* Selected attachments preview */}
               <div className="ml-auto flex items-center gap-3">
-                {imageFile && imagePreview && (
+                {imageFile && imagePreview && safeBlobUrl(imagePreview) && (
                   <div className="relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={imagePreview}
+                      src={safeBlobUrl(imagePreview) ?? undefined}
                       alt="Podgląd obrazu"
                       className="h-20 w-auto max-w-[160px] rounded object-cover border"
                     />
@@ -400,10 +467,10 @@ export function PostComposer({
                     </button>
                   </div>
                 )}
-                {videoFile && videoPreview && (
+                {videoFile && videoPreview && safeBlobUrl(videoPreview) && (
                   <div className="relative">
                     <video
-                      src={videoPreview}
+                      src={safeBlobUrl(videoPreview) ?? undefined}
                       className="h-20 w-auto max-w-[200px] rounded border"
                       controls
                       muted
@@ -481,6 +548,15 @@ function OGPreview({ url }: { url: string }) {
     siteName?: string
   } | null>(null)
   const [loading, setLoading] = useState(false)
+  const safeHttpUrl = (val?: string | null): string | null => {
+    if (!val) return null
+    try {
+      const u = new URL(val)
+      return u.protocol === "http:" || u.protocol === "https:" ? u.toString() : null
+    } catch {
+      return null
+    }
+  }
   useEffect(() => {
     let cancelled = false
     async function run() {
@@ -504,9 +580,13 @@ function OGPreview({ url }: { url: string }) {
   if (!data) return null
   return (
     <div className="mt-2 flex gap-3 rounded border bg-muted/30 p-2">
-      {data.image && (
+      {safeHttpUrl(data.image) && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={data.image} alt="" className="h-16 w-16 object-cover rounded" />
+        <img
+          src={safeHttpUrl(data.image) ?? undefined}
+          alt=""
+          className="h-16 w-16 object-cover rounded"
+        />
       )}
       <div className="min-w-0">
         <div className="text-sm font-medium truncate">{data.title || new URL(url).hostname}</div>

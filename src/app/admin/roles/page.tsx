@@ -84,7 +84,10 @@ export default function RolesAdmin() {
     if (next.has(role)) next.delete(role)
     else next.add(role)
     const nextArr = Array.from(next)
-    const { error } = await supabase.from("profiles").update({ roles: nextArr }).eq("id", userId)
+    const { error } = await supabase.rpc("admin_set_roles", {
+      p_user_id: userId,
+      p_roles: nextArr,
+    })
     if (!error) setList(list.map((x) => (x.id === userId ? { ...x, roles: nextArr } : x)))
   }
 
@@ -96,7 +99,10 @@ export default function RolesAdmin() {
     if (next.has(badge)) next.delete(badge)
     else next.add(badge)
     const nextArr = Array.from(next)
-    const { error } = await supabase.from("profiles").update({ badges: nextArr }).eq("id", userId)
+    const { error } = await supabase.rpc("admin_set_badges", {
+      p_user_id: userId,
+      p_badges: nextArr,
+    })
     if (!error) setList(list.map((x) => (x.id === userId ? { ...x, badges: nextArr } : x)))
   }
 

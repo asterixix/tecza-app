@@ -81,6 +81,37 @@ export default function ContentModeration() {
     }
   }
 
+  // Helpers to build typed args for admin RPCs (avoid `any`)
+  type HideRpc = "admin_hide_comment" | "admin_hide_event" | "admin_hide_community"
+  type RestoreRpc = "admin_restore_comment" | "admin_restore_event" | "admin_restore_community"
+  type HideArgs =
+    | { p_comment_id: string; p_reason: string }
+    | { p_event_id: string; p_reason: string }
+    | { p_community_id: string; p_reason: string }
+  type RestoreArgs = { p_comment_id: string } | { p_event_id: string } | { p_community_id: string }
+
+  function buildHideArgs(fn: HideRpc, id: string, reason: string): HideArgs {
+    switch (fn) {
+      case "admin_hide_comment":
+        return { p_comment_id: id, p_reason: reason }
+      case "admin_hide_event":
+        return { p_event_id: id, p_reason: reason }
+      case "admin_hide_community":
+        return { p_community_id: id, p_reason: reason }
+    }
+  }
+
+  function buildRestoreArgs(fn: RestoreRpc, id: string): RestoreArgs {
+    switch (fn) {
+      case "admin_restore_comment":
+        return { p_comment_id: id }
+      case "admin_restore_event":
+        return { p_event_id: id }
+      case "admin_restore_community":
+        return { p_community_id: id }
+    }
+  }
+
   const filtered = useMemo(() => {
     return reports.filter(
       (r) =>
@@ -110,6 +141,101 @@ export default function ContentModeration() {
         notes: actionNotes || null,
       })
       setActionNotes("")
+    }
+  }
+
+  async function hidePost(report: Report) {
+    if (!supabase || report.target_type !== "post" || !report.target_id) return
+    const reason = actionNotes || report.reason
+    const { error } = await supabase.rpc("admin_hide_post", {
+      p_post_id: report.target_id,
+      p_reason: reason,
+    })
+    if (!error) {
+      await supabase.from("moderation_actions").insert({
+        actor_id: (await supabase.auth.getUser()).data.user?.id,
+        action: "hide",
+        target_type: report.target_type,
+        target_id: report.target_id,
+        notes: reason,
+      })
+      setActionNotes("")
+      await updateStatus(report, "reviewed")
+    }
+  }
+
+  async function restorePost(report: Report) {
+    if (!supabase || report.target_type !== "post" || !report.target_id) return
+    const { error } = await supabase.rpc("admin_restore_post", {
+      p_post_id: report.target_id,
+    })
+    if (!error) {
+      await supabase.from("moderation_actions").insert({
+        actor_id: (await supabase.auth.getUser()).data.user?.id,
+        action: "restore",
+        target_type: report.target_type,
+        target_id: report.target_id,
+        notes: actionNotes || null,
+      })
+      setActionNotes("")
+      await updateStatus(report, "resolved")
+    }
+  }
+
+  async function hideOther(report: Report) {
+    if (!supabase || !report.target_id) return
+    const reason = actionNotes || report.reason
+    const map: Record<Report["target_type"], { fn: HideRpc } | undefined> = {
+      user: undefined,
+      message: undefined,
+      post: undefined,
+      comment: { fn: "admin_hide_comment" },
+      event: { fn: "admin_hide_event" },
+      community: { fn: "admin_hide_community" },
+      profile_media: undefined,
+    }
+    const ent = map[report.target_type]
+    if (!ent) return
+    const args = buildHideArgs(ent.fn, report.target_id, reason)
+    const { error } = await supabase.rpc(ent.fn, args)
+    if (!error) {
+      await supabase.from("moderation_actions").insert({
+        actor_id: (await supabase.auth.getUser()).data.user?.id,
+        action: "hide",
+        target_type: report.target_type,
+        target_id: report.target_id,
+        notes: reason,
+      })
+      setActionNotes("")
+      await updateStatus(report, "reviewed")
+    }
+  }
+
+  async function restoreOther(report: Report) {
+    if (!supabase || !report.target_id) return
+    const map: Record<Report["target_type"], { fn: RestoreRpc } | undefined> = {
+      user: undefined,
+      message: undefined,
+      post: undefined,
+      comment: { fn: "admin_restore_comment" },
+      event: { fn: "admin_restore_event" },
+      community: { fn: "admin_restore_community" },
+      profile_media: undefined,
+    }
+    const ent = map[report.target_type]
+    if (!ent) return
+    const args = buildRestoreArgs(ent.fn, report.target_id)
+    const { error } = await supabase.rpc(ent.fn, args)
+    if (!error) {
+      await supabase.from("moderation_actions").insert({
+        actor_id: (await supabase.auth.getUser()).data.user?.id,
+        action: "restore",
+        target_type: report.target_type,
+        target_id: report.target_id,
+        notes: actionNotes || null,
+      })
+      setActionNotes("")
+      await updateStatus(report, "resolved")
     }
   }
 
@@ -208,6 +334,29 @@ export default function ContentModeration() {
                     >
                       Odrzuć
                     </Button>
+                    {r.target_id && (
+                      <>
+                        {r.target_type === "post" ? (
+                          <>
+                            <Button size="sm" variant="destructive" onClick={() => hidePost(r)}>
+                              Ukryj post
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => restorePost(r)}>
+                              Przywróć post
+                            </Button>
+                          </>
+                        ) : ["comment", "event", "community"].includes(r.target_type) ? (
+                          <>
+                            <Button size="sm" variant="destructive" onClick={() => hideOther(r)}>
+                              Ukryj
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => restoreOther(r)}>
+                              Przywróć
+                            </Button>
+                          </>
+                        ) : null}
+                      </>
+                    )}
                   </div>
                 </div>
               </CardContent>

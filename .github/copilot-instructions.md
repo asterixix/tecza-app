@@ -128,6 +128,10 @@ interface Post {
 
   created_at: string
   updated_at: string
+  hidden_at TIMESTAMP WITH TIME ZONE,
+  hidden_reason TEXT,
+  hidden_by UUID REFERENCES users(id) ON DELETE SET NULL,
+
 }
 
 interface PostInteraction {
@@ -569,6 +573,7 @@ CREATE TABLE users (
   bio TEXT TEXT,
   avatar_url TEXT,
   cover_image_url TEXT,
+  private_key_vault JSONB,
 
   -- LGBTQ Identity
   sexual_orientation TEXT[],
@@ -589,7 +594,10 @@ CREATE TABLE users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   roles app_role[] DEFAULT ARRAY['user']::app_role[],
   badges TEXT[] DEFAULT ARRAY[]::TEXT[],
-  onboarded_at TIMESTAMPTZ
+  onboarded_at TIMESTAMPTZ,
+  suspended_at TIMESTAMP WITH TIME ZONE,
+  suspended_reason TEXT,
+  suspended_by UUID REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- Posts table
@@ -602,6 +610,9 @@ CREATE TABLE posts (
   visibility TEXT DEFAULT 'public',
   hashtags TEXT[],
   mentions UUID[],
+  hidden_at TIMESTAMP WITH TIME ZONE, -- Added for moderation
+  hidden_reason TEXT,                -- Added for moderation
+  hidden_by UUID REFERENCES users(id) ON DELETE SET NULL, -- Added for moderation
 
   likes_count INTEGER DEFAULT 0,
   comments_count INTEGER 0,
@@ -989,10 +1000,4 @@ module.exports = nextConfig
 
 - New users and first-time OAuth users must be guided through an onboarding
   - For OAuth users add additional process to setup visible name, username and password with confirmation
-  - For all new users add screen to configure own profile like avatar, pronouns, orientation, sex, bio, social medias and privacy settings and make introduction to use application
-
-### Post Standards
-
-- In `post-item.tsx`, when checking for Tenor URLs, the code must parse and validate the hostname instead of using a substring match to prevent incomplete URL sanitization.
-  - Use a safe `isTenorHost(url)` helper that parses `new URL(url)` and validates `hostname` against a whitelist:
-    - Allowed: `tenor.com` and subdomains like `media
+  - For
