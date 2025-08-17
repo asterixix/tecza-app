@@ -30,7 +30,7 @@ import { KeyManager } from "@/lib/crypto/key-manager"
 import {
   encryptPrivateKeyPkcs8B64,
   decryptPrivateKeyPkcs8B64,
-  VaultBlob,
+  type VaultBlob,
 } from "@/lib/crypto/vault"
 
 const schema = z.object({
@@ -212,6 +212,7 @@ export default function SettingsPage() {
           <TabsTrigger value="security">Bezpieczeństwo</TabsTrigger>
           <TabsTrigger value="accessibility">Dostępność</TabsTrigger>
           <TabsTrigger value="danger">Strefa ryzyka</TabsTrigger>
+          <TabsTrigger value="notifications">Powiadomienia</TabsTrigger>
         </TabsList>
 
         <TabsContent value="privacy">
@@ -314,6 +315,31 @@ export default function SettingsPage() {
                   </Button>
                 </div>
               </Form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications">
+          <Card>
+            <CardContent className="p-4 grid gap-4 max-w-2xl">
+              <h2 className="text-lg font-semibold">Ustawienia powiadomień</h2>
+              <div className="grid md:grid-cols-2 gap-3">
+                {/* Category toggles loaded/saved from notification_settings */}
+                <ToggleSetting
+                  field="enable_friend_requests"
+                  label="Prośby o połączenie"
+                />
+                <ToggleSetting field="enable_mentions" label="Wzmianki (@)" />
+                <ToggleSetting
+                  field="enable_community_posts"
+                  label="Posty w społecznościach"
+                />
+                <ToggleSetting
+                  field="enable_following_posts"
+                  label="Nowe posty obserwowanych"
+                />
+              </div>
+              <PushControls />
             </CardContent>
           </Card>
         </TabsContent>
@@ -852,6 +878,127 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+    </div>
+  )
+}
+
+function ToggleSetting({
+  field,
+  label,
+}: {
+  field:
+    | "enable_friend_requests"
+    | "enable_mentions"
+    | "enable_community_posts"
+    | "enable_following_posts"
+  label: string
+}) {
+  const supabase = getSupabase()
+  const [checked, setChecked] = useState<boolean>(true)
+  const [loading, setLoading] = useState(true)
+  type NotificationSettingsRow = {
+    user_id: string
+    enable_friend_requests?: boolean | null
+    enable_mentions?: boolean | null
+    enable_community_posts?: boolean | null
+    enable_following_posts?: boolean | null
+    push_enabled?: boolean | null
+  }
+
+  useEffect(() => {
+    ;(async () => {
+      if (!supabase) return
+      const me = (await supabase.auth.getUser()).data.user
+      if (!me) return
+      const { data } = await supabase
+        .from("notification_settings")
+        .select("*")
+        .eq("user_id", me.id)
+        .maybeSingle()
+      if (data) {
+        const row = data as unknown as NotificationSettingsRow
+        setChecked(Boolean(row[field]))
+      }
+      setLoading(false)
+    })()
+  }, [supabase, field])
+
+  return (
+    <div className="flex items-center justify-between rounded-md border p-3">
+      <div>
+        <div className="font-medium">{label}</div>
+      </div>
+      <Switch
+        checked={checked}
+        disabled={loading}
+        onCheckedChange={async (v) => {
+          setChecked(v)
+          if (!supabase) return
+          const me = (await supabase.auth.getUser()).data.user
+          if (!me) return
+          type NotificationSettingsUpdate = {
+            user_id: string
+            enable_friend_requests?: boolean
+            enable_mentions?: boolean
+            enable_community_posts?: boolean
+            enable_following_posts?: boolean
+          }
+          const update: NotificationSettingsUpdate = {
+            user_id: me.id,
+            [field]: v,
+          } as NotificationSettingsUpdate
+          await supabase.from("notification_settings").upsert(update)
+        }}
+      />
+    </div>
+  )
+}
+
+function PushControls() {
+  const supabase = getSupabase()
+  const [enabled, setEnabled] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    ;(async () => {
+      if (!supabase) return
+      const me = (await supabase.auth.getUser()).data.user
+      if (!me) return
+      const { data } = await supabase
+        .from("notification_settings")
+        .select("push_enabled")
+        .eq("user_id", me.id)
+        .maybeSingle()
+      setEnabled(!!data?.push_enabled)
+      setLoading(false)
+    })()
+  }, [supabase])
+
+  return (
+    <div className="rounded-md border p-3">
+      <div className="font-medium mb-1">Powiadomienia push (przeglądarka)</div>
+      <div className="text-sm text-muted-foreground mb-2">
+        Wymaga zgody przeglądarki i obsługi przez Service Worker.
+      </div>
+      <Button
+        size="sm"
+        variant={enabled ? "secondary" : "default"}
+        disabled={loading}
+        onClick={async () => {
+          if (!supabase) return
+          const me = (await supabase.auth.getUser()).data.user
+          if (!me) return
+          const next = !enabled
+          setEnabled(next)
+          const update: { user_id: string; push_enabled: boolean } = {
+            user_id: me.id,
+            push_enabled: next,
+          }
+          await supabase.from("notification_settings").upsert(update)
+        }}
+      >
+        {enabled ? "Wyłącz push" : "Włącz push"}
+      </Button>
     </div>
   )
 }

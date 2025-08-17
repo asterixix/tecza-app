@@ -45,10 +45,12 @@ export function PostComposer({
   onPosted,
   open,
   onOpenChange,
+  communityId,
 }: {
   onPosted?: () => void
   open?: boolean
   onOpenChange?: (o: boolean) => void
+  communityId?: string
 }) {
   // Validate that a preview URL is a blob: URL to avoid DOM XSS via reinterpreted strings
   const safeBlobUrl = (val: string | null): string | null => {
@@ -317,7 +319,20 @@ export function PostComposer({
         if (!mediaUrls.includes(firstUrl)) mediaUrls.push(firstUrl)
       }
 
-      const { hashtags } = extractTagsAndMentions(values.content)
+      const { hashtags, mentions } = extractTagsAndMentions(values.content)
+
+      // Resolve mentions -> profile IDs
+      let mentionIds: string[] | null = null
+      if (mentions.length) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id,username")
+          .in("username", mentions)
+        const ids = (
+          (profs || []) as Array<{ id: string; username: string }>
+        ).map((p) => p.id)
+        mentionIds = ids.length ? ids : null
+      }
 
       const { error } = await supabase.from("posts").insert({
         user_id: user.id,
@@ -331,9 +346,9 @@ export function PostComposer({
           : "text",
         media_urls: mediaUrls.length ? mediaUrls : null,
         hashtags: hashtags.length ? hashtags : null,
-        // Mentions: we store usernames; server can map to user IDs if needed later
-        mentions: null,
+        mentions: mentionIds,
         visibility: values.visibility,
+        community_id: communityId || null,
       })
       if (error) throw error
       if (moderation?.decision === "review") {

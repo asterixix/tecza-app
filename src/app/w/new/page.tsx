@@ -68,7 +68,7 @@ export default function NewEventPage() {
         .single()
       if (error) throw error
       toast.success("Wydarzenie utworzone")
-      router.push(`/events/${data!.slug}`)
+      router.push(`/w/${data!.slug}`)
     } catch (e) {
       const msg =
         e instanceof Error ? e.message : "Nie udało się utworzyć wydarzenia"

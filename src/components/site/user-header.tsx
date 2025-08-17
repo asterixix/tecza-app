@@ -30,6 +30,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Logo } from "./logo"
 import { MessagesPopover } from "@/components/messages/messages-popover"
+import { NotificationsPopover } from "@/components/site/notifications-popover"
 import { ThemeToggle } from "./theme-toggle"
 import { GlobalSearch } from "./global-search"
 import { Button as UIButton } from "@/components/ui/button"
@@ -252,6 +253,7 @@ export function UserHeader() {
             <Search className="size-5" aria-hidden />
           </UIButton>
           <ThemeToggle />
+          <NotificationsPopover />
           <MessagesPopover />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

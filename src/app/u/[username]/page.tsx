@@ -439,39 +439,84 @@ export default function PublicUserPage() {
     { label: string; color: string; icon: string }
   > = {
     "user-supporter": {
-      label: "Wspierający",
-      color: "bg-orange-500/15 text-orange-300 ring-orange-500/30",
+      label: "Ta osoba wspiera rozwój Tęcza.app!",
+      color: "bg-blue-500/15 text-blue-300 ring-blue-500/30",
       icon: "/icons/tecza-badge/user-supporter.svg",
     },
     "company-supporter": {
-      label: "Firma wspierająca",
+      label: "Ta osobowość prawna wspiera rozwój Tęcza.app!",
       color: "bg-violet-500/15 text-violet-300 ring-violet-500/30",
       icon: "/icons/tecza-badge/company-supporter.svg",
     },
     "early-tester": {
-      label: "Wczesny tester",
-      color: "bg-blue-500/15 text-blue-300 ring-blue-500/30",
+      label: "Ta osoba testowała Tęcza.app jeszcze jak aplikacja nie działała!",
+      color: "bg-orange-500/15 text-orange-300 ring-orange-500/30",
       icon: "/icons/tecza-badge/early-tester.svg",
     },
     tester: {
-      label: "Tester",
+      label: "Ta osoba testowała Tęcza.app!",
       color: "bg-teal-500/15 text-teal-300 ring-teal-500/30",
       icon: "/icons/tecza-badge/tester.svg",
     },
     moderator: {
-      label: "Moderator",
+      label: "Moderator Tęcza.app",
       color: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
       icon: "/icons/tecza-badge/mod-admin.svg",
     },
     administrator: {
-      label: "Administrator",
+      label: "Administrator Tęcza.app",
       color: "bg-rose-500/15 text-rose-300 ring-rose-500/30",
       icon: "/icons/tecza-badge/mod-admin.svg",
     },
-    "super-administrator": {
-      label: "Super administrator",
-      color: "bg-red-600/15 text-red-300 ring-red-600/30",
-      icon: "/icons/tecza-badge/super-admin.svg",
+    ambassador: {
+      label: "Osoba ambasadorska Tęcza.app",
+      color: "bg-indigo-500/15 text-indigo-300 ring-indigo-500/30",
+      icon: "/icons/tecza-badge/ambassador.svg",
+    },
+    company: {
+      label: "Osobowość prawna",
+      color: "bg-purple-500/15 text-purple-300 ring-purple-500/30",
+      icon: "/icons/tecza-badge/company.svg",
+    },
+    banned: {
+      label: "Osoba zbanowana",
+      color: "bg-gray-700/20 text-gray-300 ring-gray-700/40",
+      icon: "/icons/tecza-badge/banned.svg",
+    },
+    "tecza-team": {
+      label: "Tęcza.app Team",
+      color: "bg-fuchsia-500/15 text-fuchsia-300 ring-fuchsia-500/30",
+      icon: "/icons/tecza-badge/tecza-team.svg",
+    },
+    pride2026: {
+      label: "Świętujemy równość w 2026 roku!",
+      color: "bg-pink-500/15 text-pink-300 ring-pink-500/30",
+      icon: "/icons/tecza-badge/pride2026.svg",
+    },
+    "hiv-positive-campaigh": {
+      label: "Osoba HIV pozytywna - pozytywnie i otwarcie mówi o HIV",
+      color: "bg-rose-600/15 text-rose-300 ring-rose-600/30",
+      icon: "/icons/tecza-badge/hiv-positive-campaigh.svg",
+    },
+    "1-anniversary": {
+      label: "Jestem już na tęczy od 1 roku",
+      color: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
+      icon: "/icons/tecza-badge/1-anniversary.svg",
+    },
+    "3-anniversary": {
+      label: "Jestem już na tęczy od 3 lat",
+      color: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+      icon: "/icons/tecza-badge/3-anniversary.svg",
+    },
+    "5-anniversary": {
+      label: "Jestem już na tęczy od 5 lat",
+      color: "bg-blue-500/15 text-blue-300 ring-blue-500/30",
+      icon: "/icons/tecza-badge/5-anniversary.svg",
+    },
+    "10-anniversary": {
+      label: "Jestem już na tęczy od 10 lat",
+      color: "bg-yellow-600/15 text-yellow-300 ring-yellow-600/30",
+      icon: "/icons/tecza-badge/10-anniversary.svg",
     },
   }
 
@@ -1061,8 +1106,8 @@ export default function PublicUserPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 md:px-6 py-6 space-y-6">
-      <div className="relative h-40 w-full overflow-hidden rounded-lg border bg-muted">
+    <div className="mx-auto max-w-5xl px-3 sm:px-4 md:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <div className="relative h-48 sm:h-40 w-full overflow-hidden rounded-lg border bg-muted">
         {!!profile?.cover_image_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -1215,13 +1260,13 @@ export default function PublicUserPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
         <Card className="md:col-span-2">
-          <CardContent className="pt-2 pb-4 px-4">
-            <div className="flex items-center gap-3">
+          <CardContent className="pt-3 sm:pt-2 pb-4 px-3 sm:px-4">
+            <div className="flex flex-wrap items-start gap-3">
               <div
                 ref={avatarContainerRef}
-                className="-mt-10 h-24 w-24 rounded-full ring-2 ring-background overflow-hidden bg-muted border relative"
+                className="-mt-14 sm:-mt-10 h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-full ring-2 ring-background overflow-hidden bg-muted border relative"
               >
                 {!!profile?.avatar_url && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -1233,8 +1278,8 @@ export default function PublicUserPage() {
                 )}
                 {/* Avatar auto-saves on pick; moved trigger button outside the frame */}
               </div>
-              <div className="flex-1">
-                <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg sm:text-xl font-bold tracking-tight flex flex-wrap items-center gap-2">
                   {loading ? "Ładowanie…" : name}
                   {profile?.pronouns ? (
                     <Badge variant="outline" title="Zaimki">
@@ -1242,10 +1287,15 @@ export default function PublicUserPage() {
                     </Badge>
                   ) : null}
                   {profile?.badges && profile.badges.length > 0 ? (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center flex-wrap gap-1.5">
                       {profile.badges.map((b, i) => {
                         const info = badgeMeta[b]
-                        if (!info) return null
+                        if (!info)
+                          return (
+                            <Badge key={`b-${i}`} variant="secondary">
+                              {b}
+                            </Badge>
+                          )
                         return (
                           <Popover key={`b-${i}`}>
                             <PopoverTrigger asChild>
@@ -1284,7 +1334,7 @@ export default function PublicUserPage() {
                   ) : null}
                 </h1>
                 {profile?.username && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground truncate">
                     @{profile.username}
                   </p>
                 )}

@@ -54,16 +54,22 @@ export default function NewCommunityPage() {
           is_local: !!(city || country),
           slug: baseSlug,
         })
-        .select("id")
+        .select("id, slug, status")
         .single()
       if (error) throw error
-      // Auto-join owner
-      const { error: memberErr } = await supabase
-        .from("community_memberships")
-        .insert({ community_id: data!.id, user_id: me.id, role: "owner" })
-      if (memberErr) throw memberErr
-      toast.success("Społeczność utworzona")
-      router.push(`/communities/${baseSlug}`)
+      // Auto-join owner only when community is active; pending communities can't accept members
+      if (data?.status === "active") {
+        const { error: memberErr } = await supabase
+          .from("community_memberships")
+          .insert({ community_id: data!.id, user_id: me.id, role: "owner" })
+        if (memberErr) throw memberErr
+        toast.success("Społeczność utworzona")
+      } else {
+        toast.info(
+          "Wysłano do moderacji. Twoja społeczność zostanie sprawdzona przez moderatora.",
+        )
+      }
+      router.push(`/c/${data?.slug || baseSlug || data?.id}`)
     } catch (e) {
       const msg =
         e instanceof Error ? e.message : "Nie udało się utworzyć społeczności"

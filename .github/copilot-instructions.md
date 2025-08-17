@@ -105,6 +105,8 @@ interface UserProfile {
 - Społeczności do których należy
 - Cover image (max size: 5MB)
 - Add "follow/observe" functionality to profiles with counts and safe guards.
+- Build addictional profile badges based on uploaded icons in `/tecza-badge` and database, admin panel.
+- Focus to correct UI on mobile devices for user profile page cause currently is problem to navigate profile on mobile devices and see ex. profile avatar.
 
 ### 2. System Postów i Feed
 
@@ -133,8 +135,8 @@ interface Post {
   created_at: string
   updated_at: string
   hidden_at TIMESTAMP WITH TIME ZONE,
-  hidden_reason TEXT,
-  hidden_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  hidden_reason TEXT,                -- Added for moderation
+  hidden_by UUID REFERENCES users(id) ON DELETE SET NULL, -- Added for moderation
 
 }
 
@@ -240,6 +242,11 @@ interface CommunityMembership {
 - System ról (właściciel, moderator, członek)
 - Baza wiedzy/Wiki dla każdej społeczności
 - Wydarzenia społeczności
+- Build fully functional communities functionality based on instructions and add missing setups to database cause currently creating community:
+  - POST https://earfxvgvrqgyfzuwaqga.supabase.co/rest/v1/communities?select=id%2Cslug 500 (Internal Server Error)
+  - if user not company-supporter, moderator, administrator, or have dedicated privilige setup in admin panel, before creating new community need to be moderated and accepted to create in admin panel. Build also functionalities for admins and mods to moderate communities, delete or edit details, delete icons and banners
+  - After creating new community, if user is not `company-supporter`, `moderator`, `administrator`, or has a dedicated privilege set up in the admin panel, the community needs to be moderated and accepted by admins/mods before it becomes active.
+  - Update community creation and listing pages to use the `/c` routes and handle pending status cleanly, with basic error handling for join attempts on pending communities.
 
 ### 5. System Wiadomości
 
@@ -324,6 +331,7 @@ interface Conversation {
   - Implement the passphrase-protected private key vault and export/import UI.
   - Finish the ffmpeg transcode Edge Function and route it into the upload flow.
   - Add the purge worker and wire a “Delete securely” action in the UI.
+  - Continue building messages to working functionality with push notification, encryption, emoji reactions, image, video sending, link preview and dedicated messages page to list all chats and communite with users based on instructions. Check are supabase properly support all chat functionalities. Check UI are mobile responsive, accessible. Check are code optimized for large database communication.
 
 ### 6. System Wydarzeń
 
@@ -380,6 +388,9 @@ interface EventParticipation {
 - Mapa wydarzeń
 - Wydarzenia cykliczne
 - Integracja z wydarzeniami społeczności
+- Build fully functional events functionality based on instructions and add missing setups to database cause currently creating events:
+  - POST https://earfxvgvrqgyfzuwaqga.supabase.co/rest/v1/communities?select=id%2Cslug 500 (Internal Server Error)
+  - Events can be created by users without any specific permissions.
 
 ### 7. System Bezpieczeństwa i Moderacji
 
@@ -682,6 +693,8 @@ serve(async (req) => {
 
 ```typescript
 // supabase/functions/send-notification/index.ts
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+
 serve(async (req) => {
   const { user_id, title, body, type } = await req.json()
 
@@ -917,6 +930,7 @@ module.exports = nextConfig
 - For logged-in users, create custom site headers with profile icons and menu options (Profil, Ustawienia, Wyloguj się) and dedicated header navigation and footers.
 - After successful login, the user should be redirected to the /dashboard page.
 - If a user profile does not exist for a given username, return a 404 error.
+- Focus to correct UI on mobile devices for user profile page cause currently is problem to navigate profile on mobile devices and see ex. profile avatar.
 
 ### Homepage Standards
 
@@ -933,6 +947,7 @@ module.exports = nextConfig
 - Add `suppressHydrationWarning` to the body to minimize hydration mismatches.
 - Make the footer year robust with a `<time>` element.
 - The public footer `site-footer.tsx` must include “Regulamin” link to `/tos` and “Prywatność” link to `/pp`.
+- Remove from global search using "/" cause does making missclicking and opening search bar when it's not wanted
 
 ### Login/Register Page Standards
 
@@ -972,40 +987,4 @@ module.exports = nextConfig
     - Avatar image max size: 2MB.
     - Cover image max size: 5MB.
   - Build full functional user settings with options to change user details, accessibility settings, 2fa options, oauth connections, change password, privacy settings, delete account (with full clearing data).
-  - Remove profile editing from settings and move edit own user profile to `/u/[username]` adding edit profile button and intuitive build UI to freely edit profile components. Note to load properly username with hashtag tag which are not changeable after registration. All things in profile like bio, pronouns, city, country, webpage, public email, avatar, background image, instagram, twitter, tiktok are optional. Visible location, visible orientation, visible list of friends leave only in privacy section in settings.
-  - Add support for sexual orientation, gender identity in user profiles and editing them.
-  - Add support for pronouns on profile (add badge next to visible name in profile)
-  - Build more interesting Information section using badges and icons.
-  - Use drawer component from shadcn for edit profile form.
-  - Ensure the "Edytuj profil" button shows when the URL username matches the logged-in user’s metadata or profile row.
-  - If a user profile does not exist for a given username, return a 404 error.
-  - Add options to edit or remove own published post on feed looking into own user profile preview
-  - Map badges to icons:
-    - user-supporter → `/icons/tecza-badge/user-supporter.svg`
-    - company-supporter → `/icons/tecza-badge/company-supporter.svg`
-    - early-tester → `/icons/tecza-badge/early-tester.svg`
-    - tester → `/icons/tecza-badge/tester.svg`
-    - moderator/administrator → `/icons/tecza-badge/mod-admin.svg`
-    - super-administrator → `/icons/tecza-badge/6.svg`
-  - The user footer `user-footer.tsx` must include “Regulamin” link to `/tos` and “Prywatność” link to `/pp` and settings link corrected to short path `/s`.
-  - Move badges next to pronoun badge and add colours popovers for different types for badges
-
-### Community Standards
-
-- The header should include a "Społeczności" link.
-- Events and communities should use linking based on name, not UUID, for easy sharing.
-
-### Events Standards
-
-- Implement events database migration with RLS and storage bucket.
-
-### Link/Page Routing Standards
-
-- Communities: `/c`
-- Dashboard: `/d`
-- Events: `/w`
-- Login: `/l`
-- Messages: `/m`
-- Register: `/r`
-- Reset Password: Implemented in login page
-- Profile: Implemented in `/u/[username]` page
+  - Remove profile editing from settings and move edit own user profile to `/u/[username]` adding edit profile button and intuitive build UI to freely edit profile components. Note to load properly username with hashtag tag which are not changeable after registration. All things in profile

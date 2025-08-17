@@ -24,6 +24,16 @@ const ALL_BADGES = [
   "moderator",
   "administrator",
   "super-administrator",
+  "ambassador",
+  "company",
+  "banned",
+  "tecza-team",
+  "pride2026",
+  "hiv-positive-campaigh",
+  "1-anniversary",
+  "3-anniversary",
+  "5-anniversary",
+  "10-anniversary",
 ]
 
 export default function RolesAdmin() {

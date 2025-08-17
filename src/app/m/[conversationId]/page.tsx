@@ -1,12 +1,6 @@
-import type { Metadata } from "next"
 import { MessageConversation } from "./message-conversation"
 
-export const metadata: Metadata = {
-  title: "Wiadomości | Tęcza.app",
-  description: "Prywatne wiadomości",
-}
-
-export default async function MessagePage({
+export default async function ConversationPage({
   params,
 }: {
   params: Promise<{ conversationId: string }>
