@@ -141,10 +141,24 @@ export function MessageComposer({
     setMessage((prev) => prev + emoji.native)
   }
 
-  // naive link preview: detect URL in message and fetch preview
+  // link preview: detect URL in message but restrict to allowed domains
   useEffect(() => {
-    const url = message.match(/https?:\/\/[\w.-]+(?:\/[\w\-./?%&=]*)?/i)?.[0]
+    const match = message.match(/https?:\/\/[\w.-]+(?:\/[\w\-./?%&=]*)?/i)
+    const url = match?.[0]
     if (!url) {
+      setLinkPreview(null)
+      return
+    }
+    // Whitelist domains for previews
+    const ALLOWED_DOMAINS = ["example.com", "www.example.com"]
+    let hostname: string | null = null
+    try {
+      hostname = new URL(url).hostname
+    } catch {
+      setLinkPreview(null)
+      return
+    }
+    if (!ALLOWED_DOMAINS.includes(hostname)) {
       setLinkPreview(null)
       return
     }

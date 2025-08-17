@@ -931,6 +931,7 @@ module.exports = nextConfig
 - After successful login, the user should be redirected to the /dashboard page.
 - If a user profile does not exist for a given username, return a 404 error.
 - Focus to correct UI on mobile devices for user profile page cause currently is problem to navigate profile on mobile devices and see ex. profile avatar.
+- After providing changes, always start new finalizing process to first run prettier formatting, then linting, and finally a build process to check proper validation and code combatibility.
 
 ### Homepage Standards
 
@@ -987,4 +988,4 @@ module.exports = nextConfig
     - Avatar image max size: 2MB.
     - Cover image max size: 5MB.
   - Build full functional user settings with options to change user details, accessibility settings, 2fa options, oauth connections, change password, privacy settings, delete account (with full clearing data).
-  - Remove profile editing from settings and move edit own user profile to `/u/[username]` adding edit profile button and intuitive build UI to freely edit profile components. Note to load properly username with hashtag tag which are not changeable after registration. All things in profile
+  - Remove profile editing from settings and move edit own user profile to `/u/[

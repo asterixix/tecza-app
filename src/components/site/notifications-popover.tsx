@@ -1,4 +1,4 @@
-/* eslint-disable */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
@@ -108,7 +108,7 @@ export function NotificationsPopover() {
       cancelled = true
       if (channel) supabase!.removeChannel(channel)
     }
-  }, [supabase])
+  }, [supabase, actors])
 
   const unreadCount = useMemo(
     () => items.filter((i) => !i.read_at).length,

@@ -712,7 +712,7 @@ export function PostItem({
                       title="Tenor GIF"
                       loading="lazy"
                       referrerPolicy="no-referrer"
-                      sandbox="allow-scripts allow-same-origin"
+                      sandbox="allow-same-origin allow-popups"
                     />
                   ) : (
                     <OGCard url={url} />
