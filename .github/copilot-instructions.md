@@ -248,6 +248,11 @@ interface CommunityMembership {
   - if user not company-supporter, moderator, administrator, or have dedicated privilige setup in admin panel, before creating new community need to be moderated and accepted to create in admin panel. Build also functionalities for admins and mods to moderate communities, delete or edit details, delete icons and banners
   - After creating new community, if user is not `company-supporter`, `moderator`, `administrator`, or has a dedicated privilege set up in the admin panel, the community needs to be moderated and accepted by admins/mods before it becomes active.
   - Update community creation and listing pages to use the `/c` routes and handle pending status cleanly, with basic error handling for join attempts on pending communities.
+- Build fully functional communities functionality based on instructions and add missing setups to database cause currently creating community:
+  - POST https://earfxvgvrqgyfzuwaqga.supabase.co/rest/v1/communities?select=id%2Cslug 500 (Internal Server Error)
+  - if user not company-supporter, moderator, administrator, or have dedicated privilige setup in admin panel, before creating new community need to be moderated and accepted to create in admin panel. Build also functionalities for admins and mods to moderate communities, delete or edit details, delete icons and banners
+  - After creating new community, if user is not `company-supporter`, `moderator`, `administrator`, or has a dedicated privilege set up in the admin panel, the community needs to be moderated and accepted by admins/mods before it becomes active.
+  - Update community creation and listing pages to use the `/c` routes and handle pending status cleanly, with basic error handling for join attempts on pending communities.
 
 ### 5. System Wiadomości
 
@@ -397,6 +402,9 @@ interface EventParticipation {
 - Mapa wydarzeń
 - Wydarzenia cykliczne
 - Integracja z wydarzeniami społeczności
+- Build fully functional events functionality based on instructions and add missing setups to database cause currently creating events:
+  - POST https://earfxvgvrqgyfzuwaqga.supabase.co/rest/v1/communities?select=id%2Cslug 500 (Internal Server Error)
+  - Events can be created by users without any specific permissions.
 - Build fully functional events functionality based on instructions and add missing setups to database cause currently creating events:
   - POST https://earfxvgvrqgyfzuwaqga.supabase.co/rest/v1/communities?select=id%2Cslug 500 (Internal Server Error)
   - Events can be created by users without any specific permissions.
@@ -704,6 +712,8 @@ serve(async (req) => {
 // supabase/functions/send-notification/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+
 serve(async (req) => {
   const { user_id, title, body, type } = await req.json()
 
@@ -941,6 +951,8 @@ module.exports = nextConfig
 - If a user profile does not exist for a given username, return a 404 error.
 - Focus to correct UI on mobile devices for user profile page cause currently is problem to navigate profile on mobile devices and see ex. profile avatar.
 - After providing changes, always start new finalizing process to first run prettier formatting, then linting, and finally a build process to check proper validation and code combatibility.
+- Focus to correct UI on mobile devices for user profile page cause currently is problem to navigate profile on mobile devices and see ex. profile avatar.
+- After providing changes, always start new finalizing process to first run prettier formatting, then linting, and finally a build process to check proper validation and code combatibility.
 
 ### Homepage Standards
 
@@ -957,6 +969,7 @@ module.exports = nextConfig
 - Add `suppressHydrationWarning` to the body to minimize hydration mismatches.
 - Make the footer year robust with a `<time>` element.
 - The public footer `site-footer.tsx` must include “Regulamin” link to `/tos` and “Prywatność” link to `/pp`.
+- Remove from global search using "/" cause does making missclicking and opening search bar when it's not wanted
 - Remove from global search using "/" cause does making missclicking and opening search bar when it's not wanted
 
 ### Login/Register Page Standards
