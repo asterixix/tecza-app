@@ -47,16 +47,12 @@ export function GlobalSearch() {
   const [activeIndex, setActiveIndex] = useState<number>(-1)
   const inputRef = useRef<HTMLInputElement | null>(null)
 
-  // Open with Cmd/Ctrl+K and '/'
+  // Open with Cmd/Ctrl+K (slash shortcut removed to avoid accidental opens)
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         setOpen((v) => !v)
-      } else if (e.key === "/" && !open) {
-        // Quick focus search
-        e.preventDefault()
-        setOpen(true)
       } else if (e.key === "Escape" && open) {
         setOpen(false)
       }

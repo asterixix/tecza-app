@@ -4,8 +4,10 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Card, CardContent } from "@/components/ui/card"
+import { PostComposer } from "@/components/dashboard/post-composer"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
+import { toast } from "sonner"
 
 interface Community {
   id: string
@@ -18,6 +20,7 @@ interface Community {
   city: string | null
   country: string | null
   type: "public" | "private" | "restricted"
+  status?: "pending" | "active" | "rejected"
 }
 
 export default function CommunityPage() {
@@ -64,6 +67,10 @@ export default function CommunityPage() {
 
   async function join() {
     if (!supabase || !community) return
+    if (community.status && community.status !== "active") {
+      toast.info("Ta społeczność oczekuje na akceptację moderatora.")
+      return
+    }
     const me = (await supabase.auth.getUser()).data.user
     if (!me) return
     const role = me.id === community.owner_id ? "owner" : "member"
@@ -141,6 +148,20 @@ export default function CommunityPage() {
             </p>
           </CardContent>
         </Card>
+
+        {isMember && (
+          <Card>
+            <CardContent className="p-4">
+              <h2 className="text-lg font-semibold mb-3">Nowy post</h2>
+              <PostComposer
+                communityId={community.id}
+                onPosted={() => {
+                  /* could refresh list later */
+                }}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardContent className="p-4">

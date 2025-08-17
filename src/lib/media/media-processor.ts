@@ -128,6 +128,8 @@ export class MediaProcessor {
         const cleanup = (url?: string) => {
           if (url) URL.revokeObjectURL(url)
         }
+        // Track the current object URL early so cleanup() is always safe
+        let currentUrl: string | undefined
 
         video.onloadedmetadata = () => {
           // Draw a frame at 1s (or 0 if shorter)
@@ -159,13 +161,12 @@ export class MediaProcessor {
 
         // Create and validate a blob URL, then assign and ensure cleanup
         const objectUrl = URL.createObjectURL(file)
-        let currentUrl: string | undefined = objectUrl
+        currentUrl = objectUrl
         try {
-          const u = new URL(objectUrl)
-          if (u.protocol !== "blob:")
+          // Validate blob URL once
+          if (!isValidBlobUrl(objectUrl)) {
             throw new Error("Invalid object URL scheme")
-          if (!isValidBlobUrl(objectUrl))
-            throw new Error("Invalid object URL scheme")
+          }
           video.src = objectUrl
         } catch {
           cleanup(currentUrl)

@@ -117,7 +117,7 @@ export default function EventsPage() {
       setIsOnline(false)
       setIsFree(true)
       // navigate
-      window.location.href = `/events/${data!.slug}`
+      window.location.href = `/w/${data!.slug}`
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "Nie udało się utworzyć wydarzenia"

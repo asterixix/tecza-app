@@ -100,19 +100,23 @@ export default function CommunitiesPage() {
           owner_id: me.id,
           slug,
         })
-        .select("id,slug")
+        .select("id,slug,status")
         .single()
 
       if (createErr) throw createErr
 
-      // Auto-join owner to increment members_count via trigger and simplify permissions
-      const { error: memberErr } = await supabase
-        .from("community_memberships")
-        .insert({ community_id: created!.id, user_id: me.id, role: "owner" })
-
-      if (memberErr) throw memberErr
-
-      toast.success("Społeczność utworzona")
+      // Auto-join only when community is active
+      if (created?.status === "active") {
+        const { error: memberErr } = await supabase
+          .from("community_memberships")
+          .insert({ community_id: created!.id, user_id: me.id, role: "owner" })
+        if (memberErr) throw memberErr
+        toast.success("Społeczność utworzona")
+      } else {
+        toast.info(
+          "Wysłano do moderacji. Twoja społeczność zostanie sprawdzona przez moderatora.",
+        )
+      }
       setOpen(false)
       // Reset form
       setName("")
@@ -121,7 +125,7 @@ export default function CommunitiesPage() {
       setCity("")
       setCountry("")
       // Navigate to created community
-      router.push(`/communities/${created!.slug || created!.id}`)
+      router.push(`/c/${created!.slug || created!.id}`)
     } catch (e: unknown) {
       const err = e as { message?: string; hint?: string; details?: string }
       const details = err?.message || err?.hint || err?.details
@@ -147,7 +151,7 @@ export default function CommunitiesPage() {
           <Card key={c.id} className="overflow-hidden">
             <CardContent className="p-0">
               <Link
-                href={`/communities/${c.slug || c.id}`}
+                href={`/c/${c.slug || c.id}`}
                 className="flex gap-3 p-3 hover:bg-accent/30"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}

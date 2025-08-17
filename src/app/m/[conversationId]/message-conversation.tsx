@@ -26,6 +26,8 @@ export function MessageConversation({
     sendMessage,
     markAsRead,
     requestSecureDelete,
+    addReaction,
+    removeReaction,
   } = useMessages(conversationId)
 
   if (loading) {
@@ -100,6 +102,8 @@ export function MessageConversation({
         currentUserId={user?.id || ""}
         onMarkAsRead={markAsRead}
         onDeleteSecure={requestSecureDelete}
+        onReact={addReaction}
+        onUnreact={removeReaction}
       />
 
       {/* Composer */}

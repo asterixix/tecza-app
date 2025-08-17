@@ -459,6 +459,40 @@ export function useMessages(conversationId?: string) {
     }
   }, [conversationId, supabase, loadConversation, loadMessages])
 
+  // Reactions
+  const addReaction = useCallback(
+    async (messageId: string, emoji: string) => {
+      try {
+        const { data: userData } = await supabase!.auth.getUser()
+        const userId = userData.user?.id
+        if (!userId) return
+        await supabase!
+          .from("message_reactions")
+          .insert({ message_id: messageId, user_id: userId, emoji })
+      } catch (e) {
+        console.error("addReaction failed", e)
+      }
+    },
+    [supabase],
+  )
+
+  const removeReaction = useCallback(
+    async (messageId: string, emoji: string) => {
+      try {
+        const { data: userData } = await supabase!.auth.getUser()
+        const userId = userData.user?.id
+        if (!userId) return
+        await supabase!
+          .from("message_reactions")
+          .delete()
+          .match({ message_id: messageId, user_id: userId, emoji })
+      } catch (e) {
+        console.error("removeReaction failed", e)
+      }
+    },
+    [supabase],
+  )
+
   return {
     messages,
     conversation,
@@ -467,6 +501,8 @@ export function useMessages(conversationId?: string) {
     sendMessage,
     markAsRead,
     requestSecureDelete,
+    addReaction,
+    removeReaction,
     refetch: loadMessages,
   }
 }

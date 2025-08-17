@@ -1,7 +1,7 @@
 "use client"
 import NextImage from "next/image"
 
-import { useState, useRef, ChangeEvent } from "react"
+import { useState, useRef, ChangeEvent, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -38,6 +38,12 @@ export function MessageComposer({
   const [attachedFile, setAttachedFile] = useState<File | null>(null)
   const [filePreview, setFilePreview] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
+  const [linkPreview, setLinkPreview] = useState<{
+    title?: string
+    description?: string
+    image?: string
+    url: string
+  } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const emojiList = [
@@ -109,6 +115,7 @@ export function MessageComposer({
       setMessage("")
       setAttachedFile(null)
       setFilePreview(null)
+      setLinkPreview(null)
       if (fileInputRef.current) {
         fileInputRef.current.value = ""
       }
@@ -133,6 +140,44 @@ export function MessageComposer({
   const handleEmojiSelect = (emoji: { native: string }) => {
     setMessage((prev) => prev + emoji.native)
   }
+
+  // link preview: detect URL in message but restrict to allowed domains
+  useEffect(() => {
+    const match = message.match(/https?:\/\/[\w.-]+(?:\/[\w\-./?%&=]*)?/i)
+    const url = match?.[0]
+    if (!url) {
+      setLinkPreview(null)
+      return
+    }
+    // Whitelist domains for previews
+    const ALLOWED_DOMAINS = ["example.com", "www.example.com"]
+    let hostname: string | null = null
+    try {
+      hostname = new URL(url).hostname
+    } catch {
+      setLinkPreview(null)
+      return
+    }
+    if (!ALLOWED_DOMAINS.includes(hostname)) {
+      setLinkPreview(null)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(
+          `/api/link-preview?url=${encodeURIComponent(url)}`,
+        )
+        const data = await res.json().catch(() => null)
+        if (!cancelled && data) setLinkPreview({ ...data, url })
+      } catch {
+        if (!cancelled) setLinkPreview(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [message])
 
   const removeAttachment = () => {
     setAttachedFile(null)
@@ -281,6 +326,40 @@ export function MessageComposer({
           <Send className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Link preview */}
+      {linkPreview && (
+        <a
+          href={linkPreview.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 block rounded-lg border p-3 hover:bg-muted/50"
+        >
+          <div className="flex items-center gap-3">
+            {linkPreview.image && (
+              <div className="h-12 w-12 overflow-hidden rounded bg-muted relative">
+                <NextImage
+                  src={linkPreview.image}
+                  alt=""
+                  fill
+                  sizes="48px"
+                  className="object-cover"
+                />
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="truncate font-medium">
+                {linkPreview.title || linkPreview.url}
+              </p>
+              {linkPreview.description && (
+                <p className="truncate text-sm text-muted-foreground">
+                  {linkPreview.description}
+                </p>
+              )}
+            </div>
+          </div>
+        </a>
+      )}
 
       {/* Hidden file input */}
       <input

@@ -30,6 +30,8 @@ interface MessageListProps {
   currentUserId: string
   onMarkAsRead?: (messageIds: string[]) => void
   onDeleteSecure?: (messageId: string) => void
+  onReact?: (messageId: string, emoji: string) => void
+  onUnreact?: (messageId: string, emoji: string) => void
 }
 
 export function MessageList({
@@ -37,6 +39,8 @@ export function MessageList({
   currentUserId,
   onMarkAsRead,
   onDeleteSecure,
+  onReact,
+  onUnreact,
 }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -173,7 +177,7 @@ export function MessageList({
               {/* Message content */}
               {renderMessageContent(message)}
 
-              {/* Timestamp and read status */}
+              {/* Timestamp, read and reactions */}
               <div
                 className={cn(
                   "flex items-center gap-1 mt-1",
@@ -201,6 +205,21 @@ export function MessageList({
                   >
                     Usuń bezpiecznie
                   </button>
+                )}
+                {(onReact || onUnreact) && (
+                  <div className="ml-2 flex gap-1">
+                    {"😀😂🥰👍🎉".split("").map((e) => (
+                      <button
+                        key={e}
+                        type="button"
+                        className="text-[12px] opacity-70 hover:opacity-100"
+                        onClick={() => onReact?.(message.id, e)}
+                        aria-label={`Zareaguj ${e}`}
+                      >
+                        {e}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
