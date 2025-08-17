@@ -135,8 +135,8 @@ interface Post {
   created_at: string
   updated_at: string
   hidden_at TIMESTAMP WITH TIME ZONE,
-  hidden_reason TEXT,                -- Added for moderation
-  hidden_by UUID REFERENCES users(id) ON DELETE SET NULL, -- Added for moderation
+  hidden_reason TEXT,
+  hidden_by UUID REFERENCES users(id) ON DELETE SET NULL,
 
 }
 
@@ -988,4 +988,4 @@ module.exports = nextConfig
     - Avatar image max size: 2MB.
     - Cover image max size: 5MB.
   - Build full functional user settings with options to change user details, accessibility settings, 2fa options, oauth connections, change password, privacy settings, delete account (with full clearing data).
-  - Remove profile editing from settings and move edit own user profile to `/u/[
+  - Remove profile editing from settings and move edit own user profile to `/u/[username]` adding edit profile button and intuitive build
