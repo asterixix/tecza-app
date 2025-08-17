@@ -63,17 +63,7 @@ export function useMessages(conversationId?: string) {
       // Get conversation with participant info
       const { data: conv, error } = await supabase!
         .from("conversations")
-        .select(
-          `
-          *,
-          profiles!conversations_participants_fkey (
-            id,
-            username,
-            display_name,
-            avatar_url
-          )
-        `,
-        )
+        .select("id,type,participants,wrapped_keys,last_message_at,created_at")
         .eq("id", conversationId)
         .single()
 
@@ -83,25 +73,22 @@ export function useMessages(conversationId?: string) {
       let convWithOther = conv as Conversation
       if (conv.type === "direct") {
         const otherUserId = conv.participants.find((p: string) => p !== user.id)
-        const profilesTyped:
-          | Array<{
-              id: string
-              username: string
-              display_name: string
-              avatar_url?: string
-            }>
-          | undefined = (
-          conv as unknown as {
-            profiles?: Array<{
-              id: string
-              username: string
-              display_name: string
-              avatar_url?: string
-            }>
-          }
-        ).profiles
-        const otherUser = profilesTyped?.find((p) => p.id === otherUserId)
-        convWithOther = { ...conv, other_user: otherUser } as Conversation
+        if (otherUserId) {
+          const { data: other } = await supabase!
+            .from("profiles")
+            .select("id,username,display_name,avatar_url")
+            .eq("id", otherUserId)
+            .maybeSingle()
+          convWithOther = {
+            id: conv.id,
+            type: conv.type,
+            participants: conv.participants,
+            wrapped_keys: conv.wrapped_keys,
+            last_message_at: conv.last_message_at,
+            created_at: conv.created_at,
+            other_user: other || undefined,
+          } as Conversation
+        }
       }
 
       // Decrypt conversation key
@@ -529,8 +516,9 @@ export function useConversation(otherUserId?: string) {
         .from("conversations")
         .select("id")
         .eq("type", "direct")
-        .contains("participants", [user.id, otherUserId])
-        .single()
+        .contains("participants", [user.id])
+        .contains("participants", [otherUserId])
+        .maybeSingle()
 
       if (existing) return existing.id
 
@@ -538,10 +526,11 @@ export function useConversation(otherUserId?: string) {
       const { data: friendship } = await supabase!
         .from("friendships")
         .select("id")
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-        .or(`user1_id.eq.${otherUserId},user2_id.eq.${otherUserId}`)
+        .or(
+          `and(user1_id.eq.${user.id},user2_id.eq.${otherUserId}),and(user1_id.eq.${otherUserId},user2_id.eq.${user.id})`,
+        )
         .eq("status", "active")
-        .single()
+        .maybeSingle()
 
       if (!friendship) {
         throw new Error("You must be friends to send messages")

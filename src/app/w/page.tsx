@@ -18,6 +18,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
@@ -140,7 +141,7 @@ export default function EventsPage() {
           <Card key={e.id} className="overflow-hidden">
             <CardContent className="p-0">
               <Link
-                href={`/events/${e.slug || e.id}`}
+                href={`/w/${e.slug || e.id}`}
                 className="flex gap-3 p-3 hover:bg-accent/30"
               >
                 <div className="h-12 w-12 rounded bg-muted" />
@@ -165,6 +166,10 @@ export default function EventsPage() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Utwórz wydarzenie</DialogTitle>
+            <DialogDescription>
+              Wypełnij pola, aby dodać wydarzenie. Wydarzenia są widoczne
+              publicznie, chyba że wybierzesz inną widoczność w edycji.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <div>
