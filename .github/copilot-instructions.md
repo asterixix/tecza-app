@@ -191,6 +191,7 @@ interface Friendship {
 - Posty "dla znajomych" widoczne tylko dla połączonych użytkowników
 - System blokowania użytkowników
 - Lista wspólnych znajomych
+- Build notification system with supabase realtime to deliver pending friendship comfirmation notification to accept or decline, notificate user about post mention, group post publishing, observe profile new post. Add support for push notifications in settings for notifications and build notifications in user header next to message icon. Make notification system mobile friendly, responsive and accessible.
 
 ### 4. Społeczności
 
@@ -332,6 +333,14 @@ interface Conversation {
   - Finish the ffmpeg transcode Edge Function and route it into the upload flow.
   - Add the purge worker and wire a “Delete securely” action in the UI.
   - Continue building messages to working functionality with push notification, encryption, emoji reactions, image, video sending, link preview and dedicated messages page to list all chats and communite with users based on instructions. Check are supabase properly support all chat functionalities. Check UI are mobile responsive, accessible. Check are code optimized for large database communication.
+  - Ensure `currentUrl` is defined before finally cleanup in `media-processor.ts`.
+  - Removed redundant blob URL checks in `media-processor.ts`; keep a single `isValidBlobUrl` validation.
+  - Ensured useEffect is imported in `message-composer.tsx`.
+  - Added link preview domain whitelist and guarded parsing in `message-composer.tsx`.
+  - Addressed Prettier formatting lints in `message-composer.tsx`.
+  - Scoped eslint-disable to `@typescript-eslint/no-explicit-any` in `notifications-popover.tsx`.
+  - Added `actors` to the dependency array for useEffect in `notifications-popover.tsx`.
+  - Tightened Tenor iframe sandbox to `allow-same-origin allow-popups` (removed `allow-scripts`) in `post-item.tsx`.
 
 ### 6. System Wydarzeń
 
@@ -979,13 +988,4 @@ module.exports = nextConfig
 - Implement user settings pages allowing users to edit their profile information.
 - The header "Profil" option for logged in users should link to `/u/[username]`.
 - The old `/profile` page should be removed.
-- The `/u/[username]` page should:
-  - Display the user's avatar, cover, display name/username, and pronouns.
-  - Display the user's bio and badges for sexual orientation/gender identity (based on privacy flags).
-  - Optionally display the user's location, website, and social links.
-  - Include a "Połącz się" button wired to the friendships table; show "Połączeni" when already connected. This should implement a friend request flow (pending/accept/cancel) instead of instant connect.
-  - Implement user profile editting background image, avatar image, adding information column, visible public post based on database, visible public list of connected friends based on database (based on user settings). Images locate in supabase storage functionality.
-    - Avatar image max size: 2MB.
-    - Cover image max size: 5MB.
-  - Build full functional user settings with options to change user details, accessibility settings, 2fa options, oauth connections, change password, privacy settings, delete account (with full clearing data).
-  - Remove profile editing from settings and move edit own user profile to `/u/[username]` adding edit profile button and intuitive build
+-

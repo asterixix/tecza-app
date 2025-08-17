@@ -15,6 +15,7 @@ type ConversationListItem = {
   id: string
   type: "direct" | "group"
   last_message_at: string
+  participants: string[]
   profiles?: Array<{
     id: string
     username: string
@@ -32,14 +33,50 @@ export default function MessagesPage() {
   useEffect(() => {
     ;(async () => {
       if (!supabase || !user) return
-      const { data } = await supabase
+      // Fetch conversations without an invalid join
+      const { data, error } = await supabase
         .from("conversations")
-        .select(
-          `id,type,last_message_at,profiles!conversations_participants_fkey(id,username,display_name,avatar_url)`,
-        )
+        .select("id,type,last_message_at,participants")
         .contains("participants", [user.id])
         .order("last_message_at", { ascending: false })
-      setItems((data as unknown as ConversationListItem[]) || [])
+      if (error) return
+      const rows = (data as unknown as ConversationListItem[]) || []
+      // For direct chats, prefetch other participant profiles
+      const otherIds = Array.from(
+        new Set(
+          rows
+            .filter((r) => r.type === "direct")
+            .map((r) => r.participants.find((p) => p !== user.id))
+            .filter(Boolean) as string[],
+        ),
+      )
+      type ProfileLite = {
+        id: string
+        username: string
+        display_name: string
+        avatar_url?: string
+      }
+      const profMap: Record<string, ProfileLite> = {}
+      if (otherIds.length) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id,username,display_name,avatar_url")
+          .in("id", otherIds)
+        ;(profs as ProfileLite[] | null)?.forEach((p) => {
+          profMap[p.id] = p
+        })
+      }
+      const withProfiles = rows.map((r) => {
+        if (r.type === "direct") {
+          const other = r.participants.find((p) => p !== user.id)
+          return {
+            ...r,
+            profiles: other ? [profMap[other]].filter(Boolean) : [],
+          }
+        }
+        return r
+      })
+      setItems(withProfiles)
     })()
   }, [supabase, user])
 

@@ -19,6 +19,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
@@ -183,6 +184,10 @@ export default function CommunitiesPage() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Utwórz społeczność</DialogTitle>
+            <DialogDescription>
+              Wypełnij pola poniżej, aby dodać nową społeczność. Niektóre
+              zgłoszenia mogą wymagać akceptacji moderatora.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <div>
