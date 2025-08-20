@@ -53,6 +53,12 @@ export default function EventsPage() {
   const [isOnline, setIsOnline] = useState(false)
   const [isFree, setIsFree] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState<null | {
+    message: string
+    code?: string
+    hint?: string | null
+    details?: string | null
+  }>(null)
 
   useEffect(() => {
     async function load() {
@@ -68,7 +74,19 @@ export default function EventsPage() {
         .limit(50)
       if (error) {
         console.error("Failed to load events:", error)
-        toast.error(error.message)
+        const err = error as unknown as {
+          message: string
+          code?: string
+          hint?: string | null
+          details?: string | null
+        }
+        setLoadError({
+          message: err.message,
+          code: err.code,
+          hint: err.hint ?? null,
+          details: err.details ?? null,
+        })
+        toast.error(`${err.message}${err.code ? ` (${err.code})` : ""}`)
       }
       setItems(data || [])
     }
@@ -140,6 +158,23 @@ export default function EventsPage() {
           <Button onClick={() => setOpen(true)}>Utwórz</Button>
         </div>
       </div>
+      {loadError ? (
+        <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">
+          <div className="font-semibold">Nie udało się załadować wydarzeń</div>
+          <div className="mt-1">{loadError.message}</div>
+          {loadError.code ? (
+            <div className="mt-1 opacity-80">Kod: {loadError.code}</div>
+          ) : null}
+          {loadError.hint ? (
+            <div className="mt-1 opacity-80">Wskazówka: {loadError.hint}</div>
+          ) : null}
+          {loadError.details ? (
+            <div className="mt-1 opacity-80">
+              Szczegóły: {loadError.details}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map((e) => (
           <Card key={e.id} className="overflow-hidden">

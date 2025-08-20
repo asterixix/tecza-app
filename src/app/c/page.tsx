@@ -54,14 +54,21 @@ export default function CommunitiesPage() {
   useEffect(() => {
     async function load() {
       if (!supabase) return
-      const { data } = await supabase
+      const { data, error, status, statusText } = await supabase
         .from("communities")
         .select(
           "id,slug,name,description,avatar_url,members_count,city,country",
         )
         .order("members_count", { ascending: false })
         .limit(50)
-      setItems(data || [])
+      if (error) {
+        console.error("Communities load error", status, statusText, error)
+        toast.error(
+          "Nie udało się pobrać listy społeczności (spróbuj ponownie)",
+        )
+      } else {
+        setItems(data || [])
+      }
     }
     load()
   }, [supabase])
@@ -88,7 +95,12 @@ export default function CommunitiesPage() {
       while (slug && existing.has(slug)) {
         slug = `${baseSlug}-${i++}`
       }
-      const { data: created, error: createErr } = await supabase
+      const {
+        data: created,
+        error: createErr,
+        status,
+        statusText,
+      } = await supabase
         .from("communities")
         .insert({
           ...(newId ? { id: newId } : {}),
@@ -104,7 +116,10 @@ export default function CommunitiesPage() {
         .select("id,slug,status")
         .single()
 
-      if (createErr) throw createErr
+      if (createErr) {
+        console.error("Create community error", status, statusText, createErr)
+        throw createErr
+      }
 
       // Auto-join only when community is active
       if (created?.status === "active") {
