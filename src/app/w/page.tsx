@@ -58,7 +58,7 @@ export default function EventsPage() {
     async function load() {
       if (!supabase) return
       const now = new Date().toISOString()
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("events")
         .select(
           "id,slug,title,start_date,city,country,category,cover_image_url",
@@ -66,6 +66,10 @@ export default function EventsPage() {
         .gte("start_date", now)
         .order("start_date", { ascending: true })
         .limit(50)
+      if (error) {
+        console.error("Failed to load events:", error)
+        toast.error(error.message)
+      }
       setItems(data || [])
     }
     load()

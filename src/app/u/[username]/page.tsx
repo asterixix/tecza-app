@@ -13,7 +13,20 @@ import {
   PopoverContent,
 } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import Textarea from "@/components/ui/textarea"
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card"
 import {
   Sheet,
   SheetContent,
@@ -178,6 +191,15 @@ type Profile = {
   show_location: boolean
   show_orientation: boolean
   show_friends?: boolean | null
+  // New contact/social usernames and privacy flags
+  contact_whatsapp?: string | null
+  contact_telegram?: string | null
+  contact_signal?: string | null
+  instagram_username?: string | null
+  twitter_username?: string | null
+  tiktok_username?: string | null
+  show_contacts?: boolean | null
+  show_socials?: boolean | null
   roles?:
     | (
         | "user"
@@ -234,8 +256,20 @@ export default function PublicUserPage() {
     instagram: "",
     twitter: "",
     tiktok: "",
+    contact_whatsapp: "",
+    contact_telegram: "",
+    contact_signal: "",
+    instagram_username: "",
+    twitter_username: "",
+    tiktok_username: "",
     city: "",
     country: "",
+    profile_visibility: "public" as "public" | "friends" | "private",
+    show_location: true,
+    show_orientation: true,
+    show_friends: true,
+    show_contacts: true,
+    show_socials: true,
   })
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [coverFile, setCoverFile] = useState<File | null>(null)
@@ -274,7 +308,7 @@ export default function PublicUserPage() {
       const { data: prof } = await supabase
         .from("profiles")
         .select(
-          "id,username,display_name,bio,avatar_url,cover_image_url,sexual_orientation,gender_identity,pronouns,website,social_links,email,city,country,profile_visibility,show_location,show_orientation,show_friends,roles,badges",
+          "id,username,display_name,bio,avatar_url,cover_image_url,sexual_orientation,gender_identity,pronouns,website,social_links,email,city,country,profile_visibility,show_location,show_orientation,show_friends,contact_whatsapp,contact_telegram,contact_signal,instagram_username,twitter_username,tiktok_username,show_contacts,show_socials,roles,badges",
         )
         .ilike("username", String(username))
         .maybeSingle()
@@ -431,6 +465,64 @@ export default function PublicUserPage() {
     (profile?.show_orientation ? profile?.sexual_orientation : null) || []
   const genders =
     (profile?.show_orientation ? profile?.gender_identity : null) || []
+  const canSeeContacts =
+    (profile?.show_contacts ?? true) &&
+    (profile?.profile_visibility === "public" || isOwner || isFriend)
+  const canSeeSocials =
+    (profile?.show_socials ?? true) &&
+    (profile?.profile_visibility === "public" || isOwner || isFriend)
+  const contactLinks = (() => {
+    if (!profile || !canSeeContacts)
+      return [] as { label: string; href: string }[]
+    const out: { label: string; href: string }[] = []
+    const em = (profile.email || "").trim()
+    if (em) {
+      out.push({ label: em, href: `mailto:${em}` })
+    }
+    const wa = (profile.contact_whatsapp || "").trim()
+    if (wa) {
+      // Accept +48 600 ... or digits; strip non-digits except leading +
+      const digits = wa.replace(/[^+\d]/g, "")
+      const phone = digits.startsWith("+") ? digits.substring(1) : digits
+      out.push({ label: "WhatsApp", href: `https://wa.me/${phone}` })
+    }
+    const tg = (profile.contact_telegram || "").trim()
+    if (tg) {
+      const handle = tg.replace(/^@/, "")
+      out.push({ label: "Telegram", href: `https://t.me/${handle}` })
+    }
+    const sg = (profile.contact_signal || "").trim()
+    if (sg) {
+      const digits = sg.replace(/[^+\d]/g, "")
+      const phone = digits.startsWith("+") ? digits.substring(1) : digits
+      out.push({ label: "Signal", href: `https://signal.me/#p/${phone}` })
+    }
+    return out
+  })()
+  const socialLinks = (() => {
+    if (!profile || !canSeeSocials)
+      return [] as { label: string; href: string }[]
+    const out: { label: string; href: string }[] = []
+    const ig = (profile.instagram_username || "").trim()
+    if (ig)
+      out.push({
+        label: "Instagram",
+        href: `https://instagram.com/${ig.replace(/^@/, "")}`,
+      })
+    const tw = (profile.twitter_username || "").trim()
+    if (tw)
+      out.push({
+        label: "X (Twitter)",
+        href: `https://x.com/${tw.replace(/^@/, "")}`,
+      })
+    const tk = (profile.tiktok_username || "").trim()
+    if (tk)
+      out.push({
+        label: "TikTok",
+        href: `https://tiktok.com/@${tk.replace(/^@/, "")}`,
+      })
+    return out
+  })()
 
   // Badge color+icon definitions for popovers
 
@@ -534,8 +626,20 @@ export default function PublicUserPage() {
       instagram: socials.instagram || "",
       twitter: socials.twitter || "",
       tiktok: socials.tiktok || "",
+      contact_whatsapp: (profile.contact_whatsapp || "") as string,
+      contact_telegram: (profile.contact_telegram || "") as string,
+      contact_signal: (profile.contact_signal || "") as string,
+      instagram_username: (profile.instagram_username || "") as string,
+      twitter_username: (profile.twitter_username || "") as string,
+      tiktok_username: (profile.tiktok_username || "") as string,
       city: profile.city || "",
       country: profile.country || "",
+      profile_visibility: profile.profile_visibility || "public",
+      show_location: profile.show_location ?? true,
+      show_orientation: profile.show_orientation ?? true,
+      show_friends: profile.show_friends ?? true,
+      show_contacts: profile.show_contacts ?? true,
+      show_socials: profile.show_socials ?? true,
     })
   }, [profile])
 
@@ -613,9 +717,21 @@ export default function PublicUserPage() {
           gender_identity: gender_identity.length ? gender_identity : null,
           website: editValues.website || null,
           email: editValues.email || null,
+          contact_whatsapp: editValues.contact_whatsapp || null,
+          contact_telegram: editValues.contact_telegram || null,
+          contact_signal: editValues.contact_signal || null,
+          instagram_username: editValues.instagram_username || null,
+          twitter_username: editValues.twitter_username || null,
+          tiktok_username: editValues.tiktok_username || null,
           social_links,
           city: editValues.city || null,
           country: editValues.country || null,
+          profile_visibility: editValues.profile_visibility,
+          show_location: !!editValues.show_location,
+          show_orientation: !!editValues.show_orientation,
+          show_friends: !!editValues.show_friends,
+          show_contacts: !!editValues.show_contacts,
+          show_socials: !!editValues.show_socials,
           ...(avatar_url ? { avatar_url } : {}),
           ...(cover_image_url ? { cover_image_url } : {}),
           updated_at: new Date().toISOString(),
@@ -642,9 +758,21 @@ export default function PublicUserPage() {
           gender_identity: gender_identity.length ? gender_identity : null,
           website: editValues.website || null,
           email: editValues.email || null,
+          contact_whatsapp: editValues.contact_whatsapp || null,
+          contact_telegram: editValues.contact_telegram || null,
+          contact_signal: editValues.contact_signal || null,
+          instagram_username: editValues.instagram_username || null,
+          twitter_username: editValues.twitter_username || null,
+          tiktok_username: editValues.tiktok_username || null,
           social_links: social_links,
           city: editValues.city || null,
           country: editValues.country || null,
+          profile_visibility: editValues.profile_visibility,
+          show_location: !!editValues.show_location,
+          show_orientation: !!editValues.show_orientation,
+          show_friends: !!editValues.show_friends,
+          show_contacts: !!editValues.show_contacts,
+          show_socials: !!editValues.show_socials,
           avatar_url: avatar_url ?? profile.avatar_url,
           cover_image_url: cover_image_url ?? profile.cover_image_url,
         },
@@ -1588,6 +1716,90 @@ export default function PublicUserPage() {
                       />
                     </div>
                   </div>
+                  {/* Privacy controls */}
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">
+                        Widoczność profilu
+                      </label>
+                      <Select
+                        value={editValues.profile_visibility}
+                        onValueChange={(v) =>
+                          setEditValues((s) => ({
+                            ...s,
+                            profile_visibility: v as
+                              | "public"
+                              | "friends"
+                              | "private",
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Wybierz" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="public">Publiczny</SelectItem>
+                          <SelectItem value="friends">Znajomi</SelectItem>
+                          <SelectItem value="private">Prywatny</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">
+                        Ustawienia prywatności
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="flex items-center justify-between gap-3 text-sm">
+                          <span>Lokalizacja</span>
+                          <Switch
+                            checked={editValues.show_location}
+                            onCheckedChange={(v) =>
+                              setEditValues((s) => ({ ...s, show_location: v }))
+                            }
+                          />
+                        </label>
+                        <label className="flex items-center justify-between gap-3 text-sm">
+                          <span>Orientacja/Tożsamość</span>
+                          <Switch
+                            checked={editValues.show_orientation}
+                            onCheckedChange={(v) =>
+                              setEditValues((s) => ({
+                                ...s,
+                                show_orientation: v,
+                              }))
+                            }
+                          />
+                        </label>
+                        <label className="flex items-center justify-between gap-3 text-sm">
+                          <span>Znajomi</span>
+                          <Switch
+                            checked={editValues.show_friends}
+                            onCheckedChange={(v) =>
+                              setEditValues((s) => ({ ...s, show_friends: v }))
+                            }
+                          />
+                        </label>
+                        <label className="flex items-center justify-between gap-3 text-sm">
+                          <span>Kontakty</span>
+                          <Switch
+                            checked={editValues.show_contacts}
+                            onCheckedChange={(v) =>
+                              setEditValues((s) => ({ ...s, show_contacts: v }))
+                            }
+                          />
+                        </label>
+                        <label className="flex items-center justify-between gap-3 text-sm">
+                          <span>Social media</span>
+                          <Switch
+                            checked={editValues.show_socials}
+                            onCheckedChange={(v) =>
+                              setEditValues((s) => ({ ...s, show_socials: v }))
+                            }
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium">Strona www</label>
@@ -1616,6 +1828,47 @@ export default function PublicUserPage() {
                           }))
                         }
                         placeholder="you@example.com"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">WhatsApp</label>
+                      <Input
+                        value={editValues.contact_whatsapp}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            contact_whatsapp: e.target.value,
+                          }))
+                        }
+                        placeholder="np. +48 600 000 000"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Telegram</label>
+                      <Input
+                        value={editValues.contact_telegram}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            contact_telegram: e.target.value,
+                          }))
+                        }
+                        placeholder="np. username"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Signal</label>
+                      <Input
+                        value={editValues.contact_signal}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            contact_signal: e.target.value,
+                          }))
+                        }
+                        placeholder="np. +48 600 000 000"
                       />
                     </div>
                   </div>
@@ -1657,6 +1910,53 @@ export default function PublicUserPage() {
                           }))
                         }
                         placeholder="https://tiktok.com/@..."
+                      />
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">
+                        Instagram (username)
+                      </label>
+                      <Input
+                        value={editValues.instagram_username}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            instagram_username: e.target.value,
+                          }))
+                        }
+                        placeholder="np. tecza"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">
+                        Twitter/X (username)
+                      </label>
+                      <Input
+                        value={editValues.twitter_username}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            twitter_username: e.target.value,
+                          }))
+                        }
+                        placeholder="np. tecza"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">
+                        TikTok (username)
+                      </label>
+                      <Input
+                        value={editValues.tiktok_username}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            tiktok_username: e.target.value,
+                          }))
+                        }
+                        placeholder="np. tecza"
                       />
                     </div>
                   </div>
@@ -1776,6 +2076,38 @@ export default function PublicUserPage() {
                     ))}
                   </div>
                 )}
+                {contactLinks.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                    <AtSign className="size-4" aria-hidden />
+                    {contactLinks.map((c) => (
+                      <a
+                        key={c.label}
+                        href={c.href}
+                        className="hover:underline"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {c.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+                {socialLinks.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                    <AtSign className="size-4" aria-hidden />
+                    {socialLinks.map((s) => (
+                      <a
+                        key={s.label}
+                        href={s.href}
+                        className="hover:underline"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {s.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1783,38 +2115,84 @@ export default function PublicUserPage() {
           {(profile?.show_friends ?? true) && (
             <Card>
               <CardContent className="p-4">
-                <h3 className="font-medium mb-3">Znajomi</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium">Znajomi</h3>
+                  {friends.length > 5 && profile?.username && (
+                    <Link
+                      href={`/u/${profile.username}/friends`}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Zobacz wszystkich
+                    </Link>
+                  )}
+                </div>
                 {friends.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     Brak znajomych do wyświetlenia.
                   </p>
                 ) : (
                   <ul className="grid gap-2">
-                    {friends.map((f) => (
+                    {friends.slice(0, 5).map((f) => (
                       <li key={f.id} className="flex items-center gap-3">
-                        <div
-                          className="h-8 w-8 rounded-full overflow-hidden bg-muted border"
-                          aria-hidden
-                        >
-                          {f.avatar_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={f.avatar_url}
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
-                          ) : null}
-                        </div>
-                        <div className="truncate">
-                          <div className="text-sm font-medium truncate">
-                            {f.display_name || f.username || "Użytkownik"}
-                          </div>
-                          {f.username && (
-                            <div className="text-xs text-muted-foreground">
-                              @{f.username}
+                        <HoverCard>
+                          <HoverCardTrigger asChild>
+                            <Link
+                              href={f.username ? `/u/${f.username}` : "#"}
+                              className="flex items-center gap-3"
+                            >
+                              <div
+                                className="h-8 w-8 rounded-full overflow-hidden bg-muted border"
+                                aria-hidden
+                              >
+                                {f.avatar_url ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={f.avatar_url}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : null}
+                              </div>
+                              <div className="truncate">
+                                <div className="text-sm font-medium truncate">
+                                  {f.display_name || f.username || "Użytkownik"}
+                                </div>
+                                {f.username && (
+                                  <div className="text-xs text-muted-foreground">
+                                    @{f.username}
+                                  </div>
+                                )}
+                              </div>
+                            </Link>
+                          </HoverCardTrigger>
+                          <HoverCardContent className="w-64">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="h-10 w-10 rounded-full overflow-hidden bg-muted border"
+                                aria-hidden
+                              >
+                                {f.avatar_url ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={f.avatar_url}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : null}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium truncate">
+                                  {f.display_name || f.username || "Użytkownik"}
+                                </div>
+                                {f.username && (
+                                  <div className="text-xs text-muted-foreground truncate">
+                                    @{f.username}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          )}
-                        </div>
+                          </HoverCardContent>
+                        </HoverCard>
                       </li>
                     ))}
                   </ul>
