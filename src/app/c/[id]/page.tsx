@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import Image from "next/image"
 import { toast } from "sonner"
 import Link from "next/link"
+import type { PostgrestError } from "@supabase/supabase-js"
 
 interface Community {
   id: string
@@ -48,6 +49,12 @@ export default function CommunityPage() {
   >([])
   const [newAnn, setNewAnn] = useState({ title: "", body: "" })
 
+  const formatPgErr = (e: unknown) => {
+    const err = (e || {}) as Partial<PostgrestError>
+    const msg = err.message ?? "Wystąpił błąd"
+    return err.code ? `${msg} (${err.code})` : msg
+  }
+
   useEffect(() => {
     async function load() {
       if (!supabase || !idOrSlug) return
@@ -71,20 +78,28 @@ export default function CommunityPage() {
       setCommunity(found)
       const me = (await supabase.auth.getUser()).data.user
       if (me && found?.id) {
-        const { data: m } = await supabase
+        const { data: m, error: mErr } = await supabase
           .from("community_memberships")
           .select("id,role")
           .eq("community_id", found.id)
           .eq("user_id", me.id)
           .maybeSingle()
+        if (mErr) {
+          console.error("membership check failed", mErr)
+          toast.error(formatPgErr(mErr))
+        }
         setIsMember(!!m)
         setIsAdmin(!!m && (m.role === "owner" || m.role === "moderator"))
         // Load members for admins
         if (found.status === "active") {
-          const { data: mem } = await supabase
+          const { data: mem, error: listErr } = await supabase
             .from("community_memberships")
             .select("user_id,role")
             .eq("community_id", found.id)
+          if (listErr) {
+            console.error("members list failed", listErr)
+            toast.error(formatPgErr(listErr))
+          }
           const ids = (mem || []).map((x) => x.user_id)
           if (ids.length) {
             const { data: profs } = await supabase
@@ -178,19 +193,25 @@ export default function CommunityPage() {
     const { error } = await supabase
       .from("community_memberships")
       .insert({ community_id: community.id, user_id: me.id, role })
-    if (!error) setIsMember(true)
+    if (error) {
+      console.error("join failed", error)
+      toast.error(formatPgErr(error))
+    } else setIsMember(true)
   }
 
   async function leave() {
     if (!supabase || !community) return
     const me = (await supabase.auth.getUser()).data.user
     if (!me) return
-    await supabase
+    const { error } = await supabase
       .from("community_memberships")
       .delete()
       .eq("community_id", community.id)
       .eq("user_id", me.id)
-    setIsMember(false)
+    if (error) {
+      console.error("leave failed", error)
+      toast.error(formatPgErr(error))
+    } else setIsMember(false)
   }
 
   if (!community)
