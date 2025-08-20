@@ -66,7 +66,7 @@ export default function SettingsPage() {
   const supabase = getSupabase()
   const [loading, setLoading] = useState(false)
   // Security state
-  // Removed E2EE vault
+  // E2EE vault removed as part of messaging system removal
   const [password, setPassword] = useState("")
   const [password2, setPassword2] = useState("")
   const [mfaSupported, setMfaSupported] = useState(false)
