@@ -26,12 +26,7 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { KeyManager } from "@/lib/crypto/key-manager"
-import {
-  encryptPrivateKeyPkcs8B64,
-  decryptPrivateKeyPkcs8B64,
-  type VaultBlob,
-} from "@/lib/crypto/vault"
+// E2EE messaging removed; crypto key manager not used
 
 const schema = z.object({
   username: z
@@ -55,6 +50,14 @@ const schema = z.object({
   show_location: z.boolean(),
   show_orientation: z.boolean(),
   show_friends: z.boolean().optional(),
+  contact_whatsapp: z.string().optional().nullable(),
+  contact_telegram: z.string().optional().nullable(),
+  contact_signal: z.string().optional().nullable(),
+  instagram_username: z.string().optional().nullable(),
+  twitter_username: z.string().optional().nullable(),
+  tiktok_username: z.string().optional().nullable(),
+  show_contacts: z.boolean().optional(),
+  show_socials: z.boolean().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -63,6 +66,7 @@ export default function SettingsPage() {
   const supabase = getSupabase()
   const [loading, setLoading] = useState(false)
   // Security state
+  // E2EE vault removed as part of messaging system removal
   const [password, setPassword] = useState("")
   const [password2, setPassword2] = useState("")
   const [mfaSupported, setMfaSupported] = useState(false)
@@ -107,6 +111,14 @@ export default function SettingsPage() {
       show_location: false,
       show_orientation: true,
       show_friends: true,
+      contact_whatsapp: "",
+      contact_telegram: "",
+      contact_signal: "",
+      instagram_username: "",
+      twitter_username: "",
+      tiktok_username: "",
+      show_contacts: true,
+      show_socials: true,
     },
   })
 
@@ -126,34 +138,69 @@ export default function SettingsPage() {
       const { data } = await supabase
         .from("profiles")
         .select(
-          "username,display_name,bio,pronouns,sexual_orientation,gender_identity,email,website,social_links,city,country,profile_visibility,show_location,show_orientation,avatar_url,cover_image_url,show_friends",
+          "username,display_name,bio,pronouns,sexual_orientation,gender_identity,email,website,social_links,city,country,profile_visibility,show_location,show_orientation,avatar_url,cover_image_url,show_friends,contact_whatsapp,contact_telegram,contact_signal,instagram_username,twitter_username,tiktok_username,show_contacts,show_socials",
         )
         .eq("id", user.id)
         .maybeSingle()
       if (data) {
-        const socials = (data.social_links || {}) as Record<string, string>
+        type SocialLinks = {
+          instagram?: string
+          twitter?: string
+          tiktok?: string
+        }
+        type ProfileRow = {
+          username: string | null
+          display_name: string | null
+          bio: string | null
+          pronouns: string | null
+          sexual_orientation: string[] | null
+          gender_identity: string[] | null
+          email: string | null
+          website: string | null
+          social_links: SocialLinks | null
+          city: string | null
+          country: string | null
+          profile_visibility: "public" | "friends" | "private" | null
+          show_location: boolean | null
+          show_orientation: boolean | null
+          show_friends?: boolean | null
+          contact_whatsapp?: string | null
+          contact_telegram?: string | null
+          contact_signal?: string | null
+          instagram_username?: string | null
+          twitter_username?: string | null
+          tiktok_username?: string | null
+          show_contacts?: boolean | null
+          show_socials?: boolean | null
+        }
+        const row = data as unknown as ProfileRow
+        const socials = (row.social_links || {}) as Record<string, string>
         form.reset({
-          username: data.username || "",
-          display_name: data.display_name || "",
-          bio: data.bio || "",
-          pronouns: data.pronouns || "",
-          sexual_orientation:
-            (data.sexual_orientation as string[] | null) || [],
-          gender_identity: (data.gender_identity as string[] | null) || [],
-          email: data.email || "",
-          website: data.website || "",
+          username: row.username || "",
+          display_name: row.display_name || "",
+          bio: row.bio || "",
+          pronouns: row.pronouns || "",
+          sexual_orientation: row.sexual_orientation || [],
+          gender_identity: row.gender_identity || [],
+          email: row.email || "",
+          website: row.website || "",
           instagram: socials.instagram || "",
           twitter: socials.twitter || "",
           tiktok: socials.tiktok || "",
-          city: data.city || "",
-          country: data.country || "Poland",
-          profile_visibility:
-            (data.profile_visibility as "public" | "friends" | "private") ||
-            "public",
-          show_location: !!data.show_location,
-          show_orientation: !!data.show_orientation,
-          show_friends:
-            (data as { show_friends?: boolean }).show_friends ?? true,
+          city: row.city || "",
+          country: row.country || "Poland",
+          profile_visibility: row.profile_visibility || "public",
+          show_location: !!row.show_location,
+          show_orientation: !!row.show_orientation,
+          show_friends: (row.show_friends ?? true) as boolean,
+          contact_whatsapp: row.contact_whatsapp || "",
+          contact_telegram: row.contact_telegram || "",
+          contact_signal: row.contact_signal || "",
+          instagram_username: row.instagram_username || "",
+          twitter_username: row.twitter_username || "",
+          tiktok_username: row.tiktok_username || "",
+          show_contacts: (row.show_contacts ?? true) as boolean,
+          show_socials: (row.show_socials ?? true) as boolean,
         })
       }
       // MFA capability and status
@@ -190,6 +237,14 @@ export default function SettingsPage() {
           show_location: values.show_location,
           show_orientation: values.show_orientation,
           show_friends: values.show_friends ?? true,
+          contact_whatsapp: values.contact_whatsapp || null,
+          contact_telegram: values.contact_telegram || null,
+          contact_signal: values.contact_signal || null,
+          instagram_username: values.instagram_username || null,
+          twitter_username: values.twitter_username || null,
+          tiktok_username: values.tiktok_username || null,
+          show_contacts: values.show_contacts ?? true,
+          show_socials: values.show_socials ?? true,
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id)
@@ -299,6 +354,148 @@ export default function SettingsPage() {
                           <Switch
                             checked={!!field.value}
                             onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="show_contacts"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-md border p-3">
+                        <FormLabel className="m-0">
+                          Pokazuj dane kontaktowe (WhatsApp/Telegram/Signal)
+                        </FormLabel>
+                        <FormControl>
+                          <Switch
+                            checked={!!field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="show_socials"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-md border p-3">
+                        <FormLabel className="m-0">
+                          Pokazuj profile społecznościowe
+                        </FormLabel>
+                        <FormControl>
+                          <Switch
+                            checked={!!field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="contact_whatsapp"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>WhatsApp (numer telefonu)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="tel"
+                            placeholder="np. +48 600 000 000"
+                            {...field}
+                            value={field.value ?? ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact_telegram"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Telegram (nazwa użytkownika)</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="np. username"
+                            {...field}
+                            value={field.value ?? ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact_signal"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Signal (numer telefonu)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="tel"
+                            placeholder="np. +48 600 000 000"
+                            {...field}
+                            value={field.value ?? ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="instagram_username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Instagram (username)</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="np. tecza"
+                            {...field}
+                            value={field.value ?? ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="twitter_username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Twitter/X (username)</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="np. tecza"
+                            {...field}
+                            value={field.value ?? ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="tiktok_username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>TikTok (username)</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="np. tecza"
+                            {...field}
+                            value={field.value ?? ""}
                           />
                         </FormControl>
                         <FormMessage />
@@ -649,121 +846,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-4 grid gap-3">
-                <h2 className="text-lg font-semibold">
-                  Klucze szyfrowania (E2EE)
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Zabezpiecz swój klucz prywatny hasłem i przechowuj
-                  zaszyfrowaną kopię w profilu. Dzięki temu możesz odszyfrowywać
-                  wiadomości na innych urządzeniach.
-                </p>
-                <div className="grid md:grid-cols-2 gap-2 max-w-xl">
-                  <Input
-                    type="password"
-                    placeholder="Hasło do sejfu"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={async () => {
-                        try {
-                          if (!supabase) {
-                            toast.error("Brak konfiguracji Supabase")
-                            return
-                          }
-                          // Export current private key and encrypt into vault
-                          const pkcs8b64 =
-                            await KeyManager.exportPrivateKeyPkcs8B64().catch(
-                              () => "",
-                            )
-                          if (!pkcs8b64) {
-                            toast.error(
-                              "Brak klucza prywatnego w pamięci. Zaloguj się ponownie.",
-                            )
-                            return
-                          }
-                          if (!password) {
-                            toast.error("Podaj hasło do sejfu")
-                            return
-                          }
-                          const vault = await encryptPrivateKeyPkcs8B64(
-                            pkcs8b64,
-                            password,
-                          )
-                          const { error } = await supabase
-                            .from("profiles")
-                            .update({
-                              private_key_vault: vault as unknown as VaultBlob,
-                            })
-                            .eq(
-                              "id",
-                              (await supabase.auth.getUser()).data.user?.id,
-                            )
-                          if (error) throw error
-                          toast.success("Zapisano zaszyfrowany klucz prywatny")
-                        } catch {
-                          toast.error("Nie udało się zapisać sejfu klucza")
-                        }
-                      }}
-                    >
-                      Zapisz sejf
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={async () => {
-                        try {
-                          if (!supabase) {
-                            toast.error("Brak konfiguracji Supabase")
-                            return
-                          }
-                          const { data } = await supabase
-                            .from("profiles")
-                            .select("private_key_vault")
-                            .eq(
-                              "id",
-                              (await supabase.auth.getUser()).data.user?.id,
-                            )
-                            .maybeSingle()
-                          const vault = (data?.private_key_vault ||
-                            null) as VaultBlob | null
-                          if (!vault) {
-                            toast.error("Brak sejfu w profilu")
-                            return
-                          }
-                          if (!password) {
-                            toast.error("Podaj hasło do sejfu")
-                            return
-                          }
-                          const pkcs8b64 = await decryptPrivateKeyPkcs8B64(
-                            vault,
-                            password,
-                          )
-                          await KeyManager.setPrivateKeyFromPkcs8(pkcs8b64)
-                          toast.success(
-                            "Zaimportowano klucz prywatny na to urządzenie",
-                          )
-                        } catch {
-                          toast.error(
-                            "Nie udało się odszyfrować sejfu. Błędne hasło?",
-                          )
-                        }
-                      }}
-                    >
-                      Odszyfruj na tym urządzeniu
-                    </Button>
-                  </div>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Uwaga: hasło nie jest przechowywane. Zadbaj o jego
-                  zapamiętanie.
-                </div>
-              </CardContent>
-            </Card>
+            {/* Removed E2EE keys section */}
           </div>
         </TabsContent>
 

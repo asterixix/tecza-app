@@ -13,7 +13,20 @@ import {
   PopoverContent,
 } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import Textarea from "@/components/ui/textarea"
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card"
 import {
   Sheet,
   SheetContent,
@@ -35,6 +48,7 @@ import {
   PostItem,
   PostRecord as FeedPost,
 } from "@/components/dashboard/post-item"
+import type { ProfileVisibility } from "@/types/profile"
 
 // Lightweight crop view components (drag to pan, wheel/slider to zoom)
 type CropCommonProps = {
@@ -174,10 +188,19 @@ type Profile = {
   social_links: Record<string, string> | null
   city: string | null
   country: string | null
-  profile_visibility: "public" | "friends" | "private"
+  profile_visibility: ProfileVisibility
   show_location: boolean
   show_orientation: boolean
   show_friends?: boolean | null
+  // New contact/social usernames and privacy flags
+  contact_whatsapp?: string | null
+  contact_telegram?: string | null
+  contact_signal?: string | null
+  instagram_username?: string | null
+  twitter_username?: string | null
+  tiktok_username?: string | null
+  show_contacts?: boolean | null
+  show_socials?: boolean | null
   roles?:
     | (
         | "user"
@@ -195,6 +218,33 @@ type Profile = {
 }
 
 type PostRecord = FeedPost
+
+type EditValues = {
+  display_name: string
+  bio: string
+  pronouns: string
+  sexual_orientation: string
+  gender_identity: string
+  website: string
+  email: string
+  instagram: string
+  twitter: string
+  tiktok: string
+  contact_whatsapp: string
+  contact_telegram: string
+  contact_signal: string
+  instagram_username: string
+  twitter_username: string
+  tiktok_username: string
+  city: string
+  country: string
+  profile_visibility: ProfileVisibility
+  show_location: boolean
+  show_orientation: boolean
+  show_friends: boolean
+  show_contacts: boolean
+  show_socials: boolean
+}
 
 export default function PublicUserPage() {
   const supabase = getSupabase()
@@ -223,7 +273,7 @@ export default function PublicUserPage() {
   const [followersCount, setFollowersCount] = useState<number>(0)
   const [followingCount, setFollowingCount] = useState<number>(0)
   const [editing, setEditing] = useState(false)
-  const [editValues, setEditValues] = useState({
+  const [editValues, setEditValues] = useState<EditValues>({
     display_name: "",
     bio: "",
     pronouns: "",
@@ -234,8 +284,20 @@ export default function PublicUserPage() {
     instagram: "",
     twitter: "",
     tiktok: "",
+    contact_whatsapp: "",
+    contact_telegram: "",
+    contact_signal: "",
+    instagram_username: "",
+    twitter_username: "",
+    tiktok_username: "",
     city: "",
     country: "",
+    profile_visibility: "public",
+    show_location: true,
+    show_orientation: true,
+    show_friends: true,
+    show_contacts: true,
+    show_socials: true,
   })
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [coverFile, setCoverFile] = useState<File | null>(null)
@@ -274,7 +336,7 @@ export default function PublicUserPage() {
       const { data: prof } = await supabase
         .from("profiles")
         .select(
-          "id,username,display_name,bio,avatar_url,cover_image_url,sexual_orientation,gender_identity,pronouns,website,social_links,email,city,country,profile_visibility,show_location,show_orientation,show_friends,roles,badges",
+          "id,username,display_name,bio,avatar_url,cover_image_url,sexual_orientation,gender_identity,pronouns,website,social_links,email,city,country,profile_visibility,show_location,show_orientation,show_friends,contact_whatsapp,contact_telegram,contact_signal,instagram_username,twitter_username,tiktok_username,show_contacts,show_socials,roles,badges",
         )
         .ilike("username", String(username))
         .maybeSingle()
@@ -431,6 +493,64 @@ export default function PublicUserPage() {
     (profile?.show_orientation ? profile?.sexual_orientation : null) || []
   const genders =
     (profile?.show_orientation ? profile?.gender_identity : null) || []
+  const canSeeContacts =
+    (profile?.show_contacts ?? true) &&
+    (profile?.profile_visibility === "public" || isOwner || isFriend)
+  const canSeeSocials =
+    (profile?.show_socials ?? true) &&
+    (profile?.profile_visibility === "public" || isOwner || isFriend)
+  const contactLinks = (() => {
+    if (!profile || !canSeeContacts)
+      return [] as { label: string; href: string }[]
+    const out: { label: string; href: string }[] = []
+    const em = (profile.email || "").trim()
+    if (em) {
+      out.push({ label: em, href: `mailto:${em}` })
+    }
+    const wa = (profile.contact_whatsapp || "").trim()
+    if (wa) {
+      // Accept +48 600 ... or digits; strip non-digits except leading +
+      const digits = wa.replace(/[^+\d]/g, "")
+      const phone = digits.startsWith("+") ? digits.substring(1) : digits
+      out.push({ label: "WhatsApp", href: `https://wa.me/${phone}` })
+    }
+    const tg = (profile.contact_telegram || "").trim()
+    if (tg) {
+      const handle = tg.replace(/^@/, "")
+      out.push({ label: "Telegram", href: `https://t.me/${handle}` })
+    }
+    const sg = (profile.contact_signal || "").trim()
+    if (sg) {
+      const digits = sg.replace(/[^+\d]/g, "")
+      const phone = digits.startsWith("+") ? digits.substring(1) : digits
+      out.push({ label: "Signal", href: `https://signal.me/#p/${phone}` })
+    }
+    return out
+  })()
+  const socialLinks = (() => {
+    if (!profile || !canSeeSocials)
+      return [] as { label: string; href: string }[]
+    const out: { label: string; href: string }[] = []
+    const ig = (profile.instagram_username || "").trim()
+    if (ig)
+      out.push({
+        label: "Instagram",
+        href: `https://instagram.com/${ig.replace(/^@/, "")}`,
+      })
+    const tw = (profile.twitter_username || "").trim()
+    if (tw)
+      out.push({
+        label: "X (Twitter)",
+        href: `https://x.com/${tw.replace(/^@/, "")}`,
+      })
+    const tk = (profile.tiktok_username || "").trim()
+    if (tk)
+      out.push({
+        label: "TikTok",
+        href: `https://tiktok.com/@${tk.replace(/^@/, "")}`,
+      })
+    return out
+  })()
 
   // Badge color+icon definitions for popovers
 
@@ -534,8 +654,20 @@ export default function PublicUserPage() {
       instagram: socials.instagram || "",
       twitter: socials.twitter || "",
       tiktok: socials.tiktok || "",
+      contact_whatsapp: (profile.contact_whatsapp || "") as string,
+      contact_telegram: (profile.contact_telegram || "") as string,
+      contact_signal: (profile.contact_signal || "") as string,
+      instagram_username: (profile.instagram_username || "") as string,
+      twitter_username: (profile.twitter_username || "") as string,
+      tiktok_username: (profile.tiktok_username || "") as string,
       city: profile.city || "",
       country: profile.country || "",
+      profile_visibility: profile.profile_visibility || "public",
+      show_location: profile.show_location ?? true,
+      show_orientation: profile.show_orientation ?? true,
+      show_friends: profile.show_friends ?? true,
+      show_contacts: profile.show_contacts ?? true,
+      show_socials: profile.show_socials ?? true,
     })
   }, [profile])
 
@@ -613,9 +745,21 @@ export default function PublicUserPage() {
           gender_identity: gender_identity.length ? gender_identity : null,
           website: editValues.website || null,
           email: editValues.email || null,
+          contact_whatsapp: editValues.contact_whatsapp || null,
+          contact_telegram: editValues.contact_telegram || null,
+          contact_signal: editValues.contact_signal || null,
+          instagram_username: editValues.instagram_username || null,
+          twitter_username: editValues.twitter_username || null,
+          tiktok_username: editValues.tiktok_username || null,
           social_links,
           city: editValues.city || null,
           country: editValues.country || null,
+          profile_visibility: editValues.profile_visibility,
+          show_location: !!editValues.show_location,
+          show_orientation: !!editValues.show_orientation,
+          show_friends: !!editValues.show_friends,
+          show_contacts: !!editValues.show_contacts,
+          show_socials: !!editValues.show_socials,
           ...(avatar_url ? { avatar_url } : {}),
           ...(cover_image_url ? { cover_image_url } : {}),
           updated_at: new Date().toISOString(),
@@ -642,9 +786,21 @@ export default function PublicUserPage() {
           gender_identity: gender_identity.length ? gender_identity : null,
           website: editValues.website || null,
           email: editValues.email || null,
+          contact_whatsapp: editValues.contact_whatsapp || null,
+          contact_telegram: editValues.contact_telegram || null,
+          contact_signal: editValues.contact_signal || null,
+          instagram_username: editValues.instagram_username || null,
+          twitter_username: editValues.twitter_username || null,
+          tiktok_username: editValues.tiktok_username || null,
           social_links: social_links,
           city: editValues.city || null,
           country: editValues.country || null,
+          profile_visibility: editValues.profile_visibility,
+          show_location: !!editValues.show_location,
+          show_orientation: !!editValues.show_orientation,
+          show_friends: !!editValues.show_friends,
+          show_contacts: !!editValues.show_contacts,
+          show_socials: !!editValues.show_socials,
           avatar_url: avatar_url ?? profile.avatar_url,
           cover_image_url: cover_image_url ?? profile.cover_image_url,
         },
@@ -1107,7 +1263,7 @@ export default function PublicUserPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-3 sm:px-4 md:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-      <div className="relative h-48 sm:h-40 w-full overflow-hidden rounded-lg border bg-muted">
+      <div className="relative h-40 sm:h-40 w-full overflow-hidden rounded-lg border bg-muted">
         {!!profile?.cover_image_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -1236,26 +1392,56 @@ export default function PublicUserPage() {
         )}
         {isOwner && (
           <div className="absolute bottom-2 right-2 flex items-center gap-2">
-            <button
-              type="button"
-              title="Usuń tło"
-              aria-label="Usuń tło"
-              className="inline-flex items-center gap-1 rounded-md bg-background/80 backdrop-blur px-2 py-1 text-xs border shadow"
-              onClick={removeCover}
-            >
-              <Trash2 className="size-4" /> Usuń tło
-            </button>
-            <button
-              type="button"
-              title="Zmień tło"
-              aria-label="Zmień tło"
-              className="inline-flex items-center gap-1 rounded-md bg-background/80 backdrop-blur px-2 py-1 text-xs border shadow"
-              onClick={() => {
-                bannerInputRef.current?.click()
-              }}
-            >
-              <Camera className="size-4" /> Edytuj tło
-            </button>
+            {/* Mobile: icon-only */}
+            <div className="flex sm:hidden items-center gap-2">
+              <button
+                type="button"
+                title="Usuń tło"
+                aria-label="Usuń tło"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background/80 backdrop-blur border shadow"
+                onClick={removeCover}
+              >
+                <Trash2 className="size-4" />
+              </button>
+              <button
+                type="button"
+                title="Zmień tło"
+                aria-label="Zmień tło"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background/80 backdrop-blur border shadow"
+                onClick={() => {
+                  bannerInputRef.current?.click()
+                }}
+              >
+                <Camera className="size-4" />
+              </button>
+            </div>
+            {/* Desktop/tablet: with labels */}
+            <div className="hidden sm:flex items-center gap-2">
+              <button
+                type="button"
+                title="Usuń tło"
+                aria-label="Usuń tło"
+                className="inline-flex items-center gap-1 rounded-md bg-background/80 backdrop-blur px-2 py-1 text-xs border shadow"
+                onClick={removeCover}
+              >
+                <Trash2 className="size-4" />
+                <span className="hidden sm:inline">Usuń tło</span>
+                <span className="sm:hidden">Usuń</span>
+              </button>
+              <button
+                type="button"
+                title="Zmień tło"
+                aria-label="Zmień tło"
+                className="inline-flex items-center gap-1 rounded-md bg-background/80 backdrop-blur px-2 py-1 text-xs border shadow"
+                onClick={() => {
+                  bannerInputRef.current?.click()
+                }}
+              >
+                <Camera className="size-4" />
+                <span className="hidden sm:inline">Edytuj tło</span>
+                <span className="sm:hidden">Edytuj</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -1266,7 +1452,7 @@ export default function PublicUserPage() {
             <div className="flex flex-wrap items-start gap-3">
               <div
                 ref={avatarContainerRef}
-                className="-mt-14 sm:-mt-10 h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-full ring-2 ring-background overflow-hidden bg-muted border relative"
+                className="h-16 w-16 sm:h-24 sm:w-24 shrink-0 rounded-full ring-2 ring-background overflow-hidden bg-muted border relative"
               >
                 {!!profile?.avatar_url && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -1350,7 +1536,7 @@ export default function PublicUserPage() {
                 </div>
               </div>
               {isOwner ? (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto order-last sm:order-none mt-2 sm:mt-0 flex-wrap">
                   <Button
                     type="button"
                     variant="outline"
@@ -1382,24 +1568,38 @@ export default function PublicUserPage() {
                       setEditOpen(true)
                     }}
                   >
-                    {editing ? "Zamknij edycję" : "Edytuj profil"}
+                    <span className="hidden xs:inline">
+                      {editing ? "Zamknij edycję" : "Edytuj profil"}
+                    </span>
+                    <span className="inline xs:hidden">Edycja</span>
                   </Button>
                 </div>
               ) : (
                 profile && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto order-last sm:order-none mt-2 sm:mt-0 flex-wrap">
                     {isFriend ? (
-                      <Button variant="outline" size="sm" disabled>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        disabled
+                      >
                         Połączeni
                       </Button>
                     ) : requestStatus === "pending" ? (
                       <>
-                        <Button variant="outline" size="sm" disabled>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          disabled
+                        >
                           Wysłano zaproszenie
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="text-xs"
                           onClick={cancelRequest}
                           disabled={connecting}
                         >
@@ -1410,6 +1610,7 @@ export default function PublicUserPage() {
                       <>
                         <Button
                           size="sm"
+                          className="text-xs"
                           onClick={acceptRequest}
                           disabled={connecting}
                         >
@@ -1418,6 +1619,7 @@ export default function PublicUserPage() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="text-xs"
                           onClick={cancelRequest}
                           disabled={connecting}
                         >
@@ -1427,6 +1629,7 @@ export default function PublicUserPage() {
                     ) : (
                       <Button
                         size="sm"
+                        className="text-xs"
                         onClick={sendRequest}
                         disabled={connecting}
                       >
@@ -1435,11 +1638,21 @@ export default function PublicUserPage() {
                     )}
 
                     {following ? (
-                      <Button variant="secondary" size="sm" onClick={unfollow}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="text-xs"
+                        onClick={unfollow}
+                      >
                         Obserwujesz
                       </Button>
                     ) : (
-                      <Button variant="outline" size="sm" onClick={follow}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={follow}
+                      >
                         Obserwuj
                       </Button>
                     )}
@@ -1584,7 +1797,7 @@ export default function PublicUserPage() {
                             country: e.target.value,
                           }))
                         }
-                        placeholder="np. Poland"
+                        placeholder="np. Polska"
                       />
                     </div>
                   </div>
@@ -1615,49 +1828,181 @@ export default function PublicUserPage() {
                             email: e.target.value,
                           }))
                         }
-                        placeholder="you@example.com"
+                        placeholder="twoj@email.pl"
                       />
                     </div>
                   </div>
                   <div className="grid md:grid-cols-3 gap-4">
                     <div>
-                      <label className="text-sm font-medium">Instagram</label>
+                      <label className="text-sm font-medium">WhatsApp</label>
                       <Input
-                        value={editValues.instagram}
+                        value={editValues.contact_whatsapp}
                         onChange={(e) =>
                           setEditValues((v) => ({
                             ...v,
-                            instagram: e.target.value,
+                            contact_whatsapp: e.target.value,
                           }))
                         }
-                        placeholder="https://instagram.com/..."
+                        placeholder="np. +48 600 000 000"
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium">Twitter/X</label>
+                      <label className="text-sm font-medium">Telegram</label>
                       <Input
-                        value={editValues.twitter}
+                        value={editValues.contact_telegram}
                         onChange={(e) =>
                           setEditValues((v) => ({
                             ...v,
-                            twitter: e.target.value,
+                            contact_telegram: e.target.value,
                           }))
                         }
-                        placeholder="https://twitter.com/..."
+                        placeholder="np. username"
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium">TikTok</label>
+                      <label className="text-sm font-medium">Signal</label>
                       <Input
-                        value={editValues.tiktok}
+                        value={editValues.contact_signal}
                         onChange={(e) =>
                           setEditValues((v) => ({
                             ...v,
-                            tiktok: e.target.value,
+                            contact_signal: e.target.value,
                           }))
                         }
-                        placeholder="https://tiktok.com/@..."
+                        placeholder="np. +48 600 000 000"
                       />
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">
+                        Instagram (username)
+                      </label>
+                      <Input
+                        value={editValues.instagram_username}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            instagram_username: e.target.value,
+                          }))
+                        }
+                        placeholder="np. tecza"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">
+                        Twitter/X (username)
+                      </label>
+                      <Input
+                        value={editValues.twitter_username}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            twitter_username: e.target.value,
+                          }))
+                        }
+                        placeholder="np. tecza"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">
+                        TikTok (username)
+                      </label>
+                      <Input
+                        value={editValues.tiktok_username}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            tiktok_username: e.target.value,
+                          }))
+                        }
+                        placeholder="np. tecza"
+                      />
+                    </div>
+                  </div>
+                  {/* Privacy controls */}
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">
+                        Widoczność profilu
+                      </label>
+                      <Select
+                        value={editValues.profile_visibility}
+                        onValueChange={(v) =>
+                          setEditValues((s) => ({
+                            ...s,
+                            profile_visibility: (v === "public" ||
+                            v === "friends" ||
+                            v === "private"
+                              ? v
+                              : s.profile_visibility) as ProfileVisibility,
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Wybierz" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="public">Publiczny</SelectItem>
+                          <SelectItem value="friends">Znajomi</SelectItem>
+                          <SelectItem value="private">Prywatny</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">
+                        Ustawienia prywatności
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="flex items-center justify-between gap-3 text-sm">
+                          <span>Lokalizacja</span>
+                          <Switch
+                            checked={editValues.show_location}
+                            onCheckedChange={(v) =>
+                              setEditValues((s) => ({ ...s, show_location: v }))
+                            }
+                          />
+                        </label>
+                        <label className="flex items-center justify-between gap-3 text-sm">
+                          <span>Orientacja/Tożsamość</span>
+                          <Switch
+                            checked={editValues.show_orientation}
+                            onCheckedChange={(v) =>
+                              setEditValues((s) => ({
+                                ...s,
+                                show_orientation: v,
+                              }))
+                            }
+                          />
+                        </label>
+                        <label className="flex items-center justify-between gap-3 text-sm">
+                          <span>Znajomi</span>
+                          <Switch
+                            checked={editValues.show_friends}
+                            onCheckedChange={(v) =>
+                              setEditValues((s) => ({ ...s, show_friends: v }))
+                            }
+                          />
+                        </label>
+                        <label className="flex items-center justify-between gap-3 text-sm">
+                          <span>Kontakty</span>
+                          <Switch
+                            checked={editValues.show_contacts}
+                            onCheckedChange={(v) =>
+                              setEditValues((s) => ({ ...s, show_contacts: v }))
+                            }
+                          />
+                        </label>
+                        <label className="flex items-center justify-between gap-3 text-sm">
+                          <span>Social media</span>
+                          <Switch
+                            checked={editValues.show_socials}
+                            onCheckedChange={(v) =>
+                              setEditValues((s) => ({ ...s, show_socials: v }))
+                            }
+                          />
+                        </label>
+                      </div>
                     </div>
                   </div>
                   {/* Removed avatar/cover edit controls from drawer; use inline triggers on profile preview */}
@@ -1704,7 +2049,7 @@ export default function PublicUserPage() {
 
         <div className="space-y-6">
           <Card>
-            <CardContent className="p-4">
+            <CardContent>
               <h3 className="font-medium mb-3">Informacje</h3>
               <div className="grid gap-3 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
@@ -1776,45 +2121,123 @@ export default function PublicUserPage() {
                     ))}
                   </div>
                 )}
+                {contactLinks.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                    <AtSign className="size-4" aria-hidden />
+                    {contactLinks.map((c) => (
+                      <a
+                        key={c.label}
+                        href={c.href}
+                        className="hover:underline"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {c.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+                {socialLinks.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                    <AtSign className="size-4" aria-hidden />
+                    {socialLinks.map((s) => (
+                      <a
+                        key={s.label}
+                        href={s.href}
+                        className="hover:underline"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {s.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
 
           {(profile?.show_friends ?? true) && (
             <Card>
-              <CardContent className="p-4">
-                <h3 className="font-medium mb-3">Znajomi</h3>
+              <CardContent>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium">Znajomi</h3>
+                  {friends.length > 5 && profile?.username && (
+                    <Link
+                      href={`/u/${profile.username}/friends`}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Zobacz wszystkich
+                    </Link>
+                  )}
+                </div>
                 {friends.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     Brak znajomych do wyświetlenia.
                   </p>
                 ) : (
                   <ul className="grid gap-2">
-                    {friends.map((f) => (
+                    {friends.slice(0, 5).map((f) => (
                       <li key={f.id} className="flex items-center gap-3">
-                        <div
-                          className="h-8 w-8 rounded-full overflow-hidden bg-muted border"
-                          aria-hidden
-                        >
-                          {f.avatar_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={f.avatar_url}
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
-                          ) : null}
-                        </div>
-                        <div className="truncate">
-                          <div className="text-sm font-medium truncate">
-                            {f.display_name || f.username || "Użytkownik"}
-                          </div>
-                          {f.username && (
-                            <div className="text-xs text-muted-foreground">
-                              @{f.username}
+                        <HoverCard>
+                          <HoverCardTrigger asChild>
+                            <Link
+                              href={f.username ? `/u/${f.username}` : "#"}
+                              className="flex items-center gap-3"
+                            >
+                              <div
+                                className="h-8 w-8 rounded-full overflow-hidden bg-muted border"
+                                aria-hidden
+                              >
+                                {f.avatar_url ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={f.avatar_url}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : null}
+                              </div>
+                              <div className="truncate">
+                                <div className="text-sm font-medium truncate">
+                                  {f.display_name || f.username || "Użytkownik"}
+                                </div>
+                                {f.username && (
+                                  <div className="text-xs text-muted-foreground">
+                                    @{f.username}
+                                  </div>
+                                )}
+                              </div>
+                            </Link>
+                          </HoverCardTrigger>
+                          <HoverCardContent className="w-64">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="h-10 w-10 rounded-full overflow-hidden bg-muted border"
+                                aria-hidden
+                              >
+                                {f.avatar_url ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={f.avatar_url}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : null}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium truncate">
+                                  {f.display_name || f.username || "Użytkownik"}
+                                </div>
+                                {f.username && (
+                                  <div className="text-xs text-muted-foreground truncate">
+                                    @{f.username}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          )}
-                        </div>
+                          </HoverCardContent>
+                        </HoverCard>
                       </li>
                     ))}
                   </ul>

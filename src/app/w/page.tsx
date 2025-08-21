@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { slugify } from "@/lib/utils"
+import { friendlyMessage, normalizeSupabaseError } from "@/lib/errors"
 
 interface EventRow {
   id: string
@@ -53,12 +54,18 @@ export default function EventsPage() {
   const [isOnline, setIsOnline] = useState(false)
   const [isFree, setIsFree] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState<null | {
+    message: string
+    code?: string
+    hint?: string | null
+    details?: string | null
+  }>(null)
 
   useEffect(() => {
     async function load() {
       if (!supabase) return
       const now = new Date().toISOString()
-      const { data } = await supabase
+      const { data, error, status, statusText } = await supabase
         .from("events")
         .select(
           "id,slug,title,start_date,city,country,category,cover_image_url",
@@ -66,6 +73,15 @@ export default function EventsPage() {
         .gte("start_date", now)
         .order("start_date", { ascending: true })
         .limit(50)
+      if (error) {
+        const err = normalizeSupabaseError(
+          error,
+          "Nie udało się pobrać wydarzeń",
+          { status, statusText },
+        )
+        setLoadError(err)
+        toast.error(friendlyMessage(err))
+      }
       setItems(data || [])
     }
     load()
@@ -84,7 +100,7 @@ export default function EventsPage() {
           ? crypto.randomUUID()
           : undefined
       const baseSlug = slugify(title)
-      const { data, error } = await supabase
+      const { data, error, status, statusText } = await supabase
         .from("events")
         .insert({
           ...(newId ? { id: newId } : {}),
@@ -103,7 +119,14 @@ export default function EventsPage() {
         })
         .select("slug")
         .single()
-      if (error) throw error
+      if (error) {
+        const err = normalizeSupabaseError(
+          error,
+          "Nie udało się utworzyć wydarzenia",
+          { status, statusText },
+        )
+        throw new Error(friendlyMessage(err))
+      }
       toast.success("Wydarzenie utworzone")
       setOpen(false)
       // reset form
@@ -136,6 +159,23 @@ export default function EventsPage() {
           <Button onClick={() => setOpen(true)}>Utwórz</Button>
         </div>
       </div>
+      {loadError ? (
+        <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">
+          <div className="font-semibold">Nie udało się załadować wydarzeń</div>
+          <div className="mt-1">{loadError.message}</div>
+          {loadError.code ? (
+            <div className="mt-1 opacity-80">Kod: {loadError.code}</div>
+          ) : null}
+          {loadError.hint ? (
+            <div className="mt-1 opacity-80">Wskazówka: {loadError.hint}</div>
+          ) : null}
+          {loadError.details ? (
+            <div className="mt-1 opacity-80">
+              Szczegóły: {loadError.details}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map((e) => (
           <Card key={e.id} className="overflow-hidden">

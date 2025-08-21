@@ -45,6 +45,15 @@ export default function AdminHome() {
       <h1 className="text-2xl font-semibold mb-6">Panel administracyjny</h1>
       <div className="grid gap-4 sm:grid-cols-2">
         <Link
+          href="/admin/notifications"
+          className="rounded-md border p-4 hover:bg-muted"
+        >
+          Powiadomienia globalne
+          <div className="text-sm text-muted-foreground">
+            Wyślij ogłoszenia do użytkowników
+          </div>
+        </Link>
+        <Link
           href="/admin/moderation/content"
           className="rounded-md border p-4 hover:bg-muted"
         >

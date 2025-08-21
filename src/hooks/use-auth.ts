@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { getSupabase } from "@/lib/supabase-browser"
-import { KeyManager } from "@/lib/crypto/key-manager"
+// E2EE key management removed; no crypto imports
 
 interface AuthState {
   user: { id: string; email?: string | null } | null
@@ -32,21 +32,7 @@ export function useAuth(): AuthState {
             ? { id: session.user.id, email: session.user.email }
             : null,
         }))
-        if (session?.user) {
-          // Ensure public key exists in profile
-          const { data: profile } = await supabase!
-            .from("profiles")
-            .select("id, public_key")
-            .eq("id", session.user.id)
-            .single()
-          if (profile && !profile.public_key) {
-            const { publicKey } = await KeyManager.getOrCreateKeyPair()
-            await supabase!
-              .from("profiles")
-              .update({ public_key: publicKey })
-              .eq("id", session.user.id)
-          }
-        }
+        // E2EE public key bootstrap removed
       },
     )
 

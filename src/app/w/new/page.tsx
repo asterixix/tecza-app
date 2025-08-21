@@ -16,6 +16,11 @@ import {
 } from "@/components/ui/select"
 import { toast } from "sonner"
 import { slugify } from "@/lib/utils"
+import {
+  normalizeSupabaseError,
+  friendlyMessage,
+  withTimeout,
+} from "@/lib/errors"
 
 export default function NewEventPage() {
   const supabase = getSupabase()
@@ -47,26 +52,41 @@ export default function NewEventPage() {
           ? crypto.randomUUID()
           : undefined
       const baseSlug = slugify(title)
-      const { data, error } = await supabase
-        .from("events")
-        .insert({
-          ...(newId ? { id: newId } : {}),
-          title,
-          description,
-          start_date: new Date(start).toISOString(),
-          end_date: end ? new Date(end).toISOString() : null,
-          timezone,
-          city: city || null,
-          country: country || null,
-          is_online: isOnline,
-          is_free: isFree,
-          category,
-          organizer_id: me.id,
-          slug: baseSlug,
-        })
-        .select("slug")
-        .single()
-      if (error) throw error
+      const { data, error, status, statusText } = (await withTimeout(
+        supabase
+          .from("events")
+          .insert({
+            ...(newId ? { id: newId } : {}),
+            title,
+            description,
+            start_date: new Date(start).toISOString(),
+            end_date: end ? new Date(end).toISOString() : null,
+            timezone,
+            city: city || null,
+            country: country || null,
+            is_online: isOnline,
+            is_free: isFree,
+            category,
+            organizer_id: me.id,
+            slug: baseSlug,
+          })
+          .select("slug")
+          .single(),
+        15000,
+      )) as {
+        data: { slug: string } | null
+        error: unknown
+        status?: number
+        statusText?: string
+      }
+      if (error) {
+        const err = normalizeSupabaseError(
+          error,
+          "Nie udało się utworzyć wydarzenia",
+          { status, statusText },
+        )
+        throw new Error(friendlyMessage(err))
+      }
       toast.success("Wydarzenie utworzone")
       router.push(`/w/${data!.slug}`)
     } catch (e) {

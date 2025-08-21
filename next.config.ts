@@ -28,13 +28,14 @@ const nextConfig: NextConfig = {
       { source: "/events", destination: "/w", permanent: true },
       { source: "/events/:path*", destination: "/w/:path*", permanent: true },
       { source: "/login", destination: "/l", permanent: true },
-      { source: "/messages", destination: "/m", permanent: true },
-      { source: "/messages/:path*", destination: "/m/:path*", permanent: true },
       { source: "/register", destination: "/r", permanent: true },
       { source: "/settings", destination: "/s", permanent: true },
       // Profile is now /u/:username; /profile can redirect to /u or homepage
       { source: "/profile", destination: "/u", permanent: false },
       // Keep /reset-password as a real page to preserve #type=recovery hash and forward client-side
+      // Messaging removed; redirect old paths to home
+      { source: "/messages", destination: "/", permanent: true },
+      { source: "/messages/:path*", destination: "/", permanent: true },
     ]
   },
 }

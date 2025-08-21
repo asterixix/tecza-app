@@ -24,6 +24,7 @@ type NotificationRow = {
     | "mention"
     | "community_post"
     | "new_post_following"
+    | "broadcast"
   post_id: string | null
   friend_request_id: string | null
   community_id: string | null
@@ -128,6 +129,15 @@ export function NotificationsPopover() {
       )
   }
 
+  async function markAllRead() {
+    if (!supabase) return
+    await supabase.rpc("mark_all_notifications_read")
+    const now = new Date().toISOString()
+    setItems((prev) =>
+      prev.map((x) => (x.read_at ? x : { ...x, read_at: now })),
+    )
+  }
+
   async function handleFriendRequest(
     n: NotificationRow,
     action: "accept" | "reject",
@@ -157,6 +167,10 @@ export function NotificationsPopover() {
     const a = (n.actor_id && actors[n.actor_id]) || null
     const name = a?.display_name || (a?.username ? `@${a.username}` : "Ktoś")
     switch (n.type) {
+      case "broadcast": {
+        const title = n.payload?.title || "Powiadomienie globalne"
+        return title as string
+      }
       case "friend_request":
         return `${name} wysłał(a) prośbę o połączenie`
       case "friend_request_accepted":
@@ -173,6 +187,7 @@ export function NotificationsPopover() {
   }
 
   function linkFor(n: NotificationRow) {
+    if (n.type === "broadcast" && n.action_url) return n.action_url
     if (n.action_url) return n.action_url
     const a = (n.actor_id && actors[n.actor_id]) || null
     if (a?.username) return `/u/${encodeURIComponent(a.username)}`
@@ -210,7 +225,19 @@ export function NotificationsPopover() {
         className="w-96 p-0"
         aria-label="Powiadomienia"
       >
-        <div className="p-3 font-medium">Powiadomienia</div>
+        <div className="p-3 flex items-center justify-between gap-2">
+          <div className="font-medium">Powiadomienia</div>
+          {items.some((i) => !i.read_at) && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={markAllRead}
+              aria-label="Oznacz wszystkie jako przeczytane"
+            >
+              Oznacz wszystkie
+            </Button>
+          )}
+        </div>
         <ScrollArea className="max-h-96">
           <ul className="divide-y">
             {items.length === 0 && (
@@ -224,13 +251,42 @@ export function NotificationsPopover() {
                 className={cn(
                   "p-3 grid gap-2",
                   !n.read_at ? "bg-accent/40" : "",
+                  n.type === "broadcast"
+                    ? "relative overflow-hidden rounded-md"
+                    : "",
                 )}
               >
+                {n.type === "broadcast" && (
+                  <div
+                    aria-hidden
+                    className="absolute inset-y-0 left-0 w-1"
+                    style={{
+                      background:
+                        "linear-gradient(180deg,#e40303,#ff8c00,#ffed00,#008018,#0078d7,#732982)",
+                    }}
+                  />
+                )}
                 <div className="flex items-start justify-between gap-2">
-                  <div className="text-sm leading-5">
-                    <Link href={linkFor(n)} className="hover:underline">
+                  <div
+                    className={cn(
+                      "text-sm leading-5",
+                      n.type === "broadcast" ? "" : "",
+                    )}
+                  >
+                    <Link
+                      href={linkFor(n)}
+                      className={cn(
+                        "hover:underline",
+                        n.type === "broadcast" ? "font-medium" : "",
+                      )}
+                    >
                       {renderText(n)}
                     </Link>
+                    {n.type === "broadcast" && n.payload?.body && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {n.payload.body as string}
+                      </div>
+                    )}
                     <div className="text-xs text-muted-foreground">
                       {new Date(n.created_at).toLocaleString()}
                     </div>
