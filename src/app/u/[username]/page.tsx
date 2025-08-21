@@ -48,6 +48,7 @@ import {
   PostItem,
   PostRecord as FeedPost,
 } from "@/components/dashboard/post-item"
+import type { ProfileVisibility } from "@/types/profile"
 
 // Lightweight crop view components (drag to pan, wheel/slider to zoom)
 type CropCommonProps = {
@@ -187,7 +188,7 @@ type Profile = {
   social_links: Record<string, string> | null
   city: string | null
   country: string | null
-  profile_visibility: "public" | "friends" | "private"
+  profile_visibility: ProfileVisibility
   show_location: boolean
   show_orientation: boolean
   show_friends?: boolean | null
@@ -218,6 +219,33 @@ type Profile = {
 
 type PostRecord = FeedPost
 
+type EditValues = {
+  display_name: string
+  bio: string
+  pronouns: string
+  sexual_orientation: string
+  gender_identity: string
+  website: string
+  email: string
+  instagram: string
+  twitter: string
+  tiktok: string
+  contact_whatsapp: string
+  contact_telegram: string
+  contact_signal: string
+  instagram_username: string
+  twitter_username: string
+  tiktok_username: string
+  city: string
+  country: string
+  profile_visibility: ProfileVisibility
+  show_location: boolean
+  show_orientation: boolean
+  show_friends: boolean
+  show_contacts: boolean
+  show_socials: boolean
+}
+
 export default function PublicUserPage() {
   const supabase = getSupabase()
   const params = useParams<{ username: string }>()
@@ -245,7 +273,7 @@ export default function PublicUserPage() {
   const [followersCount, setFollowersCount] = useState<number>(0)
   const [followingCount, setFollowingCount] = useState<number>(0)
   const [editing, setEditing] = useState(false)
-  const [editValues, setEditValues] = useState({
+  const [editValues, setEditValues] = useState<EditValues>({
     display_name: "",
     bio: "",
     pronouns: "",
@@ -264,7 +292,7 @@ export default function PublicUserPage() {
     tiktok_username: "",
     city: "",
     country: "",
-    profile_visibility: "public" as "public" | "friends" | "private",
+    profile_visibility: "public",
     show_location: true,
     show_orientation: true,
     show_friends: true,
@@ -1424,7 +1452,7 @@ export default function PublicUserPage() {
             <div className="flex flex-wrap items-start gap-3">
               <div
                 ref={avatarContainerRef}
-                className="-mt-12 sm:-mt-10 h-16 w-16 sm:h-24 sm:w-24 shrink-0 rounded-full ring-2 ring-background overflow-hidden bg-muted border relative"
+                className="h-16 w-16 sm:h-24 sm:w-24 shrink-0 rounded-full ring-2 ring-background overflow-hidden bg-muted border relative"
               >
                 {!!profile?.avatar_url && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -1769,7 +1797,126 @@ export default function PublicUserPage() {
                             country: e.target.value,
                           }))
                         }
-                        placeholder="np. Poland"
+                        placeholder="np. Polska"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Strona www</label>
+                      <Input
+                        value={editValues.website}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            website: e.target.value,
+                          }))
+                        }
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">
+                        Email (publiczny)
+                      </label>
+                      <Input
+                        type="email"
+                        value={editValues.email}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            email: e.target.value,
+                          }))
+                        }
+                        placeholder="twoj@email.pl"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">WhatsApp</label>
+                      <Input
+                        value={editValues.contact_whatsapp}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            contact_whatsapp: e.target.value,
+                          }))
+                        }
+                        placeholder="np. +48 600 000 000"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Telegram</label>
+                      <Input
+                        value={editValues.contact_telegram}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            contact_telegram: e.target.value,
+                          }))
+                        }
+                        placeholder="np. username"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Signal</label>
+                      <Input
+                        value={editValues.contact_signal}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            contact_signal: e.target.value,
+                          }))
+                        }
+                        placeholder="np. +48 600 000 000"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">
+                        Instagram (username)
+                      </label>
+                      <Input
+                        value={editValues.instagram_username}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            instagram_username: e.target.value,
+                          }))
+                        }
+                        placeholder="np. tecza"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">
+                        Twitter/X (username)
+                      </label>
+                      <Input
+                        value={editValues.twitter_username}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            twitter_username: e.target.value,
+                          }))
+                        }
+                        placeholder="np. tecza"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">
+                        TikTok (username)
+                      </label>
+                      <Input
+                        value={editValues.tiktok_username}
+                        onChange={(e) =>
+                          setEditValues((v) => ({
+                            ...v,
+                            tiktok_username: e.target.value,
+                          }))
+                        }
+                        placeholder="np. tecza"
                       />
                     </div>
                   </div>
@@ -1784,10 +1931,11 @@ export default function PublicUserPage() {
                         onValueChange={(v) =>
                           setEditValues((s) => ({
                             ...s,
-                            profile_visibility: v as
-                              | "public"
-                              | "friends"
-                              | "private",
+                            profile_visibility: (v === "public" ||
+                            v === "friends" ||
+                            v === "private"
+                              ? v
+                              : s.profile_visibility) as ProfileVisibility,
                           }))
                         }
                       >
@@ -1857,166 +2005,6 @@ export default function PublicUserPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">Strona www</label>
-                      <Input
-                        value={editValues.website}
-                        onChange={(e) =>
-                          setEditValues((v) => ({
-                            ...v,
-                            website: e.target.value,
-                          }))
-                        }
-                        placeholder="https://..."
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">
-                        Email (publiczny)
-                      </label>
-                      <Input
-                        type="email"
-                        value={editValues.email}
-                        onChange={(e) =>
-                          setEditValues((v) => ({
-                            ...v,
-                            email: e.target.value,
-                          }))
-                        }
-                        placeholder="you@example.com"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">WhatsApp</label>
-                      <Input
-                        value={editValues.contact_whatsapp}
-                        onChange={(e) =>
-                          setEditValues((v) => ({
-                            ...v,
-                            contact_whatsapp: e.target.value,
-                          }))
-                        }
-                        placeholder="np. +48 600 000 000"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Telegram</label>
-                      <Input
-                        value={editValues.contact_telegram}
-                        onChange={(e) =>
-                          setEditValues((v) => ({
-                            ...v,
-                            contact_telegram: e.target.value,
-                          }))
-                        }
-                        placeholder="np. username"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Signal</label>
-                      <Input
-                        value={editValues.contact_signal}
-                        onChange={(e) =>
-                          setEditValues((v) => ({
-                            ...v,
-                            contact_signal: e.target.value,
-                          }))
-                        }
-                        placeholder="np. +48 600 000 000"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">Instagram</label>
-                      <Input
-                        value={editValues.instagram}
-                        onChange={(e) =>
-                          setEditValues((v) => ({
-                            ...v,
-                            instagram: e.target.value,
-                          }))
-                        }
-                        placeholder="https://instagram.com/..."
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Twitter/X</label>
-                      <Input
-                        value={editValues.twitter}
-                        onChange={(e) =>
-                          setEditValues((v) => ({
-                            ...v,
-                            twitter: e.target.value,
-                          }))
-                        }
-                        placeholder="https://twitter.com/..."
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">TikTok</label>
-                      <Input
-                        value={editValues.tiktok}
-                        onChange={(e) =>
-                          setEditValues((v) => ({
-                            ...v,
-                            tiktok: e.target.value,
-                          }))
-                        }
-                        placeholder="https://tiktok.com/@..."
-                      />
-                    </div>
-                  </div>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">
-                        Instagram (username)
-                      </label>
-                      <Input
-                        value={editValues.instagram_username}
-                        onChange={(e) =>
-                          setEditValues((v) => ({
-                            ...v,
-                            instagram_username: e.target.value,
-                          }))
-                        }
-                        placeholder="np. tecza"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">
-                        Twitter/X (username)
-                      </label>
-                      <Input
-                        value={editValues.twitter_username}
-                        onChange={(e) =>
-                          setEditValues((v) => ({
-                            ...v,
-                            twitter_username: e.target.value,
-                          }))
-                        }
-                        placeholder="np. tecza"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">
-                        TikTok (username)
-                      </label>
-                      <Input
-                        value={editValues.tiktok_username}
-                        onChange={(e) =>
-                          setEditValues((v) => ({
-                            ...v,
-                            tiktok_username: e.target.value,
-                          }))
-                        }
-                        placeholder="np. tecza"
-                      />
-                    </div>
-                  </div>
                   {/* Removed avatar/cover edit controls from drawer; use inline triggers on profile preview */}
                   <div className="flex justify-end gap-2 pt-2">
                     <Button
@@ -2061,7 +2049,7 @@ export default function PublicUserPage() {
 
         <div className="space-y-6">
           <Card>
-            <CardContent className="p-4">
+            <CardContent>
               <h3 className="font-medium mb-3">Informacje</h3>
               <div className="grid gap-3 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
@@ -2171,7 +2159,7 @@ export default function PublicUserPage() {
 
           {(profile?.show_friends ?? true) && (
             <Card>
-              <CardContent className="p-4">
+              <CardContent>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-medium">Znajomi</h3>
                   {friends.length > 5 && profile?.username && (
