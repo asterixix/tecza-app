@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 "use client"
 
 import { useEffect, useState } from "react"
@@ -9,6 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
+import {
+  normalizeSupabaseError,
+  friendlyMessage,
+  withTimeout,
+} from "@/lib/errors"
 
 interface WikiPage {
   id: string
@@ -34,18 +38,24 @@ export default function CommunityWikiPage() {
       if (!supabase || !idOrSlug) return
       // resolve community id
       let communityId: string | null = null
-      const bySlug = await supabase
-        .from("communities")
-        .select("id")
-        .eq("slug", idOrSlug)
-        .maybeSingle()
-      if (bySlug.data) communityId = bySlug.data.id
-      else {
-        const byId = await supabase
+      const bySlug = await withTimeout(
+        supabase
           .from("communities")
           .select("id")
-          .eq("id", idOrSlug)
-          .maybeSingle()
+          .eq("slug", idOrSlug)
+          .maybeSingle(),
+        15000,
+      )
+      if (bySlug.data) communityId = bySlug.data.id
+      else {
+        const byId = await withTimeout(
+          supabase
+            .from("communities")
+            .select("id")
+            .eq("id", idOrSlug)
+            .maybeSingle(),
+          15000,
+        )
         if (byId.data) communityId = byId.data.id
       }
       if (!communityId) return
@@ -59,11 +69,14 @@ export default function CommunityWikiPage() {
           .maybeSingle()
         setIsEditor(!!m && (m.role === "owner" || m.role === "moderator"))
       }
-      const { data } = await supabase
-        .from("community_wiki_pages")
-        .select("id,slug,title,content")
-        .eq("community_id", communityId)
-        .order("updated_at", { ascending: false })
+      const { data } = await withTimeout(
+        supabase
+          .from("community_wiki_pages")
+          .select("id,slug,title,content")
+          .eq("community_id", communityId)
+          .order("updated_at", { ascending: false }),
+        15000,
+      )
       setPages(data || [])
     }
     load()
@@ -82,35 +95,48 @@ export default function CommunityWikiPage() {
     if (!me) return
     // resolve community id again
     let communityId: string | null = null
-    const bySlug = await supabase
-      .from("communities")
-      .select("id")
-      .eq("slug", idOrSlug)
-      .maybeSingle()
-    if (bySlug.data) communityId = bySlug.data.id
-    else {
-      const byId = await supabase
+    const bySlug = await withTimeout(
+      supabase
         .from("communities")
         .select("id")
-        .eq("id", idOrSlug)
-        .maybeSingle()
+        .eq("slug", idOrSlug)
+        .maybeSingle(),
+      15000,
+    )
+    if (bySlug.data) communityId = bySlug.data.id
+    else {
+      const byId = await withTimeout(
+        supabase
+          .from("communities")
+          .select("id")
+          .eq("id", idOrSlug)
+          .maybeSingle(),
+        15000,
+      )
       if (byId.data) communityId = byId.data.id
     }
     if (!communityId) return
 
-    const { error, data } = await supabase
-      .from("community_wiki_pages")
-      .insert({
-        community_id: communityId,
-        slug,
-        title,
-        content: content || null,
-        created_by: me.id,
-      })
-      .select("id,slug,title,content")
-      .single()
+    const { error, data, status, statusText } = await withTimeout(
+      supabase
+        .from("community_wiki_pages")
+        .insert({
+          community_id: communityId,
+          slug,
+          title,
+          content: content || null,
+          created_by: me.id,
+        })
+        .select("id,slug,title,content")
+        .single(),
+      15000,
+    )
     if (error) {
-      toast.error(error.message)
+      const err = normalizeSupabaseError(error, "Nie udało się dodać strony", {
+        status,
+        statusText,
+      })
+      toast.error(friendlyMessage(err))
       return
     }
     toast.success("Dodano stronę wiki")

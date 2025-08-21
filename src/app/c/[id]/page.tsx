@@ -12,6 +12,11 @@ import Image from "next/image"
 import { toast } from "sonner"
 import Link from "next/link"
 import type { PostgrestError } from "@supabase/supabase-js"
+import {
+  friendlyMessage,
+  normalizeSupabaseError,
+  withTimeout,
+} from "@/lib/errors"
 
 interface Community {
   id: string
@@ -48,6 +53,10 @@ export default function CommunityPage() {
     { id: string; title: string; body: string | null }[]
   >([])
   const [newAnn, setNewAnn] = useState({ title: "", body: "" })
+  const [joining, setJoining] = useState(false)
+  const [leaving, setLeaving] = useState(false)
+  const [savingAnn, setSavingAnn] = useState(false)
+  const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null)
 
   const formatPgErr = (e: unknown) => {
     const err = (e || {}) as Partial<PostgrestError>
@@ -60,19 +69,25 @@ export default function CommunityPage() {
       if (!supabase || !idOrSlug) return
       // Try by slug first, then by id
       let found: Community | null = null
-      const bySlug = await supabase
-        .from("communities")
-        .select("*")
-        .eq("slug", idOrSlug)
-        .maybeSingle()
+      const bySlug = await withTimeout(
+        supabase
+          .from("communities")
+          .select("*")
+          .eq("slug", idOrSlug)
+          .maybeSingle(),
+        15000,
+      )
       if (bySlug.data) {
         found = bySlug.data as Community
       } else {
-        const byId = await supabase
-          .from("communities")
-          .select("*")
-          .eq("id", idOrSlug)
-          .maybeSingle()
+        const byId = await withTimeout(
+          supabase
+            .from("communities")
+            .select("*")
+            .eq("id", idOrSlug)
+            .maybeSingle(),
+          15000,
+        )
         if (byId.data) found = byId.data as Community
       }
       setCommunity(found)
@@ -92,20 +107,26 @@ export default function CommunityPage() {
         setIsAdmin(!!m && (m.role === "owner" || m.role === "moderator"))
         // Load members for admins
         if (found.status === "active") {
-          const { data: mem, error: listErr } = await supabase
-            .from("community_memberships")
-            .select("user_id,role")
-            .eq("community_id", found.id)
+          const { data: mem, error: listErr } = await withTimeout(
+            supabase
+              .from("community_memberships")
+              .select("user_id,role")
+              .eq("community_id", found.id),
+            15000,
+          )
           if (listErr) {
             console.error("members list failed", listErr)
             toast.error(formatPgErr(listErr))
           }
           const ids = (mem || []).map((x) => x.user_id)
           if (ids.length) {
-            const { data: profs } = await supabase
-              .from("profiles")
-              .select("id,username,display_name,avatar_url")
-              .in("id", ids)
+            const { data: profs } = await withTimeout(
+              supabase
+                .from("profiles")
+                .select("id,username,display_name,avatar_url")
+                .in("id", ids),
+              15000,
+            )
             const byId = new Map((profs || []).map((p) => [p.id, p]))
             setMembers(
               (mem || []).map((m) => ({
@@ -119,12 +140,15 @@ export default function CommunityPage() {
           } else setMembers([])
         }
         // Announcements
-        const { data: ann } = await supabase
-          .from("community_announcements")
-          .select("id,title,body")
-          .eq("community_id", found.id)
-          .order("created_at", { ascending: false })
-          .limit(3)
+        const { data: ann } = await withTimeout(
+          supabase
+            .from("community_announcements")
+            .select("id,title,body")
+            .eq("community_id", found.id)
+            .order("created_at", { ascending: false })
+            .limit(3),
+          15000,
+        )
         setAnnouncements(ann || [])
       }
     }
@@ -141,7 +165,8 @@ export default function CommunityPage() {
     }
     const me = (await supabase.auth.getUser()).data.user
     if (!me) return
-    const { error, data } = await supabase
+    setSavingAnn(true)
+    const { error, data, status, statusText } = await supabase
       .from("community_announcements")
       .insert({
         community_id: community.id,
@@ -152,12 +177,18 @@ export default function CommunityPage() {
       .select("id,title,body")
       .single()
     if (error) {
-      toast.error(error.message)
-      return
+      const err = normalizeSupabaseError(
+        error,
+        "Nie udało się dodać ogłoszenia",
+        { status, statusText },
+      )
+      toast.error(friendlyMessage(err))
+    } else {
+      toast.success("Dodano ogłoszenie")
+      setNewAnn({ title: "", body: "" })
+      setAnnouncements((prev) => [data!, ...prev].slice(0, 3))
     }
-    toast.success("Dodano ogłoszenie")
-    setNewAnn({ title: "", body: "" })
-    setAnnouncements((prev) => [data!, ...prev].slice(0, 3))
+    setSavingAnn(false)
   }
 
   async function updateRole(
@@ -166,6 +197,7 @@ export default function CommunityPage() {
   ) {
     if (!supabase || !community) return
     try {
+      setUpdatingRoleId(userId)
       await supabase.rpc("change_membership_role", {
         p_community: community.id,
         p_user: userId,
@@ -178,6 +210,8 @@ export default function CommunityPage() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Nie udało się zmienić roli"
       toast.error(msg)
+    } finally {
+      setUpdatingRoleId(null)
     }
   }
 
@@ -190,28 +224,45 @@ export default function CommunityPage() {
     const me = (await supabase.auth.getUser()).data.user
     if (!me) return
     const role = me.id === community.owner_id ? "owner" : "member"
-    const { error } = await supabase
-      .from("community_memberships")
-      .insert({ community_id: community.id, user_id: me.id, role })
+    setJoining(true)
+    const { error, status, statusText } = await withTimeout(
+      supabase
+        .from("community_memberships")
+        .insert({ community_id: community.id, user_id: me.id, role }),
+      15000,
+    )
     if (error) {
-      console.error("join failed", error)
-      toast.error(formatPgErr(error))
+      const err = normalizeSupabaseError(error, "Nie udało się dołączyć", {
+        status,
+        statusText,
+      })
+      toast.error(friendlyMessage(err))
     } else setIsMember(true)
+    setJoining(false)
   }
 
   async function leave() {
     if (!supabase || !community) return
     const me = (await supabase.auth.getUser()).data.user
     if (!me) return
-    const { error } = await supabase
-      .from("community_memberships")
-      .delete()
-      .eq("community_id", community.id)
-      .eq("user_id", me.id)
+    setLeaving(true)
+    const { error, status, statusText } = await withTimeout(
+      supabase
+        .from("community_memberships")
+        .delete()
+        .eq("community_id", community.id)
+        .eq("user_id", me.id),
+      15000,
+    )
     if (error) {
-      console.error("leave failed", error)
-      toast.error(formatPgErr(error))
+      const err = normalizeSupabaseError(
+        error,
+        "Nie udało się opuścić społeczności",
+        { status, statusText },
+      )
+      toast.error(friendlyMessage(err))
     } else setIsMember(false)
+    setLeaving(false)
   }
 
   if (!community)
@@ -258,7 +309,9 @@ export default function CommunityPage() {
                 }
               />
               <div className="flex justify-end">
-                <Button onClick={createAnnouncement}>Opublikuj</Button>
+                <Button onClick={createAnnouncement} disabled={savingAnn}>
+                  {savingAnn ? "Publikowanie…" : "Opublikuj"}
+                </Button>
               </div>
             </div>
           </CardContent>
@@ -296,11 +349,13 @@ export default function CommunityPage() {
           </div>
           <div>
             {isMember ? (
-              <Button variant="outline" onClick={leave}>
-                Opuść
+              <Button variant="outline" onClick={leave} disabled={leaving}>
+                {leaving ? "Opuszczanie…" : "Opuść"}
               </Button>
             ) : (
-              <Button onClick={join}>Dołącz</Button>
+              <Button onClick={join} disabled={joining}>
+                {joining ? "Dołączanie…" : "Dołącz"}
+              </Button>
             )}
           </div>
         </div>
@@ -357,6 +412,7 @@ export default function CommunityPage() {
                             m.role === "member" ? "secondary" : "outline"
                           }
                           onClick={() => updateRole(m.id, "member")}
+                          disabled={updatingRoleId === m.id}
                         >
                           Member
                         </Button>
@@ -366,6 +422,7 @@ export default function CommunityPage() {
                             m.role === "moderator" ? "secondary" : "outline"
                           }
                           onClick={() => updateRole(m.id, "moderator")}
+                          disabled={updatingRoleId === m.id}
                         >
                           Moderator
                         </Button>
@@ -373,6 +430,7 @@ export default function CommunityPage() {
                           size="sm"
                           variant={m.role === "owner" ? "secondary" : "outline"}
                           onClick={() => updateRole(m.id, "owner")}
+                          disabled={updatingRoleId === m.id}
                         >
                           Owner
                         </Button>

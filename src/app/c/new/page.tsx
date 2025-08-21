@@ -16,6 +16,11 @@ import {
 } from "@/components/ui/select"
 import { toast } from "sonner"
 import { slugify } from "@/lib/utils"
+import {
+  normalizeSupabaseError,
+  friendlyMessage,
+  withTimeout,
+} from "@/lib/errors"
 
 export default function NewCommunityPage() {
   const supabase = getSupabase()
@@ -41,28 +46,58 @@ export default function NewCommunityPage() {
           ? crypto.randomUUID()
           : undefined
       const baseSlug = slugify(name)
-      const { data, error } = await supabase
-        .from("communities")
-        .insert({
-          ...(newId ? { id: newId } : {}),
-          name,
-          description,
-          type,
-          city: city || null,
-          country: country || null,
-          owner_id: me.id,
-          is_local: !!(city || country),
-          slug: baseSlug,
-        })
-        .select("id, slug, status")
-        .single()
-      if (error) throw error
+      const { data, error, status, statusText } = (await withTimeout(
+        supabase
+          .from("communities")
+          .insert({
+            ...(newId ? { id: newId } : {}),
+            name,
+            description,
+            type,
+            city: city || null,
+            country: country || null,
+            owner_id: me.id,
+            is_local: !!(city || country),
+            slug: baseSlug,
+          })
+          .select("id, slug, status")
+          .single(),
+        15000,
+      )) as {
+        data: {
+          id: string
+          slug?: string | null
+          status?: string | null
+        } | null
+        error: unknown
+        status?: number
+        statusText?: string
+      }
+      if (error) {
+        const err = normalizeSupabaseError(
+          error,
+          "Nie udało się utworzyć społeczności",
+          { status, statusText },
+        )
+        throw new Error(friendlyMessage(err))
+      }
       // Auto-join owner only when community is active; pending communities can't accept members
       if (data?.status === "active") {
-        const { error: memberErr } = await supabase
+        const {
+          error: memberErr,
+          status: mStatus,
+          statusText: mStatusText,
+        } = await supabase
           .from("community_memberships")
           .insert({ community_id: data!.id, user_id: me.id, role: "owner" })
-        if (memberErr) throw memberErr
+        if (memberErr) {
+          const n = normalizeSupabaseError(
+            memberErr,
+            "Nie udało się dodać właściciela",
+            { status: mStatus, statusText: mStatusText },
+          )
+          throw new Error(friendlyMessage(n))
+        }
         toast.success("Społeczność utworzona")
       } else {
         toast.info(

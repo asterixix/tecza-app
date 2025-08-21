@@ -1,6 +1,7 @@
 /* App layout */
 
 import type { Metadata } from "next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/site/theme-provider"
@@ -78,6 +79,7 @@ export default function RootLayout({
           </main>
           <FooterSwitch />
           <CookieBanner />
+          <SpeedInsights />
         </ThemeProvider>
       </body>
     </html>

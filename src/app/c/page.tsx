@@ -24,6 +24,11 @@ import {
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { slugify } from "@/lib/utils"
+import {
+  friendlyMessage,
+  normalizeSupabaseError,
+  withTimeout,
+} from "@/lib/errors"
 
 type Community = {
   id: string
@@ -54,18 +59,24 @@ export default function CommunitiesPage() {
   useEffect(() => {
     async function load() {
       if (!supabase) return
-      const { data, error, status, statusText } = await supabase
-        .from("communities")
-        .select(
-          "id,slug,name,description,avatar_url,members_count,city,country",
-        )
-        .order("members_count", { ascending: false })
-        .limit(50)
+      const { data, error, status, statusText } = await withTimeout(
+        supabase
+          .from("communities")
+          .select(
+            "id,slug,name,description,avatar_url,members_count,city,country",
+          )
+          .order("members_count", { ascending: false })
+          .limit(50),
+        15000,
+      )
       if (error) {
-        console.error("Communities load error", status, statusText, error)
-        toast.error(
-          "Nie udało się pobrać listy społeczności (spróbuj ponownie)",
+        const err = normalizeSupabaseError(
+          error,
+          "Nie udało się pobrać listy społeczności",
+          { status, statusText },
         )
+        console.error("Communities load error", err)
+        toast.error(friendlyMessage(err))
       } else {
         setItems(data || [])
       }
@@ -100,33 +111,61 @@ export default function CommunitiesPage() {
         error: createErr,
         status,
         statusText,
-      } = await supabase
-        .from("communities")
-        .insert({
-          ...(newId ? { id: newId } : {}),
-          name,
-          description,
-          type,
-          city: city || null,
-          country: country || null,
-          is_local: !!(city || country),
-          owner_id: me.id,
-          slug,
-        })
-        .select("id,slug,status")
-        .single()
+      } = (await withTimeout(
+        supabase
+          .from("communities")
+          .insert({
+            ...(newId ? { id: newId } : {}),
+            name,
+            description,
+            type,
+            city: city || null,
+            country: country || null,
+            is_local: !!(city || country),
+            owner_id: me.id,
+            slug,
+          })
+          .select("id,slug,status")
+          .single(),
+        15000,
+      )) as {
+        data: {
+          id: string
+          slug?: string | null
+          status?: string | null
+        } | null
+        error: unknown
+        status?: number
+        statusText?: string
+      }
 
       if (createErr) {
-        console.error("Create community error", status, statusText, createErr)
-        throw createErr
+        const err = normalizeSupabaseError(
+          createErr,
+          "Nie udało się utworzyć społeczności",
+          { status, statusText },
+        )
+        console.error("Create community error", err)
+        throw new Error(friendlyMessage(err))
       }
 
       // Auto-join only when community is active
       if (created?.status === "active") {
-        const { error: memberErr } = await supabase
+        const {
+          error: memberErr,
+          status: mStatus,
+          statusText: mStatusText,
+        } = await supabase
           .from("community_memberships")
           .insert({ community_id: created!.id, user_id: me.id, role: "owner" })
-        if (memberErr) throw memberErr
+        if (memberErr) {
+          const err = normalizeSupabaseError(
+            memberErr,
+            "Nie udało się dodać właściciela do społeczności",
+            { status: mStatus, statusText: mStatusText },
+          )
+          throw new Error(friendlyMessage(err))
+        }
         toast.success("Społeczność utworzona")
       } else {
         toast.info(
@@ -143,11 +182,9 @@ export default function CommunitiesPage() {
       // Navigate to created community
       router.push(`/c/${created!.slug || created!.id}`)
     } catch (e: unknown) {
-      const err = e as { message?: string; hint?: string; details?: string }
-      const details = err?.message || err?.hint || err?.details
-      toast.error(
-        details ? `Błąd: ${details}` : "Nie udało się utworzyć społeczności",
-      )
+      const msg =
+        e instanceof Error ? e.message : "Nie udało się utworzyć społeczności"
+      toast.error(msg)
     } finally {
       setLoading(false)
     }

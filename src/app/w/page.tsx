@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { slugify } from "@/lib/utils"
+import { friendlyMessage, normalizeSupabaseError } from "@/lib/errors"
 
 interface EventRow {
   id: string
@@ -64,7 +65,7 @@ export default function EventsPage() {
     async function load() {
       if (!supabase) return
       const now = new Date().toISOString()
-      const { data, error } = await supabase
+      const { data, error, status, statusText } = await supabase
         .from("events")
         .select(
           "id,slug,title,start_date,city,country,category,cover_image_url",
@@ -73,20 +74,13 @@ export default function EventsPage() {
         .order("start_date", { ascending: true })
         .limit(50)
       if (error) {
-        console.error("Failed to load events:", error)
-        const err = error as unknown as {
-          message: string
-          code?: string
-          hint?: string | null
-          details?: string | null
-        }
-        setLoadError({
-          message: err.message,
-          code: err.code,
-          hint: err.hint ?? null,
-          details: err.details ?? null,
-        })
-        toast.error(`${err.message}${err.code ? ` (${err.code})` : ""}`)
+        const err = normalizeSupabaseError(
+          error,
+          "Nie udało się pobrać wydarzeń",
+          { status, statusText },
+        )
+        setLoadError(err)
+        toast.error(friendlyMessage(err))
       }
       setItems(data || [])
     }
@@ -106,7 +100,7 @@ export default function EventsPage() {
           ? crypto.randomUUID()
           : undefined
       const baseSlug = slugify(title)
-      const { data, error } = await supabase
+      const { data, error, status, statusText } = await supabase
         .from("events")
         .insert({
           ...(newId ? { id: newId } : {}),
@@ -125,7 +119,14 @@ export default function EventsPage() {
         })
         .select("slug")
         .single()
-      if (error) throw error
+      if (error) {
+        const err = normalizeSupabaseError(
+          error,
+          "Nie udało się utworzyć wydarzenia",
+          { status, statusText },
+        )
+        throw new Error(friendlyMessage(err))
+      }
       toast.success("Wydarzenie utworzone")
       setOpen(false)
       // reset form

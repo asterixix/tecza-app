@@ -1235,7 +1235,7 @@ export default function PublicUserPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-3 sm:px-4 md:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-      <div className="relative h-48 sm:h-40 w-full overflow-hidden rounded-lg border bg-muted">
+      <div className="relative h-40 sm:h-40 w-full overflow-hidden rounded-lg border bg-muted">
         {!!profile?.cover_image_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -1364,26 +1364,56 @@ export default function PublicUserPage() {
         )}
         {isOwner && (
           <div className="absolute bottom-2 right-2 flex items-center gap-2">
-            <button
-              type="button"
-              title="Usuń tło"
-              aria-label="Usuń tło"
-              className="inline-flex items-center gap-1 rounded-md bg-background/80 backdrop-blur px-2 py-1 text-xs border shadow"
-              onClick={removeCover}
-            >
-              <Trash2 className="size-4" /> Usuń tło
-            </button>
-            <button
-              type="button"
-              title="Zmień tło"
-              aria-label="Zmień tło"
-              className="inline-flex items-center gap-1 rounded-md bg-background/80 backdrop-blur px-2 py-1 text-xs border shadow"
-              onClick={() => {
-                bannerInputRef.current?.click()
-              }}
-            >
-              <Camera className="size-4" /> Edytuj tło
-            </button>
+            {/* Mobile: icon-only */}
+            <div className="flex sm:hidden items-center gap-2">
+              <button
+                type="button"
+                title="Usuń tło"
+                aria-label="Usuń tło"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background/80 backdrop-blur border shadow"
+                onClick={removeCover}
+              >
+                <Trash2 className="size-4" />
+              </button>
+              <button
+                type="button"
+                title="Zmień tło"
+                aria-label="Zmień tło"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background/80 backdrop-blur border shadow"
+                onClick={() => {
+                  bannerInputRef.current?.click()
+                }}
+              >
+                <Camera className="size-4" />
+              </button>
+            </div>
+            {/* Desktop/tablet: with labels */}
+            <div className="hidden sm:flex items-center gap-2">
+              <button
+                type="button"
+                title="Usuń tło"
+                aria-label="Usuń tło"
+                className="inline-flex items-center gap-1 rounded-md bg-background/80 backdrop-blur px-2 py-1 text-xs border shadow"
+                onClick={removeCover}
+              >
+                <Trash2 className="size-4" />
+                <span className="hidden sm:inline">Usuń tło</span>
+                <span className="sm:hidden">Usuń</span>
+              </button>
+              <button
+                type="button"
+                title="Zmień tło"
+                aria-label="Zmień tło"
+                className="inline-flex items-center gap-1 rounded-md bg-background/80 backdrop-blur px-2 py-1 text-xs border shadow"
+                onClick={() => {
+                  bannerInputRef.current?.click()
+                }}
+              >
+                <Camera className="size-4" />
+                <span className="hidden sm:inline">Edytuj tło</span>
+                <span className="sm:hidden">Edytuj</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -1394,7 +1424,7 @@ export default function PublicUserPage() {
             <div className="flex flex-wrap items-start gap-3">
               <div
                 ref={avatarContainerRef}
-                className="-mt-14 sm:-mt-10 h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-full ring-2 ring-background overflow-hidden bg-muted border relative"
+                className="-mt-12 sm:-mt-10 h-16 w-16 sm:h-24 sm:w-24 shrink-0 rounded-full ring-2 ring-background overflow-hidden bg-muted border relative"
               >
                 {!!profile?.avatar_url && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -1478,7 +1508,7 @@ export default function PublicUserPage() {
                 </div>
               </div>
               {isOwner ? (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto order-last sm:order-none mt-2 sm:mt-0 flex-wrap">
                   <Button
                     type="button"
                     variant="outline"
@@ -1510,24 +1540,38 @@ export default function PublicUserPage() {
                       setEditOpen(true)
                     }}
                   >
-                    {editing ? "Zamknij edycję" : "Edytuj profil"}
+                    <span className="hidden xs:inline">
+                      {editing ? "Zamknij edycję" : "Edytuj profil"}
+                    </span>
+                    <span className="inline xs:hidden">Edycja</span>
                   </Button>
                 </div>
               ) : (
                 profile && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto order-last sm:order-none mt-2 sm:mt-0 flex-wrap">
                     {isFriend ? (
-                      <Button variant="outline" size="sm" disabled>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        disabled
+                      >
                         Połączeni
                       </Button>
                     ) : requestStatus === "pending" ? (
                       <>
-                        <Button variant="outline" size="sm" disabled>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          disabled
+                        >
                           Wysłano zaproszenie
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="text-xs"
                           onClick={cancelRequest}
                           disabled={connecting}
                         >
@@ -1538,6 +1582,7 @@ export default function PublicUserPage() {
                       <>
                         <Button
                           size="sm"
+                          className="text-xs"
                           onClick={acceptRequest}
                           disabled={connecting}
                         >
@@ -1546,6 +1591,7 @@ export default function PublicUserPage() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="text-xs"
                           onClick={cancelRequest}
                           disabled={connecting}
                         >
@@ -1555,6 +1601,7 @@ export default function PublicUserPage() {
                     ) : (
                       <Button
                         size="sm"
+                        className="text-xs"
                         onClick={sendRequest}
                         disabled={connecting}
                       >
@@ -1563,11 +1610,21 @@ export default function PublicUserPage() {
                     )}
 
                     {following ? (
-                      <Button variant="secondary" size="sm" onClick={unfollow}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="text-xs"
+                        onClick={unfollow}
+                      >
                         Obserwujesz
                       </Button>
                     ) : (
-                      <Button variant="outline" size="sm" onClick={follow}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={follow}
+                      >
                         Obserwuj
                       </Button>
                     )}

@@ -5,6 +5,12 @@ import { useParams } from "next/navigation"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
+import {
+  friendlyMessage,
+  normalizeSupabaseError,
+  withTimeout,
+} from "@/lib/errors"
 
 type BBox = [number, number, number, number]
 type CoordinatesShape =
@@ -76,36 +82,39 @@ export default function EventPage() {
   const [event, setEvent] = useState<EventFull | null>(null)
   const [status, setStatus] = useState<Participation | null>(null)
   const [isOrganizer, setIsOrganizer] = useState(false)
+  const [savingRsvp, setSavingRsvp] = useState<Participation | null>(null)
+  const [removing, setRemoving] = useState(false)
 
   useEffect(() => {
     async function load() {
       if (!supabase || !idOrSlug) return
       // Try by slug first, fallback to id
       let found: EventFull | null = null
-      const bySlug = await supabase
-        .from("events")
-        .select("*")
-        .eq("slug", idOrSlug)
-        .maybeSingle()
+      const bySlug = await withTimeout(
+        supabase.from("events").select("*").eq("slug", idOrSlug).maybeSingle(),
+        15000,
+      )
       if (bySlug.data) {
         found = bySlug.data as EventFull
       } else {
-        const byId = await supabase
-          .from("events")
-          .select("*")
-          .eq("id", idOrSlug)
-          .maybeSingle()
+        const byId = await withTimeout(
+          supabase.from("events").select("*").eq("id", idOrSlug).maybeSingle(),
+          15000,
+        )
         if (byId.data) found = byId.data as EventFull
       }
       setEvent(found)
       const me = (await supabase.auth.getUser()).data.user
       if (me && found?.id) {
-        const { data: p } = await supabase
-          .from("event_participations")
-          .select("status")
-          .eq("event_id", found.id)
-          .eq("user_id", me.id)
-          .maybeSingle()
+        const { data: p } = await withTimeout(
+          supabase
+            .from("event_participations")
+            .select("status")
+            .eq("event_id", found.id)
+            .eq("user_id", me.id)
+            .maybeSingle(),
+          15000,
+        )
         setStatus((p?.status as Participation) || null)
         setIsOrganizer(me.id === found.organizer_id)
       }
@@ -117,21 +126,67 @@ export default function EventPage() {
     if (!supabase || !event) return
     const me = (await supabase.auth.getUser()).data.user
     if (!me) return
-    await supabase
-      .from("event_participations")
-      .upsert(
-        { event_id: event.id, user_id: me.id, status: newStatus },
-        { onConflict: "event_id,user_id" },
+    setSavingRsvp(newStatus)
+    try {
+      const {
+        error,
+        status: s,
+        statusText,
+      } = await withTimeout(
+        supabase
+          .from("event_participations")
+          .upsert(
+            { event_id: event.id, user_id: me.id, status: newStatus },
+            { onConflict: "event_id,user_id" },
+          ),
+        15000,
       )
-    setStatus(newStatus)
+      if (error) {
+        const err = normalizeSupabaseError(
+          error,
+          "Nie udało się zapisać statusu",
+          { status: s, statusText },
+        )
+        throw new Error(friendlyMessage(err))
+      }
+      setStatus(newStatus)
+      toast.success("Zapisano status")
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "Nie udało się zapisać statusu"
+      toast.error(msg)
+    } finally {
+      setSavingRsvp(null)
+    }
   }
 
   async function removeEvent() {
     if (!supabase || !event) return
     const ok = window.confirm("Usunąć to wydarzenie?")
     if (!ok) return
-    await supabase.from("events").delete().eq("id", event.id)
-    window.location.href = "/w"
+    setRemoving(true)
+    try {
+      const { error, status, statusText } = await withTimeout(
+        supabase.from("events").delete().eq("id", event.id),
+        15000,
+      )
+      if (error) {
+        const err = normalizeSupabaseError(
+          error,
+          "Nie udało się usunąć wydarzenia",
+          { status, statusText },
+        )
+        throw new Error(friendlyMessage(err))
+      }
+      toast.success("Usunięto wydarzenie")
+      window.location.href = "/w"
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "Nie udało się usunąć wydarzenia"
+      toast.error(msg)
+    } finally {
+      setRemoving(false)
+    }
   }
 
   if (!event)
@@ -198,18 +253,21 @@ export default function EventPage() {
           <Button
             variant={status === "interested" ? "default" : "outline"}
             onClick={() => rsvp("interested")}
+            disabled={savingRsvp !== null}
           >
             Obserwuj
           </Button>
           <Button
             variant={status === "attending" ? "default" : "outline"}
             onClick={() => rsvp("attending")}
+            disabled={savingRsvp !== null}
           >
             Biorę udział
           </Button>
           <Button
             variant={status === "not_attending" ? "default" : "outline"}
             onClick={() => rsvp("not_attending")}
+            disabled={savingRsvp !== null}
           >
             Nie biorę udziału
           </Button>
@@ -237,7 +295,11 @@ export default function EventPage() {
             </Button>
           ) : null}
           {isOrganizer && (
-            <Button variant="destructive" onClick={removeEvent}>
+            <Button
+              variant="destructive"
+              onClick={removeEvent}
+              disabled={removing}
+            >
               Usuń wydarzenie
             </Button>
           )}

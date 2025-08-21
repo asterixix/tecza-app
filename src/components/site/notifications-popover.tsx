@@ -128,6 +128,15 @@ export function NotificationsPopover() {
       )
   }
 
+  async function markAllRead() {
+    if (!supabase) return
+    await supabase.rpc("mark_all_notifications_read")
+    const now = new Date().toISOString()
+    setItems((prev) =>
+      prev.map((x) => (x.read_at ? x : { ...x, read_at: now })),
+    )
+  }
+
   async function handleFriendRequest(
     n: NotificationRow,
     action: "accept" | "reject",
@@ -210,7 +219,19 @@ export function NotificationsPopover() {
         className="w-96 p-0"
         aria-label="Powiadomienia"
       >
-        <div className="p-3 font-medium">Powiadomienia</div>
+        <div className="p-3 flex items-center justify-between gap-2">
+          <div className="font-medium">Powiadomienia</div>
+          {items.some((i) => !i.read_at) && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={markAllRead}
+              aria-label="Oznacz wszystkie jako przeczytane"
+            >
+              Oznacz wszystkie
+            </Button>
+          )}
+        </div>
         <ScrollArea className="max-h-96">
           <ul className="divide-y">
             {items.length === 0 && (
