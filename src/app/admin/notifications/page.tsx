@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,6 +40,17 @@ type AppRole =
   | "administrator"
   | "super-administrator"
 
+type NotificationBroadcast = {
+  id: string
+  audience: string
+  target_role?: string | null
+  title: string
+  send_at: string
+  status: string
+  dispatched_at?: string | null
+  created_at: string
+}
+
 export default function AdminNotificationsPage() {
   const supabase = getSupabase()
   const { toast } = useToast()
@@ -53,7 +64,7 @@ export default function AdminNotificationsPage() {
   const [actionUrl, setActionUrl] = useState("")
   const [sendAt, setSendAt] = useState<string>("")
   const [submitting, setSubmitting] = useState(false)
-  const [recent, setRecent] = useState<any[]>([])
+  const [recent, setRecent] = useState<NotificationBroadcast[]>([])
 
   useEffect(() => {
     ;(async () => {
@@ -75,7 +86,7 @@ export default function AdminNotificationsPage() {
     })()
   }, [supabase])
 
-  async function loadRecent() {
+  const loadRecent = useCallback(async () => {
     if (!supabase) return
     const { data } = await supabase
       .from("notification_broadcasts")
@@ -85,11 +96,11 @@ export default function AdminNotificationsPage() {
       .order("created_at", { ascending: false })
       .limit(10)
     setRecent(data || [])
-  }
+  }, [supabase])
 
   useEffect(() => {
     loadRecent()
-  }, [])
+  }, [loadRecent])
 
   const dueHint = useMemo(() => {
     if (!sendAt) return "Wysyłka natychmiast po zatwierdzeniu"
@@ -111,23 +122,20 @@ export default function AdminNotificationsPage() {
           .eq("username", username.toLowerCase())
           .maybeSingle()
         if (!u) throw new Error("Nie znaleziono użytkownika o takiej nazwie")
-        target_user_id = (u as any).id
+        target_user_id = (u as { id: string }).id
       }
 
-      const { data: created, error } = await supabase.rpc(
-        "admin_create_broadcast",
-        {
-          p_audience: audience,
-          p_target_role: audience === "role" ? (role as string) : null,
-          p_target_user_id: target_user_id,
-          p_title: title,
-          p_body: body,
-          p_action_url: actionUrl || null,
-          p_send_at: sendAt
-            ? new Date(sendAt).toISOString()
-            : new Date().toISOString(),
-        },
-      )
+      const { error } = await supabase.rpc("admin_create_broadcast", {
+        p_audience: audience,
+        p_target_role: audience === "role" ? (role as string) : null,
+        p_target_user_id: target_user_id,
+        p_title: title,
+        p_body: body,
+        p_action_url: actionUrl || null,
+        p_send_at: sendAt
+          ? new Date(sendAt).toISOString()
+          : new Date().toISOString(),
+      })
       if (error) throw error
 
       toast({ title: "Zapisano", description: "Wiadomość została utworzona" })
@@ -138,10 +146,16 @@ export default function AdminNotificationsPage() {
       setRole("")
       setSendAt("")
       await loadRecent()
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const message =
+        e instanceof Error
+          ? e.message
+          : typeof e === "string"
+            ? e
+            : "Nie udało się zapisać"
       toast({
         title: "Błąd",
-        description: e.message || "Nie udało się zapisać",
+        description: message,
         variant: "destructive",
       })
     } finally {
@@ -162,10 +176,15 @@ export default function AdminNotificationsPage() {
         description: `Wysłano do ${data as number} odbiorców`,
       })
       await loadRecent()
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast({
         title: "Błąd",
-        description: e.message || "Nie udało się wysłać",
+        description:
+          e instanceof Error
+            ? e.message
+            : typeof e === "string"
+              ? e
+              : "Nie udało się wysłać",
         variant: "destructive",
       })
     } finally {
@@ -186,7 +205,7 @@ export default function AdminNotificationsPage() {
             <Label>Odbiorcy</Label>
             <Select
               value={audience}
-              onValueChange={(v) => setAudience(v as any)}
+              onValueChange={(v) => setAudience(v as "all" | "role" | "user")}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz odbiorców" />
