@@ -357,7 +357,7 @@ export default function EventsPage() {
                         disabled={isLoading}
                         className="flex-1 min-w-0"
                       >
-                        👀 Obserwuj
+                        Obserwuj
                       </Button>
                       <Button
                         variant={
@@ -368,7 +368,7 @@ export default function EventsPage() {
                         disabled={isLoading}
                         className="flex-1 min-w-0"
                       >
-                        ✅ Biorę udział
+                        Biorę udział
                       </Button>
                     </>
                   ) : (
@@ -379,7 +379,7 @@ export default function EventsPage() {
                     </Link>
                   )}
 
-                  <Button variant="ghost" size="sm" asChild className="px-3">
+                  <Button variant="default" size="sm" asChild className="px-3">
                     <a
                       href={`/w/${e.slug || e.id}/ical`}
                       target="_blank"
@@ -390,7 +390,7 @@ export default function EventsPage() {
                     </a>
                   </Button>
 
-                  <Button variant="ghost" size="sm" asChild className="px-3">
+                  <Button variant="default" size="sm" asChild className="px-3">
                     <Link
                       href={`/w/${e.slug || e.id}`}
                       title="Zobacz szczegóły"

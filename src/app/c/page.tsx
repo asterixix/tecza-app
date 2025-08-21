@@ -232,12 +232,7 @@ export default function CommunitiesPage() {
         </div>
         <div className="flex items-center gap-2">
           {/* Search removed per request */}
-          <Button
-            onClick={() => setOpen(true)}
-            className="bg-gradient-to-r from-[#e40303] via-[#ff8c00] to-[#0078d7] text-white hover:opacity-90"
-          >
-            Utwórz
-          </Button>
+          <Button onClick={() => setOpen(true)}>Utwórz</Button>
         </div>
       </div>
 
@@ -255,12 +250,7 @@ export default function CommunitiesPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Bądź pierwszą osobą, która stworzy nową społeczność.
             </p>
-            <Button
-              onClick={() => setOpen(true)}
-              className="mt-4 bg-gradient-to-r from-[#e40303] via-[#ff8c00] to-[#0078d7] text-white hover:opacity-90"
-            >
-              Utwórz społeczność
-            </Button>
+            <Button onClick={() => setOpen(true)}>Utwórz społeczność</Button>
           </div>
         ) : (
           items.map((c) => {
@@ -274,7 +264,7 @@ export default function CommunitiesPage() {
             return (
               <Card
                 key={c.id}
-                className="group relative overflow-hidden rounded-xl border bg-card transition-all hover:-translate-y-0.5 hover:shadow-xl"
+                className="group relative overflow-hidden rounded-xl border bg-card transition-all hover:-translate-y-0.5 hover:shadow-xl -py-6"
               >
                 <Link
                   href={`/c/${c.slug || c.id}`}
@@ -309,22 +299,6 @@ export default function CommunitiesPage() {
                             ? "Prywatna"
                             : "Ograniczona"}
                       </Badge>
-                    </div>
-
-                    {/* Avatar positioned over cover with rainbow ring */}
-                    <div className="absolute -bottom-8 left-4">
-                      <div className="p-0.5 rounded-full bg-[conic-gradient(var(--tw-gradient-stops))] from-[#e40303] via-[#ff8c00] via-30% via-[#ffed00] via-45% via-[#008018] via-60% via-[#0078d7] via-75% to-[#732982]">
-                        <div className="rounded-full bg-white dark:bg-neutral-900 p-0.5 shadow-lg">
-                          <Image
-                            src={c.avatar_url || "/icons/tecza-icons/1.svg"}
-                            alt={`${c.name} avatar`}
-                            width={72}
-                            height={72}
-                            className="h-14 w-14 sm:h-16 sm:w-16 rounded-full object-cover"
-                            priority={false}
-                          />
-                        </div>
-                      </div>
                     </div>
                   </div>
 
