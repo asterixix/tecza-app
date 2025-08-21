@@ -6,6 +6,7 @@ import { getSupabase } from "@/lib/supabase-browser"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PostComposer } from "@/components/dashboard/post-composer"
 import { CommunityAdminPanel } from "@/components/dashboard/community-admin-panel"
+import { CommunityChat } from "@/components/dashboard/community-chat"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -484,9 +485,10 @@ export default function CommunityPage() {
         )}
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Przegląd</TabsTrigger>
             <TabsTrigger value="posts">Posty</TabsTrigger>
+            {community.has_chat && <TabsTrigger value="chat">Czat</TabsTrigger>}
             {community.has_events && (
               <TabsTrigger value="events">Wydarzenia</TabsTrigger>
             )}
@@ -614,6 +616,27 @@ export default function CommunityPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {community.has_chat && (
+            <TabsContent value="chat" className="space-y-6">
+              {membership.isMember ? (
+                <CommunityChat
+                  communityId={community.id}
+                  currentUserId={currentUser?.id || null}
+                  userRole={membership.role || "member"}
+                />
+              ) : (
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="text-center py-8 text-muted-foreground">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Dołącz do społeczności aby uczestniczyć w chacie</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          )}
 
           {community.has_events && (
             <TabsContent value="events" className="space-y-6">

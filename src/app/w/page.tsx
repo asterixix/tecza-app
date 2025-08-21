@@ -33,16 +33,27 @@ interface EventRow {
   id: string
   slug?: string | null
   title: string
+  description: string | null
   start_date: string
+  end_date: string | null
   city: string | null
   country: string | null
   category: string
+  is_online: boolean
+  is_free: boolean
   cover_image_url: string | null
+  organizer_id: string
+  max_participants: number | null
 }
 
 export default function EventsPage() {
   const supabase = getSupabase()
   const [items, setItems] = useState<EventRow[]>([])
+  const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null)
+  const [participations, setParticipations] = useState<Record<string, string>>(
+    {},
+  )
+  const [savingRsvp, setSavingRsvp] = useState<string | null>(null)
   // Create event dialog state
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
@@ -72,7 +83,7 @@ export default function EventsPage() {
       const { data, error, status, statusText } = await supabase
         .from("events")
         .select(
-          "id,slug,title,start_date,city,country,category,cover_image_url",
+          "id,slug,title,description,start_date,end_date,city,country,category,is_online,is_free,cover_image_url,organizer_id,max_participants",
         )
         .gte("start_date", now)
         .order("start_date", { ascending: true })
@@ -87,9 +98,54 @@ export default function EventsPage() {
         toast.error(friendlyMessage(err))
       }
       setItems(data || [])
+
+      // Load current user and their participations
+      const { data: user } = await supabase.auth.getUser()
+      setCurrentUser(user.user)
+
+      if (user.user && data?.length) {
+        const eventIds = data.map((e) => e.id)
+        const { data: parts } = await supabase
+          .from("event_participations")
+          .select("event_id,status")
+          .eq("user_id", user.user.id)
+          .in("event_id", eventIds)
+
+        const participationMap: Record<string, string> = {}
+        parts?.forEach((p) => {
+          participationMap[p.event_id] = p.status
+        })
+        setParticipations(participationMap)
+      }
     }
     load()
   }, [supabase])
+
+  async function handleRsvp(eventId: string, newStatus: string) {
+    if (!supabase || !currentUser) return
+    setSavingRsvp(eventId)
+    try {
+      const { error } = await supabase
+        .from("event_participations")
+        .upsert(
+          { event_id: eventId, user_id: currentUser.id, status: newStatus },
+          { onConflict: "event_id,user_id" },
+        )
+
+      if (error) throw error
+
+      setParticipations((prev) => ({
+        ...prev,
+        [eventId]: newStatus,
+      }))
+      toast.success("Zapisano status")
+    } catch (e) {
+      console.error(e)
+      toast.error("Nie udało się zapisać statusu")
+    } finally {
+      setSavingRsvp(null)
+    }
+  }
 
   async function createEvent() {
     if (!supabase) return toast.error("Brak konfiguracji Supabase")
@@ -208,29 +264,145 @@ export default function EventsPage() {
           ) : null}
         </div>
       ) : null}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map((e) => (
-          <Card key={e.id} className="overflow-hidden">
-            <CardContent className="p-0">
-              <Link
-                href={`/w/${e.slug || e.id}`}
-                className="flex gap-3 p-3 hover:bg-accent/30"
-              >
-                <div className="h-12 w-12 rounded bg-muted" />
-                <div className="min-w-0">
-                  <div className="font-semibold truncate">{e.title}</div>
-                  <div className="text-sm text-muted-foreground truncate">
-                    {new Date(e.start_date).toLocaleString()} •{" "}
-                    {[e.city, e.country].filter(Boolean).join(", ") || "Online"}
+      <div className="grid sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        {items.map((e) => {
+          const userStatus = participations[e.id]
+          const isLoading = savingRsvp === e.id
+          const startDate = new Date(e.start_date)
+          const endDate = e.end_date ? new Date(e.end_date) : null
+          const location = e.is_online
+            ? "Online"
+            : [e.city, e.country].filter(Boolean).join(", ") ||
+              "Nieznana lokalizacja"
+
+          return (
+            <Card
+              key={e.id}
+              className="overflow-hidden hover:shadow-lg transition-shadow"
+            >
+              <div className="relative h-48 overflow-hidden">
+                {e.cover_image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={e.cover_image_url}
+                    alt={e.title}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="h-full w-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                    <div className="text-center text-muted-foreground">
+                      <div className="text-2xl mb-2">📅</div>
+                      <div className="text-sm font-medium">{e.category}</div>
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {e.category}
+                )}
+                <div className="absolute top-2 right-2">
+                  <div
+                    className={`px-2 py-1 rounded text-xs font-medium ${
+                      e.is_free
+                        ? "bg-green-500 text-white"
+                        : "bg-orange-500 text-white"
+                    }`}
+                  >
+                    {e.is_free ? "Darmowe" : "Płatne"}
                   </div>
                 </div>
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
+              </div>
+
+              <CardContent className="p-4 space-y-3">
+                <div>
+                  <h3 className="font-semibold text-lg leading-tight mb-1 line-clamp-2">
+                    {e.title}
+                  </h3>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <div>
+                      📅 {startDate.toLocaleDateString()}{" "}
+                      {startDate.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      {endDate && (
+                        <span>
+                          {" "}
+                          - {endDate.toLocaleDateString()}{" "}
+                          {endDate.toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      )}
+                    </div>
+                    <div>📍 {location}</div>
+                    {e.max_participants && (
+                      <div>👥 Max {e.max_participants} osób</div>
+                    )}
+                  </div>
+                </div>
+
+                {e.description && (
+                  <p className="text-sm text-muted-foreground line-clamp-3">
+                    {e.description}
+                  </p>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {currentUser ? (
+                    <>
+                      <Button
+                        variant={
+                          userStatus === "interested" ? "default" : "outline"
+                        }
+                        size="sm"
+                        onClick={() => handleRsvp(e.id, "interested")}
+                        disabled={isLoading}
+                        className="flex-1 min-w-0"
+                      >
+                        👀 Obserwuj
+                      </Button>
+                      <Button
+                        variant={
+                          userStatus === "attending" ? "default" : "outline"
+                        }
+                        size="sm"
+                        onClick={() => handleRsvp(e.id, "attending")}
+                        disabled={isLoading}
+                        className="flex-1 min-w-0"
+                      >
+                        ✅ Biorę udział
+                      </Button>
+                    </>
+                  ) : (
+                    <Link href="/l" className="flex-1">
+                      <Button variant="outline" size="sm" className="w-full">
+                        Zaloguj się aby dołączyć
+                      </Button>
+                    </Link>
+                  )}
+
+                  <Button variant="ghost" size="sm" asChild className="px-3">
+                    <a
+                      href={`/w/${e.slug || e.id}/ical`}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="Dodaj do kalendarza"
+                    >
+                      📅
+                    </a>
+                  </Button>
+
+                  <Button variant="ghost" size="sm" asChild className="px-3">
+                    <Link
+                      href={`/w/${e.slug || e.id}`}
+                      title="Zobacz szczegóły"
+                    >
+                      📋
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
       {/* Create Event Dialog */}

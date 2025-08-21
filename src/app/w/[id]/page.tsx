@@ -3,9 +3,32 @@
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { getSupabase } from "@/lib/supabase-browser"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
+import {
+  Calendar,
+  MapPin,
+  Clock,
+  Users,
+  Share2,
+  Eye,
+  Check,
+  X,
+  ExternalLink,
+  Ticket,
+  Trash2,
+} from "lucide-react"
 import {
   friendlyMessage,
   normalizeSupabaseError,
@@ -70,6 +93,7 @@ interface EventFull {
   cover_image_url: string | null
   organizer_id: string
   ticket_url?: string | null
+  max_participants?: number | null
   coordinates?: CoordinatesShape | null
 }
 
@@ -84,6 +108,10 @@ export default function EventPage() {
   const [isOrganizer, setIsOrganizer] = useState(false)
   const [savingRsvp, setSavingRsvp] = useState<Participation | null>(null)
   const [removing, setRemoving] = useState(false)
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviteMessage, setInviteMessage] = useState("")
+  const [sendingInvite, setSendingInvite] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -189,6 +217,51 @@ export default function EventPage() {
     }
   }
 
+  async function sendInvite() {
+    if (!supabase || !event || !inviteEmail.trim()) return
+    setSendingInvite(true)
+    try {
+      // For now, just copy link to clipboard and show success
+      // In a real app, you'd send an email via an API
+      const eventUrl = `${window.location.origin}/w/${event.slug || event.id}`
+      await navigator.clipboard.writeText(eventUrl)
+      toast.success("Link do wydarzenia skopiowany do schowka")
+      setInviteOpen(false)
+      setInviteEmail("")
+      setInviteMessage("")
+    } catch {
+      toast.error("Nie udało się skopiować linku")
+    } finally {
+      setSendingInvite(false)
+    }
+  }
+
+  async function shareEvent() {
+    if (!event) return
+    const eventUrl = `${window.location.origin}/w/${event.slug || event.id}`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: event.title,
+          text:
+            event.description ||
+            `${event.title} - ${new Date(event.start_date).toLocaleDateString()}`,
+          url: eventUrl,
+        })
+      } catch {
+        // User cancelled sharing
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(eventUrl)
+        toast.success("Link skopiowany do schowka")
+      } catch {
+        toast.error("Nie udało się skopiować linku")
+      }
+    }
+  }
+
   if (!event)
     return <div className="mx-auto max-w-4xl p-4 md:p-6">Wczytywanie…</div>
 
@@ -230,112 +303,244 @@ export default function EventPage() {
 
   const osmUrl = buildOsmEmbedUrl(event.coordinates ?? null)
 
+  const startDate = new Date(event.start_date)
+  const endDate = event.end_date ? new Date(event.end_date) : null
+  const location = event.is_online
+    ? "Online"
+    : [event.city, event.country].filter(Boolean).join(", ") ||
+      "Nieznana lokalizacja"
+
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-6">
-      <div className="relative h-40 w-full overflow-hidden">
-        <div className="h-full w-full bg-muted" />
-      </div>
-      <div className="mt-4">
-        <h1 className="text-2xl font-bold">{event.title}</h1>
-        <div className="text-sm text-muted-foreground">
-          {new Date(event.start_date).toLocaleString()}{" "}
-          {event.end_date
-            ? `– ${new Date(event.end_date).toLocaleString()}`
-            : ""}{" "}
-          •{" "}
-          {event.city || event.country
-            ? [event.city, event.country].filter(Boolean).join(", ")
-            : event.is_online
-              ? "Online"
-              : ""}
+      {/* Cover Image */}
+      <div className="relative h-64 md:h-80 w-full overflow-hidden rounded-lg mb-6">
+        {event.cover_image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={event.cover_image_url}
+            alt={event.title}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="h-full w-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+            <div className="text-center text-muted-foreground">
+              <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
+              <div className="text-xl font-medium">{event.category}</div>
+            </div>
+          </div>
+        )}
+        <div className="absolute top-4 right-4 flex gap-2">
+          {event.is_free && (
+            <Badge className="bg-green-500 text-white">Darmowe</Badge>
+          )}
+          {event.is_online && (
+            <Badge className="bg-blue-500 text-white">Online</Badge>
+          )}
         </div>
-        <div className="mt-3 flex gap-2">
-          <Button
-            variant={status === "interested" ? "default" : "outline"}
-            onClick={() => rsvp("interested")}
-            disabled={savingRsvp !== null}
-          >
-            Obserwuj
-          </Button>
-          <Button
-            variant={status === "attending" ? "default" : "outline"}
-            onClick={() => rsvp("attending")}
-            disabled={savingRsvp !== null}
-          >
-            Biorę udział
-          </Button>
-          <Button
-            variant={status === "not_attending" ? "default" : "outline"}
-            onClick={() => rsvp("not_attending")}
-            disabled={savingRsvp !== null}
-          >
-            Nie biorę udziału
-          </Button>
-          <Button asChild variant="outline">
-            <a
-              href={`/w/${event.slug || event.id}/ical`}
-              target="_blank"
-              rel="noreferrer"
+      </div>
+
+      {/* Event Info */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-3">{event.title}</h1>
+
+        <div className="flex flex-wrap gap-4 text-muted-foreground mb-4">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            <span>
+              {startDate.toLocaleDateString()}{" "}
+              {startDate.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+              {endDate && (
+                <span>
+                  {" "}
+                  - {endDate.toLocaleDateString()}{" "}
+                  {endDate.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              )}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            <span>{location}</span>
+          </div>
+
+          {event.max_participants && (
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span>Max {event.max_participants} osób</span>
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          <div className="flex gap-2">
+            <Button
+              variant={status === "interested" ? "default" : "outline"}
+              onClick={() => rsvp("interested")}
+              disabled={savingRsvp !== null}
+              className="gap-2"
             >
-              iCal
-            </a>
-          </Button>
-          {event.cover_image_url ? (
-            <Button asChild variant="outline">
-              <a href={event.cover_image_url} target="_blank" rel="noreferrer">
-                Plakat
+              <Eye className="h-4 w-4" />
+              Obserwuj
+            </Button>
+            <Button
+              variant={status === "attending" ? "default" : "outline"}
+              onClick={() => rsvp("attending")}
+              disabled={savingRsvp !== null}
+              className="gap-2"
+            >
+              <Check className="h-4 w-4" />
+              Biorę udział
+            </Button>
+            <Button
+              variant={status === "not_attending" ? "default" : "outline"}
+              onClick={() => rsvp("not_attending")}
+              disabled={savingRsvp !== null}
+              className="gap-2"
+            >
+              <X className="h-4 w-4" />
+              Nie biorę udziału
+            </Button>
+          </div>
+
+          <div className="flex gap-2">
+            <Button variant="outline" className="gap-2" asChild>
+              <a
+                href={`/w/${event.slug || event.id}/ical`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Calendar className="h-4 w-4" />
+                Dodaj do kalendarza
               </a>
             </Button>
-          ) : null}
-          {event.ticket_url ? (
-            <Button asChild>
+
+            <Button variant="outline" onClick={shareEvent} className="gap-2">
+              <Share2 className="h-4 w-4" />
+              Udostępnij
+            </Button>
+
+            <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Users className="h-4 w-4" />
+                  Zaproś
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Zaproś znajomych</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium">Email</label>
+                    <Input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="email@example.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">
+                      Wiadomość (opcjonalnie)
+                    </label>
+                    <Textarea
+                      value={inviteMessage}
+                      onChange={(e) => setInviteMessage(e.target.value)}
+                      placeholder="Dołącz do tego wydarzenia..."
+                      rows={3}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setInviteOpen(false)}
+                    >
+                      Anuluj
+                    </Button>
+                    <Button
+                      onClick={sendInvite}
+                      disabled={sendingInvite || !inviteEmail.trim()}
+                    >
+                      {sendingInvite ? "Wysyłanie..." : "Wyślij zaproszenie"}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {event.ticket_url && (
+            <Button className="gap-2" asChild>
               <a href={event.ticket_url} target="_blank" rel="noreferrer">
+                <Ticket className="h-4 w-4" />
                 Kup bilet
               </a>
             </Button>
-          ) : null}
+          )}
+
           {isOrganizer && (
             <Button
               variant="destructive"
               onClick={removeEvent}
               disabled={removing}
+              className="gap-2"
             >
+              <Trash2 className="h-4 w-4" />
               Usuń wydarzenie
             </Button>
           )}
         </div>
-        {osmUrl ? (
-          <Card className="mt-4">
-            <CardContent className="p-0">
-              <iframe
-                title="Mapa"
-                className="w-full h-64 rounded"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                src={osmUrl}
-              />
-              <div className="p-2 text-xs text-muted-foreground">
-                <a
-                  href="https://www.openstreetmap.org/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:underline"
-                >
-                  Otwórz w OpenStreetMap
-                </a>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
-        <Card className="mt-6">
-          <CardContent className="p-4">
-            <h2 className="text-lg font-semibold mb-1">Opis</h2>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-              {event.description || "Brak opisu."}
-            </p>
+      </div>
+
+      {/* Description */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Opis wydarzenia</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="whitespace-pre-wrap text-muted-foreground">
+            {event.description || "Brak opisu wydarzenia."}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Map */}
+      {osmUrl && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Lokalizacja</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <iframe
+              title="Mapa"
+              className="w-full h-64 rounded-b-lg"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              src={osmUrl}
+            />
+            <div className="p-4 border-t">
+              <a
+                href="https://www.openstreetmap.org/"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-muted-foreground hover:underline inline-flex items-center gap-1"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Otwórz w OpenStreetMap
+              </a>
+            </div>
           </CardContent>
         </Card>
-      </div>
+      )}
     </div>
   )
 }

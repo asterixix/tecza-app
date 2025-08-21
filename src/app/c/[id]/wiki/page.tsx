@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { useParams } from "next/navigation"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Card, CardContent } from "@/components/ui/card"
@@ -27,11 +28,23 @@ export default function CommunityWikiPage() {
   const idOrSlug = params?.id
   const [pages, setPages] = useState<WikiPage[]>([])
   const [isEditor, setIsEditor] = useState(false)
+  const [search, setSearch] = useState("")
   const [form, setForm] = useState({
     slug: "about",
     title: "O społeczności",
     content: "",
   })
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return pages
+    return pages.filter(
+      (p) =>
+        p.slug.toLowerCase().includes(q) ||
+        p.title.toLowerCase().includes(q) ||
+        (p.content || "").toLowerCase().includes(q),
+    )
+  }, [pages, search])
 
   useEffect(() => {
     async function load() {
@@ -147,6 +160,14 @@ export default function CommunityWikiPage() {
   return (
     <div className="mx-auto max-w-3xl p-4 md:p-6">
       <h1 className="text-2xl font-bold mb-4">Wiki społeczności</h1>
+      <div className="mb-4">
+        <Input
+          placeholder="Szukaj w wiki…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label="Szukaj w stronach wiki"
+        />
+      </div>
       {isEditor && (
         <Card className="mb-6">
           <CardContent className="p-4">
@@ -182,14 +203,29 @@ export default function CommunityWikiPage() {
       )}
 
       <div className="grid gap-3">
-        {pages.length === 0 ? (
+        {filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground">Brak stron wiki.</p>
         ) : (
-          pages.map((p) => (
-            <Card key={p.id}>
+          filtered.map((p) => (
+            <Card key={p.id} className="hover:bg-muted/40">
               <CardContent className="p-4">
-                <div className="text-sm text-muted-foreground">/{p.slug}</div>
-                <div className="text-lg font-semibold">{p.title}</div>
+                <div className="text-sm text-muted-foreground">
+                  <Link
+                    className="underline-offset-2 hover:underline"
+                    href={`/c/${idOrSlug}/wiki/${p.slug}`}
+                    aria-label={`Otwórz stronę ${p.title}`}
+                  >
+                    /{p.slug}
+                  </Link>
+                </div>
+                <div className="text-lg font-semibold">
+                  <Link
+                    className="hover:underline underline-offset-2"
+                    href={`/c/${idOrSlug}/wiki/${p.slug}`}
+                  >
+                    {p.title}
+                  </Link>
+                </div>
                 {p.content ? (
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">
                     {p.content}

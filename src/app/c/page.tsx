@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -22,6 +23,15 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Users,
+  MapPin,
+  Globe,
+  Lock,
+  Shield,
+  Calendar,
+  MessageCircle,
+} from "lucide-react"
 import { toast } from "sonner"
 import { slugify } from "@/lib/utils"
 import {
@@ -33,6 +43,7 @@ import type {
   PostgrestError,
   PostgrestSingleResponse,
 } from "@supabase/supabase-js"
+import Image from "next/image"
 
 type Community = {
   id: string
@@ -40,9 +51,15 @@ type Community = {
   name: string
   description: string | null
   avatar_url: string | null
+  cover_image_url: string | null
+  type: "public" | "private" | "restricted"
+  category: string | null
   members_count: number
   city: string | null
   country: string | null
+  has_chat: boolean
+  has_events: boolean
+  created_at: string
 }
 
 export default function CommunitiesPage() {
@@ -67,8 +84,9 @@ export default function CommunitiesPage() {
         supabase
           .from("communities")
           .select(
-            "id,slug,name,description,avatar_url,members_count,city,country",
+            "id,slug,name,description,avatar_url,cover_image_url,type,category,members_count,city,country,has_chat,has_events,created_at",
           )
+          .eq("status", "active")
           .order("members_count", { ascending: false })
           .limit(50),
         15000,
@@ -211,36 +229,129 @@ export default function CommunitiesPage() {
           <Button onClick={() => setOpen(true)}>Utwórz</Button>
         </div>
       </div>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map((c) => (
-          <Card key={c.id} className="overflow-hidden">
-            <CardContent className="p-0">
-              <Link
-                href={`/c/${c.slug || c.id}`}
-                className="flex gap-3 p-3 hover:bg-accent/30"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={c.avatar_url || "/icons/tecza-icons/1.svg"}
-                  alt="Avatar"
-                  className="h-12 w-12 rounded object-cover border"
-                />
-                <div className="min-w-0">
-                  <div className="font-semibold truncate">{c.name}</div>
-                  <div className="text-sm text-muted-foreground truncate">
-                    {c.description || ""}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {items.map((c) => {
+          const typeIcon = {
+            public: Globe,
+            private: Lock,
+            restricted: Shield,
+          }[c.type]
+
+          const TypeIcon = typeIcon
+
+          return (
+            <Card
+              key={c.id}
+              className="overflow-hidden hover:shadow-lg transition-shadow"
+            >
+              <Link href={`/c/${c.slug || c.id}`} className="block">
+                {/* Cover Image */}
+                <div className="relative h-32 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 overflow-hidden">
+                  {c.cover_image_url ? (
+                    <Image
+                      src={c.cover_image_url}
+                      alt={`${c.name} cover`}
+                      className="w-full h-full object-cover"
+                      fill
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      priority={false}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 opacity-80" />
+                  )}
+
+                  {/* Community Type Badge */}
+                  <div className="absolute top-3 right-3">
+                    <Badge
+                      variant={
+                        c.type === "public"
+                          ? "default"
+                          : c.type === "private"
+                            ? "destructive"
+                            : "secondary"
+                      }
+                      className="flex items-center gap-1 bg-white/90 text-gray-900 hover:bg-white"
+                    >
+                      <TypeIcon className="w-3 h-3" />
+                      {c.type === "public"
+                        ? "Publiczna"
+                        : c.type === "private"
+                          ? "Prywatna"
+                          : "Ograniczona"}
+                    </Badge>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {c.members_count} członków
-                    {c.city || c.country
-                      ? ` • ${[c.city, c.country].filter(Boolean).join(", ")}`
-                      : ""}
+
+                  {/* Avatar positioned over cover */}
+                  <div className="absolute -bottom-6 left-4">
+                    <Image
+                      src={c.avatar_url || "/icons/tecza-icons/1.svg"}
+                      alt={`${c.name} avatar`}
+                      width={48}
+                      height={48}
+                      className="w-12 h-12 rounded-full object-cover border-4 border-white shadow-lg"
+                      priority={false}
+                    />
                   </div>
                 </div>
+
+                <CardContent className="pt-8 pb-4">
+                  <div className="space-y-3">
+                    {/* Community Name and Category */}
+                    <div>
+                      <h3 className="font-bold text-lg leading-tight line-clamp-1">
+                        {c.name}
+                      </h3>
+                      {c.category && (
+                        <Badge variant="outline" className="mt-1 text-xs">
+                          {c.category}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.5rem]">
+                      {c.description || "Brak opisu społeczności"}
+                    </p>
+
+                    {/* Stats and Info */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Users className="w-4 h-4" />
+                        <span className="font-medium">{c.members_count}</span>
+                        <span>członków</span>
+                      </div>
+
+                      {(c.city || c.country) && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <MapPin className="w-4 h-4" />
+                          <span>
+                            {[c.city, c.country].filter(Boolean).join(", ")}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Features */}
+                      <div className="flex items-center gap-3 text-xs">
+                        {c.has_chat && (
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <MessageCircle className="w-3 h-3" />
+                            <span>Chat</span>
+                          </div>
+                        )}
+                        {c.has_events && (
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Calendar className="w-3 h-3" />
+                            <span>Wydarzenia</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
               </Link>
-            </CardContent>
-          </Card>
-        ))}
+            </Card>
+          )
+        })}
       </div>
 
       {/* Create Community Dialog */}
