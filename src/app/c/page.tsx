@@ -29,6 +29,10 @@ import {
   normalizeSupabaseError,
   withTimeout,
 } from "@/lib/errors"
+import type {
+  PostgrestError,
+  PostgrestSingleResponse,
+} from "@supabase/supabase-js"
 
 type Community = {
   id: string
@@ -98,45 +102,53 @@ export default function CommunitiesPage() {
           ? crypto.randomUUID()
           : undefined
       const baseSlug = slugify(name)
-      // Try to ensure uniqueness by appending short suffix if needed; DB should also enforce unique index if configured
-      let slug = baseSlug
-      // Simple client-side disambiguation within current list
-      let i = 1
-      const existing = new Set(items.map((i) => i.slug || ""))
-      while (slug && existing.has(slug)) {
-        slug = `${baseSlug}-${i++}`
-      }
-      const {
+      type Created = { id: string; slug: string | null; status: string | null }
+      const doInsert = async (
+        slugValue: string | null,
+      ): Promise<PostgrestSingleResponse<Created>> =>
+        await withTimeout(
+          supabase
+            .from("communities")
+            .insert({
+              ...(newId ? { id: newId } : {}),
+              name,
+              description,
+              type,
+              city: city || null,
+              country: country || null,
+              is_local: !!(city || country),
+              owner_id: me.id,
+              ...(slugValue ? { slug: slugValue } : {}),
+            })
+            .select("id,slug,status")
+            .single(),
+          15000,
+        )
+
+      let created: Created | null = null
+      let createErr: PostgrestError | null = null
+      let status: number | undefined
+      let statusText: string | undefined
+      ;({
         data: created,
         error: createErr,
         status,
         statusText,
-      } = (await withTimeout(
-        supabase
-          .from("communities")
-          .insert({
-            ...(newId ? { id: newId } : {}),
-            name,
-            description,
-            type,
-            city: city || null,
-            country: country || null,
-            is_local: !!(city || country),
-            owner_id: me.id,
-            slug,
-          })
-          .select("id,slug,status")
-          .single(),
-        15000,
-      )) as {
-        data: {
-          id: string
-          slug?: string | null
-          status?: string | null
-        } | null
-        error: unknown
-        status?: number
-        statusText?: string
+      } = await doInsert(baseSlug))
+
+      const code = createErr?.code ?? createErr?.details ?? ""
+      if (
+        createErr &&
+        (code === "23505" ||
+          String(code).includes("duplicate") ||
+          String(code).toLowerCase().includes("unique"))
+      ) {
+        const suffix = Math.random().toString(36).slice(2, 6)
+        const retry = await doInsert(`${baseSlug}-${suffix}`)
+        created = retry.data as Created
+        createErr = (retry.error as PostgrestError) || null
+        status = retry.status
+        statusText = retry.statusText
       }
 
       if (createErr) {

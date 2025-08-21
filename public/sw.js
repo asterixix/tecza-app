@@ -1,17 +1,17 @@
 if (!self.define) {
   let e,
-    a = {}
-  const s = (s, c) => (
-    (s = new URL(s + ".js", c).href),
-    a[s] ||
-      new Promise((a) => {
+    s = {}
+  const a = (a, c) => (
+    (a = new URL(a + ".js", c).href),
+    s[a] ||
+      new Promise((s) => {
         if ("document" in self) {
           const e = document.createElement("script")
-          ;((e.src = s), (e.onload = a), document.head.appendChild(e))
-        } else ((e = s), importScripts(s), a())
+          ;((e.src = a), (e.onload = s), document.head.appendChild(e))
+        } else ((e = a), importScripts(a), s())
       }).then(() => {
-        let e = a[s]
-        if (!e) throw new Error(`Module ${s} didn’t register its module`)
+        let e = s[a]
+        if (!e) throw new Error(`Module ${a} didn’t register its module`)
         return e
       })
   )
@@ -20,11 +20,11 @@ if (!self.define) {
       e ||
       ("document" in self ? document.currentScript.src : "") ||
       location.href
-    if (a[n]) return
+    if (s[n]) return
     let t = {}
-    const d = (e) => s(e, n),
+    const d = (e) => a(e, n),
       r = { module: { uri: n }, exports: t, require: d }
-    a[n] = Promise.all(c.map((e) => r[e] || d(e))).then((e) => (i(...e), t))
+    s[n] = Promise.all(c.map((e) => r[e] || d(e))).then((e) => (i(...e), t))
   }
 }
 define(["./workbox-4754cb34"], function (e) {
@@ -36,14 +36,14 @@ define(["./workbox-4754cb34"], function (e) {
       [
         {
           url: "/_next/app-build-manifest.json",
-          revision: "6b5d47616ecdd458c1760e82e3342b82",
+          revision: "7d0a8ba35b12243043a4f6f6c86ee281",
         },
         {
-          url: "/_next/static/X5juiV8GTZF5GdO-81gz4/_buildManifest.js",
-          revision: "dc8900c89af58800ec6e977facdfa5a2",
+          url: "/_next/static/2tSuOHd8O6-o6Gr4vxRh8/_buildManifest.js",
+          revision: "55a52a996b60d7e4b5d87b0951063dca",
         },
         {
-          url: "/_next/static/X5juiV8GTZF5GdO-81gz4/_ssgManifest.js",
+          url: "/_next/static/2tSuOHd8O6-o6Gr4vxRh8/_ssgManifest.js",
           revision: "b6652df95db52feb4daf4eca35380933",
         },
         {
@@ -83,12 +83,16 @@ define(["./workbox-4754cb34"], function (e) {
           revision: "a3826d29d6854395",
         },
         {
+          url: "/_next/static/chunks/492-6bb8a3c82d685ec9.js",
+          revision: "6bb8a3c82d685ec9",
+        },
+        {
           url: "/_next/static/chunks/4bd1b696-602635ee57868870.js",
           revision: "602635ee57868870",
         },
         {
-          url: "/_next/static/chunks/5071-d01b2ed201001a3a.js",
-          revision: "d01b2ed201001a3a",
+          url: "/_next/static/chunks/5071-559b5e775a55a4d2.js",
+          revision: "559b5e775a55a4d2",
         },
         {
           url: "/_next/static/chunks/5558-ae110438cf9e8090.js",
@@ -113,10 +117,6 @@ define(["./workbox-4754cb34"], function (e) {
         {
           url: "/_next/static/chunks/8471-7ea334d28268a478.js",
           revision: "7ea334d28268a478",
-        },
-        {
-          url: "/_next/static/chunks/8832-6240960b390f307a.js",
-          revision: "6240960b390f307a",
         },
         {
           url: "/_next/static/chunks/8959-5b1fde32f0689a46.js",
@@ -155,8 +155,12 @@ define(["./workbox-4754cb34"], function (e) {
           revision: "6a7bf6975721f8a3",
         },
         {
-          url: "/_next/static/chunks/app/admin/page-b5c69efb6ac95945.js",
-          revision: "b5c69efb6ac95945",
+          url: "/_next/static/chunks/app/admin/notifications/page-84e13a802b50d231.js",
+          revision: "84e13a802b50d231",
+        },
+        {
+          url: "/_next/static/chunks/app/admin/page-7d39561736e04b6b.js",
+          revision: "7d39561736e04b6b",
         },
         {
           url: "/_next/static/chunks/app/admin/profiles/page-cd07fa2a56b915ff.js",
@@ -203,28 +207,28 @@ define(["./workbox-4754cb34"], function (e) {
           revision: "87a793723b57b06a",
         },
         {
-          url: "/_next/static/chunks/app/l/page-820409540de10f3d.js",
-          revision: "820409540de10f3d",
+          url: "/_next/static/chunks/app/l/page-883542849b8b9e0e.js",
+          revision: "883542849b8b9e0e",
         },
         {
-          url: "/_next/static/chunks/app/layout-0613f4bd2bda85eb.js",
-          revision: "0613f4bd2bda85eb",
+          url: "/_next/static/chunks/app/layout-2aebbca491d4a161.js",
+          revision: "2aebbca491d4a161",
         },
         {
           url: "/_next/static/chunks/app/not-found-a59efce2163f4203.js",
           revision: "a59efce2163f4203",
         },
         {
-          url: "/_next/static/chunks/app/onboarding/account/page-ccaf75afa9a9cf03.js",
-          revision: "ccaf75afa9a9cf03",
+          url: "/_next/static/chunks/app/onboarding/account/page-f884ac6fe09642cc.js",
+          revision: "f884ac6fe09642cc",
         },
         {
           url: "/_next/static/chunks/app/onboarding/intro/page-b18bc1818bd8a3fb.js",
           revision: "b18bc1818bd8a3fb",
         },
         {
-          url: "/_next/static/chunks/app/onboarding/profile/page-10d7da108c5b7662.js",
-          revision: "10d7da108c5b7662",
+          url: "/_next/static/chunks/app/onboarding/profile/page-e241d9bea2cde4d8.js",
+          revision: "e241d9bea2cde4d8",
         },
         {
           url: "/_next/static/chunks/app/page-3b1502b4dc1a549a.js",
@@ -235,16 +239,16 @@ define(["./workbox-4754cb34"], function (e) {
           revision: "04d401e9ad2d7ffb",
         },
         {
-          url: "/_next/static/chunks/app/r/page-956aba4f5debde86.js",
-          revision: "956aba4f5debde86",
+          url: "/_next/static/chunks/app/r/page-4014a12478f5586b.js",
+          revision: "4014a12478f5586b",
         },
         {
           url: "/_next/static/chunks/app/reset-password/page-fc52d04748d54c24.js",
           revision: "fc52d04748d54c24",
         },
         {
-          url: "/_next/static/chunks/app/s/page-57692a6af0389c6c.js",
-          revision: "57692a6af0389c6c",
+          url: "/_next/static/chunks/app/s/page-cd87b87116c56672.js",
+          revision: "cd87b87116c56672",
         },
         {
           url: "/_next/static/chunks/app/tos/page-04d401e9ad2d7ffb.js",
@@ -255,8 +259,8 @@ define(["./workbox-4754cb34"], function (e) {
           revision: "95ce9b1395f318fb",
         },
         {
-          url: "/_next/static/chunks/app/u/%5Busername%5D/page-6bf9848869bd3d9c.js",
-          revision: "6bf9848869bd3d9c",
+          url: "/_next/static/chunks/app/u/%5Busername%5D/page-7e02d085be851603.js",
+          revision: "7e02d085be851603",
         },
         {
           url: "/_next/static/chunks/app/w/%5Bid%5D/ical/route-04d401e9ad2d7ffb.js",
@@ -303,8 +307,8 @@ define(["./workbox-4754cb34"], function (e) {
           revision: "e1deb06c1f2e7cbe",
         },
         {
-          url: "/_next/static/css/7b7c1393c3907379.css",
-          revision: "7b7c1393c3907379",
+          url: "/_next/static/css/f82fac1493d490a3.css",
+          revision: "f82fac1493d490a3",
         },
         {
           url: "/_next/static/media/569ce4b8f30dc480-s.p.woff2",
@@ -439,17 +443,17 @@ define(["./workbox-4754cb34"], function (e) {
           {
             cacheWillUpdate: async ({
               request: e,
-              response: a,
-              event: s,
+              response: s,
+              event: a,
               state: c,
             }) =>
-              a && "opaqueredirect" === a.type
-                ? new Response(a.body, {
+              s && "opaqueredirect" === s.type
+                ? new Response(s.body, {
                     status: 200,
                     statusText: "OK",
-                    headers: a.headers,
+                    headers: s.headers,
                   })
-                : a,
+                : s,
           },
         ],
       }),
@@ -570,8 +574,8 @@ define(["./workbox-4754cb34"], function (e) {
     e.registerRoute(
       ({ url: e }) => {
         if (!(self.origin === e.origin)) return !1
-        const a = e.pathname
-        return !a.startsWith("/api/auth/") && !!a.startsWith("/api/")
+        const s = e.pathname
+        return !s.startsWith("/api/auth/") && !!s.startsWith("/api/")
       },
       new e.NetworkFirst({
         cacheName: "apis",

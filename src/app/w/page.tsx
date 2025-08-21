@@ -3,6 +3,10 @@
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { getSupabase } from "@/lib/supabase-browser"
+import type {
+  PostgrestError,
+  PostgrestSingleResponse,
+} from "@supabase/supabase-js"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -100,25 +104,53 @@ export default function EventsPage() {
           ? crypto.randomUUID()
           : undefined
       const baseSlug = slugify(title)
-      const { data, error, status, statusText } = await supabase
-        .from("events")
-        .insert({
-          ...(newId ? { id: newId } : {}),
-          title,
-          description,
-          start_date: new Date(start).toISOString(),
-          end_date: end ? new Date(end).toISOString() : null,
-          timezone: timezone || "Europe/Warsaw",
-          city: city || null,
-          country: country || null,
-          is_online: isOnline,
-          is_free: isFree,
-          category,
-          organizer_id: me.id,
-          slug: baseSlug,
-        })
-        .select("slug")
-        .single()
+      type InsertResult = { id: string; slug: string | null }
+
+      // helper to perform insert with a given slug value
+      const doInsert = async (
+        slugValue: string | null,
+      ): Promise<PostgrestSingleResponse<InsertResult>> =>
+        await supabase
+          .from("events")
+          .insert({
+            ...(newId ? { id: newId } : {}),
+            title,
+            description,
+            start_date: new Date(start).toISOString(),
+            end_date: end ? new Date(end).toISOString() : null,
+            timezone: timezone || "Europe/Warsaw",
+            city: city || null,
+            country: country || null,
+            is_online: isOnline,
+            is_free: isFree,
+            category,
+            organizer_id: me.id,
+            ...(slugValue ? { slug: slugValue } : {}),
+          })
+          .select("id,slug")
+          .single()
+
+      // First try with base slug; on conflict, retry with suffix once
+      let data: InsertResult | null = null
+      let error: PostgrestError | null = null
+      let status: number | undefined
+      let statusText: string | undefined
+      ;({ data, error, status, statusText } = await doInsert(baseSlug))
+      // If unique violation on slug, retry once with a random suffix
+      const code = error?.code ?? error?.details ?? ""
+      if (
+        error &&
+        (code === "23505" ||
+          String(code).includes("duplicate") ||
+          String(code).toLowerCase().includes("unique"))
+      ) {
+        const suffix = Math.random().toString(36).slice(2, 6)
+        const retry = await doInsert(`${baseSlug}-${suffix}`)
+        data = retry.data as InsertResult
+        error = (retry.error as PostgrestError) || null
+        status = retry.status
+        statusText = retry.statusText
+      }
       if (error) {
         const err = normalizeSupabaseError(
           error,
@@ -141,7 +173,7 @@ export default function EventsPage() {
       setIsOnline(false)
       setIsFree(true)
       // navigate
-      window.location.href = `/w/${data!.slug}`
+      window.location.href = `/w/${data!.slug || data!.id}`
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "Nie udało się utworzyć wydarzenia"
