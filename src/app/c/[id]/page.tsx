@@ -1,17 +1,27 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { getSupabase } from "@/lib/supabase-browser"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PostComposer } from "@/components/dashboard/post-composer"
+import { CommunityAdminPanel } from "@/components/dashboard/community-admin-panel"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from "next/image"
 import { toast } from "sonner"
 import Link from "next/link"
-import type { PostgrestError } from "@supabase/supabase-js"
+import {
+  Users,
+  MapPin,
+  Calendar,
+  MessageSquare,
+  FileText,
+  Globe,
+  Lock,
+  LockKeyhole,
+} from "lucide-react"
 import {
   friendlyMessage,
   normalizeSupabaseError,
@@ -31,6 +41,31 @@ interface Community {
   country: string | null
   type: "public" | "private" | "restricted"
   status?: "pending" | "active" | "rejected"
+  has_chat: boolean
+  has_events: boolean
+  has_wiki: boolean
+}
+
+interface CommunityMember {
+  id: string
+  username: string | null
+  display_name: string | null
+  avatar_url: string | null
+  role: "owner" | "moderator" | "member"
+  joined_at: string
+}
+
+interface Announcement {
+  id: string
+  title: string
+  body: string | null
+  created_at: string
+  created_by: string
+  author?: {
+    username: string | null
+    display_name: string | null
+    avatar_url: string | null
+  }
 }
 
 export default function CommunityPage() {
@@ -38,35 +73,23 @@ export default function CommunityPage() {
   const params = useParams<{ id: string }>()
   const idOrSlug = params?.id
   const [community, setCommunity] = useState<Community | null>(null)
-  const [isMember, setIsMember] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [members, setMembers] = useState<
-    {
-      id: string
-      username: string | null
-      display_name: string | null
-      avatar_url: string | null
-      role: string
-    }[]
-  >([])
-  const [announcements, setAnnouncements] = useState<
-    { id: string; title: string; body: string | null }[]
-  >([])
-  const [newAnn, setNewAnn] = useState({ title: "", body: "" })
+  const [currentUser, setCurrentUser] = useState<{
+    id: string
+    email?: string
+  } | null>(null)
+  const [membership, setMembership] = useState<{
+    isMember: boolean
+    role: "owner" | "moderator" | "member" | null
+  }>({ isMember: false, role: null })
+  const [members, setMembers] = useState<CommunityMember[]>([])
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [joining, setJoining] = useState(false)
   const [leaving, setLeaving] = useState(false)
-  const [savingAnn, setSavingAnn] = useState(false)
-  const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null)
 
-  const formatPgErr = (e: unknown) => {
-    const err = (e || {}) as Partial<PostgrestError>
-    const msg = err.message ?? "Wystąpił błąd"
-    return err.code ? `${msg} (${err.code})` : msg
-  }
+  const loadCommunityData = useCallback(async () => {
+    if (!supabase || !idOrSlug) return
 
-  useEffect(() => {
-    async function load() {
-      if (!supabase || !idOrSlug) return
+    try {
       // Try by slug first, then by id
       let found: Community | null = null
       const bySlug = await withTimeout(
@@ -90,387 +113,547 @@ export default function CommunityPage() {
         )
         if (byId.data) found = byId.data as Community
       }
+
       setCommunity(found)
-      const me = (await supabase.auth.getUser()).data.user
-      if (me && found?.id) {
+
+      if (found) {
+        // Load announcements
+        const { data: annData } = await withTimeout(
+          supabase
+            .from("community_announcements")
+            .select(
+              `
+              id,
+              title,
+              body,
+              created_at,
+              created_by,
+              profiles!community_announcements_created_by_fkey(username, display_name, avatar_url)
+            `,
+            )
+            .eq("community_id", found.id)
+            .order("created_at", { ascending: false })
+            .limit(5),
+          15000,
+        )
+
+        setAnnouncements(
+          (annData || []).map((ann) => ({
+            ...ann,
+            author: Array.isArray(ann.profiles)
+              ? ann.profiles[0]
+              : ann.profiles || undefined,
+          })),
+        )
+      }
+    } catch (error) {
+      console.error("Failed to load community:", error)
+    }
+  }, [supabase, idOrSlug])
+
+  const loadMembershipData = useCallback(async () => {
+    if (!supabase || !community) return
+
+    try {
+      const { data: user } = await supabase.auth.getUser()
+      setCurrentUser(user.user)
+
+      if (user.user && community.id) {
+        // Check membership
         const { data: m, error: mErr } = await supabase
           .from("community_memberships")
           .select("id,role")
-          .eq("community_id", found.id)
-          .eq("user_id", me.id)
+          .eq("community_id", community.id)
+          .eq("user_id", user.user.id)
           .maybeSingle()
+
         if (mErr) {
           console.error("membership check failed", mErr)
-          toast.error(formatPgErr(mErr))
+        } else {
+          setMembership({
+            isMember: !!m,
+            role: m?.role || null,
+          })
         }
-        setIsMember(!!m)
-        setIsAdmin(!!m && (m.role === "owner" || m.role === "moderator"))
-        // Load members for admins
-        if (found.status === "active") {
-          const { data: mem, error: listErr } = await withTimeout(
+
+        // Load members if user is admin/mod or community is active
+        if (
+          community.status === "active" &&
+          (m?.role === "owner" || m?.role === "moderator")
+        ) {
+          const { data: mem } = await withTimeout(
             supabase
               .from("community_memberships")
-              .select("user_id,role")
-              .eq("community_id", found.id),
+              .select(
+                `
+                user_id,
+                role,
+                joined_at,
+                profiles!community_memberships_user_id_fkey(username, display_name, avatar_url)
+              `,
+              )
+              .eq("community_id", community.id)
+              .order("joined_at", { ascending: false }),
             15000,
           )
-          if (listErr) {
-            console.error("members list failed", listErr)
-            toast.error(formatPgErr(listErr))
-          }
-          const ids = (mem || []).map((x) => x.user_id)
-          if (ids.length) {
-            const { data: profs } = await withTimeout(
-              supabase
-                .from("profiles")
-                .select("id,username,display_name,avatar_url")
-                .in("id", ids),
-              15000,
-            )
-            const byId = new Map((profs || []).map((p) => [p.id, p]))
-            setMembers(
-              (mem || []).map((m) => ({
+
+          setMembers(
+            (mem || []).map((m) => {
+              const profile = Array.isArray(m.profiles)
+                ? m.profiles[0]
+                : m.profiles
+              return {
                 id: m.user_id,
-                username: byId.get(m.user_id)?.username || null,
-                display_name: byId.get(m.user_id)?.display_name || null,
-                avatar_url: byId.get(m.user_id)?.avatar_url || null,
+                username: profile?.username || null,
+                display_name: profile?.display_name || null,
+                avatar_url: profile?.avatar_url || null,
                 role: m.role,
-              })),
-            )
-          } else setMembers([])
+                joined_at: m.joined_at,
+              }
+            }),
+          )
         }
-        // Announcements
-        const { data: ann } = await withTimeout(
-          supabase
-            .from("community_announcements")
-            .select("id,title,body")
-            .eq("community_id", found.id)
-            .order("created_at", { ascending: false })
-            .limit(3),
-          15000,
-        )
-        setAnnouncements(ann || [])
       }
+    } catch (error) {
+      console.error("Failed to load membership data:", error)
     }
-    load()
-  }, [supabase, idOrSlug])
+  }, [supabase, community])
 
-  async function createAnnouncement() {
-    if (!supabase || !community) return
-    const title = newAnn.title.trim()
-    const body = newAnn.body.trim()
-    if (!title) {
-      toast.info("Tytuł jest wymagany")
-      return
-    }
-    const me = (await supabase.auth.getUser()).data.user
-    if (!me) return
-    setSavingAnn(true)
-    const { error, data, status, statusText } = await supabase
-      .from("community_announcements")
-      .insert({
-        community_id: community.id,
-        title,
-        body: body || null,
-        created_by: me.id,
-      })
-      .select("id,title,body")
-      .single()
-    if (error) {
-      const err = normalizeSupabaseError(
-        error,
-        "Nie udało się dodać ogłoszenia",
-        { status, statusText },
-      )
-      toast.error(friendlyMessage(err))
-    } else {
-      toast.success("Dodano ogłoszenie")
-      setNewAnn({ title: "", body: "" })
-      setAnnouncements((prev) => [data!, ...prev].slice(0, 3))
-    }
-    setSavingAnn(false)
-  }
+  useEffect(() => {
+    loadCommunityData()
+  }, [loadCommunityData])
 
-  async function updateRole(
-    userId: string,
-    role: "member" | "moderator" | "owner",
-  ) {
-    if (!supabase || !community) return
-    try {
-      setUpdatingRoleId(userId)
-      await supabase.rpc("change_membership_role", {
-        p_community: community.id,
-        p_user: userId,
-        p_role: role,
-      })
-      setMembers((prev) =>
-        prev.map((m) => (m.id === userId ? { ...m, role } : m)),
-      )
-      toast.success("Zmieniono rolę")
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Nie udało się zmienić roli"
-      toast.error(msg)
-    } finally {
-      setUpdatingRoleId(null)
+  useEffect(() => {
+    if (community) {
+      loadMembershipData()
     }
-  }
+  }, [community, loadMembershipData])
 
-  async function join() {
-    if (!supabase || !community) return
+  const handleJoin = async () => {
+    if (!supabase || !community || !currentUser) return
+
     if (community.status && community.status !== "active") {
       toast.info("Ta społeczność oczekuje na akceptację moderatora.")
       return
     }
-    const me = (await supabase.auth.getUser()).data.user
-    if (!me) return
-    const role = me.id === community.owner_id ? "owner" : "member"
+
+    const role = currentUser.id === community.owner_id ? "owner" : "member"
     setJoining(true)
-    const { error, status, statusText } = await withTimeout(
-      supabase
-        .from("community_memberships")
-        .insert({ community_id: community.id, user_id: me.id, role }),
-      15000,
-    )
-    if (error) {
-      const err = normalizeSupabaseError(error, "Nie udało się dołączyć", {
-        status,
-        statusText,
-      })
+
+    try {
+      const { error } = await withTimeout(
+        supabase.from("community_memberships").insert({
+          community_id: community.id,
+          user_id: currentUser.id,
+          role,
+        }),
+        15000,
+      )
+
+      if (error) {
+        throw error
+      }
+
+      setMembership({ isMember: true, role })
+      toast.success("Dołączono do społeczności")
+    } catch (error) {
+      const err = normalizeSupabaseError(error, "Nie udało się dołączyć")
       toast.error(friendlyMessage(err))
-    } else setIsMember(true)
-    setJoining(false)
+    } finally {
+      setJoining(false)
+    }
   }
 
-  async function leave() {
-    if (!supabase || !community) return
-    const me = (await supabase.auth.getUser()).data.user
-    if (!me) return
+  const handleLeave = async () => {
+    if (!supabase || !community || !currentUser) return
+
     setLeaving(true)
-    const { error, status, statusText } = await withTimeout(
-      supabase
-        .from("community_memberships")
-        .delete()
-        .eq("community_id", community.id)
-        .eq("user_id", me.id),
-      15000,
-    )
-    if (error) {
+
+    try {
+      const { error } = await withTimeout(
+        supabase
+          .from("community_memberships")
+          .delete()
+          .eq("community_id", community.id)
+          .eq("user_id", currentUser.id),
+        15000,
+      )
+
+      if (error) {
+        throw error
+      }
+
+      setMembership({ isMember: false, role: null })
+      toast.success("Opuszczono społeczność")
+    } catch (error) {
       const err = normalizeSupabaseError(
         error,
         "Nie udało się opuścić społeczności",
-        { status, statusText },
       )
       toast.error(friendlyMessage(err))
-    } else setIsMember(false)
-    setLeaving(false)
+    } finally {
+      setLeaving(false)
+    }
   }
 
-  if (!community)
-    return <div className="mx-auto max-w-4xl p-4 md:p-6">Wczytywanie…</div>
+  const handleCommunityUpdate = (updatedCommunity: Partial<Community>) => {
+    if (community) {
+      setCommunity({ ...community, ...updatedCommunity })
+    }
+  }
+
+  const handleMemberUpdate = () => {
+    loadMembershipData()
+  }
+
+  const getTypeIcon = () => {
+    switch (community?.type) {
+      case "private":
+        return <Lock className="h-4 w-4" />
+      case "restricted":
+        return <LockKeyhole className="h-4 w-4" />
+      default:
+        return <Globe className="h-4 w-4" />
+    }
+  }
+
+  const getTypeLabel = () => {
+    switch (community?.type) {
+      case "private":
+        return "Prywatna"
+      case "restricted":
+        return "Ograniczona"
+      default:
+        return "Publiczna"
+    }
+  }
+
+  if (!community) {
+    return (
+      <div className="mx-auto max-w-4xl p-4 md:p-6">
+        <div className="text-center py-12">
+          <p className="text-lg text-muted-foreground">Wczytywanie...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="mx-auto max-w-4xl p-0 md:p-6">
-      {announcements.length > 0 && (
-        <div className="mb-4 rounded-md border bg-card">
-          <div className="p-3">
-            <div className="text-sm text-muted-foreground mb-2">Ogłoszenia</div>
-            <ul className="grid gap-2">
-              {announcements.map((a) => (
-                <li key={a.id}>
-                  <div className="font-medium">{a.title}</div>
-                  {a.body ? (
-                    <div className="text-sm text-muted-foreground line-clamp-2">
-                      {a.body}
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
-      {isAdmin && (
-        <Card className="mb-4">
-          <CardContent className="p-4">
-            <h2 className="text-lg font-semibold mb-2">Dodaj ogłoszenie</h2>
-            <div className="grid gap-2">
-              <Input
-                placeholder="Tytuł"
-                value={newAnn.title}
-                onChange={(e) =>
-                  setNewAnn((p) => ({ ...p, title: e.target.value }))
-                }
-              />
-              <Textarea
-                placeholder="Treść (opcjonalnie)"
-                value={newAnn.body}
-                onChange={(e) =>
-                  setNewAnn((p) => ({ ...p, body: e.target.value }))
-                }
-              />
-              <div className="flex justify-end">
-                <Button onClick={createAnnouncement} disabled={savingAnn}>
-                  {savingAnn ? "Publikowanie…" : "Opublikuj"}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      <div className="relative h-40 w-full overflow-hidden">
+    <div className="mx-auto max-w-4xl">
+      {/* Cover Image Section */}
+      <div className="relative h-48 md:h-64 w-full overflow-hidden">
         {community.cover_image_url ? (
           <Image
             src={community.cover_image_url}
-            alt="Okładka"
+            alt="Okładka społeczności"
             fill
             className="object-cover"
+            priority
           />
         ) : (
-          <div className="h-full w-full bg-muted" />
+          <div className="h-full w-full bg-gradient-to-br from-primary/20 to-secondary/20" />
         )}
+        <div className="absolute inset-0 bg-black/20" />
       </div>
-      <div className="-mt-8 px-4 md:px-0">
-        <div className="flex items-end gap-3">
-          <Image
-            src={community.avatar_url || "/icons/tecza-icons/2.svg"}
-            alt="Avatar"
-            width={64}
-            height={64}
-            className="h-16 w-16 rounded-md object-cover border bg-background"
-          />
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold">{community.name}</h1>
-            <div className="text-sm text-muted-foreground">
-              {community.members_count} członków
-              {community.city || community.country
-                ? ` • ${[community.city, community.country].filter(Boolean).join(", ")}`
-                : ""}
+
+      {/* Community Header */}
+      <div className="px-4 md:px-6 -mt-16 relative z-10">
+        <div className="flex flex-col md:flex-row items-start md:items-end gap-4 mb-6">
+          {/* Avatar */}
+          <div className="relative">
+            <Image
+              src={community.avatar_url || "/icons/tecza-icons/2.svg"}
+              alt="Avatar społeczności"
+              width={128}
+              height={128}
+              className="h-24 w-24 md:h-32 md:w-32 rounded-xl object-cover border-4 border-background bg-background"
+            />
+          </div>
+
+          {/* Community Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mb-2">
+              <h1 className="text-2xl md:text-3xl font-bold text-white md:text-foreground">
+                {community.name}
+              </h1>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="gap-1">
+                  {getTypeIcon()}
+                  {getTypeLabel()}
+                </Badge>
+                {community.status === "pending" && (
+                  <Badge variant="outline">Oczekuje moderacji</Badge>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 text-sm text-white/80 md:text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <Users className="h-4 w-4" />
+                {community.members_count} członków
+              </div>
+              {(community.city || community.country) && (
+                <div className="flex items-center gap-1">
+                  <MapPin className="h-4 w-4" />
+                  {[community.city, community.country]
+                    .filter(Boolean)
+                    .join(", ")}
+                </div>
+              )}
             </div>
           </div>
-          <div>
-            {isMember ? (
-              <Button variant="outline" onClick={leave} disabled={leaving}>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 mt-4 md:mt-0">
+            {membership.isMember ? (
+              <Button
+                variant="outline"
+                onClick={handleLeave}
+                disabled={leaving}
+                className="bg-background/80 backdrop-blur-sm md:bg-background"
+              >
                 {leaving ? "Opuszczanie…" : "Opuść"}
               </Button>
             ) : (
-              <Button onClick={join} disabled={joining}>
+              <Button
+                onClick={handleJoin}
+                disabled={joining}
+                className="bg-primary/90 hover:bg-primary md:bg-primary md:hover:bg-primary/90"
+              >
                 {joining ? "Dołączanie…" : "Dołącz"}
               </Button>
+            )}
+
+            {(membership.role === "owner" ||
+              membership.role === "moderator") && (
+              <CommunityAdminPanel
+                community={community}
+                currentUserRole={membership.role}
+                onCommunityUpdate={handleCommunityUpdate}
+                onMemberUpdate={handleMemberUpdate}
+              />
             )}
           </div>
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <h2 className="text-lg font-semibold mb-1">Opis</h2>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-              {community.description || "Brak opisu."}
-            </p>
-          </CardContent>
-        </Card>
+      {/* Content */}
+      <div className="p-4 md:p-6">
+        {/* Announcements */}
+        {announcements.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" />
+                Ogłoszenia
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {announcements.map((ann) => (
+                <div key={ann.id} className="border-l-4 border-primary pl-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-semibold">{ann.title}</h3>
+                    <time className="text-xs text-muted-foreground">
+                      {new Date(ann.created_at).toLocaleDateString()}
+                    </time>
+                  </div>
+                  {ann.body && (
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {ann.body}
+                    </p>
+                  )}
+                  {ann.author && (
+                    <div className="flex items-center gap-2 mt-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={
+                          ann.author.avatar_url || "/icons/tecza-icons/1.svg"
+                        }
+                        alt=""
+                        className="h-4 w-4 rounded-full"
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {ann.author.display_name || ann.author.username}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
-        {isAdmin && (
-          <Card>
-            <CardContent className="p-4">
-              <h2 className="text-lg font-semibold mb-3">Członkowie</h2>
-              {members.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Brak członków.</p>
-              ) : (
-                <ul className="grid gap-2">
-                  {members.map((m) => (
-                    <li
-                      key={m.id}
-                      className="flex items-center justify-between gap-3"
-                    >
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview">Przegląd</TabsTrigger>
+            <TabsTrigger value="posts">Posty</TabsTrigger>
+            {community.has_events && (
+              <TabsTrigger value="events">Wydarzenia</TabsTrigger>
+            )}
+            {community.has_wiki && <TabsTrigger value="wiki">Wiki</TabsTrigger>}
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
+            {/* Description */}
+            <Card>
+              <CardHeader>
+                <CardTitle>O społeczności</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground whitespace-pre-wrap">
+                  {community.description || "Brak opisu społeczności."}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Community Features */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Funkcje społeczności</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {community.has_chat && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
+                      <MessageSquare className="h-5 w-5 text-primary" />
+                      <span className="text-sm font-medium">Czat</span>
+                    </div>
+                  )}
+                  {community.has_events && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
+                      <Calendar className="h-5 w-5 text-primary" />
+                      <span className="text-sm font-medium">Wydarzenia</span>
+                    </div>
+                  )}
+                  {community.has_wiki && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
+                      <FileText className="h-5 w-5 text-primary" />
+                      <span className="text-sm font-medium">Wiki</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Members Preview */}
+            {members.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Członkowie ({community.members_count})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {members.slice(0, 6).map((member) => (
                       <Link
-                        href={m.username ? `/u/${m.username}` : `#`}
-                        className="flex items-center gap-3"
+                        key={member.id}
+                        href={member.username ? `/u/${member.username}` : "#"}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={m.avatar_url || "/icons/tecza-icons/1.svg"}
+                          src={member.avatar_url || "/icons/tecza-icons/1.svg"}
                           alt=""
                           className="h-8 w-8 rounded-full object-cover border"
                         />
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <div className="text-sm font-medium truncate">
-                            {m.display_name || m.username || "Użytkownik"}
+                            {member.display_name ||
+                              member.username ||
+                              "Użytkownik"}
                           </div>
-                          {m.username && (
-                            <div className="text-xs text-muted-foreground truncate">
-                              @{m.username}
-                            </div>
-                          )}
+                          <div className="text-xs text-muted-foreground">
+                            {member.role === "owner"
+                              ? "Właściciel"
+                              : member.role === "moderator"
+                                ? "Moderator"
+                                : "Członek"}
+                          </div>
                         </div>
                       </Link>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant={
-                            m.role === "member" ? "secondary" : "outline"
-                          }
-                          onClick={() => updateRole(m.id, "member")}
-                          disabled={updatingRoleId === m.id}
-                        >
-                          Member
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={
-                            m.role === "moderator" ? "secondary" : "outline"
-                          }
-                          onClick={() => updateRole(m.id, "moderator")}
-                          disabled={updatingRoleId === m.id}
-                        >
-                          Moderator
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={m.role === "owner" ? "secondary" : "outline"}
-                          onClick={() => updateRole(m.id, "owner")}
-                          disabled={updatingRoleId === m.id}
-                        >
-                          Owner
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                    ))}
+                  </div>
+                  {members.length > 6 && (
+                    <div className="text-center mt-4">
+                      <p className="text-sm text-muted-foreground">
+                        i {members.length - 6} więcej...
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
-        {isMember && (
-          <Card>
-            <CardContent className="p-4">
-              <h2 className="text-lg font-semibold mb-3">Nowy post</h2>
-              <PostComposer
-                communityId={community.id}
-                onPosted={() => {
-                  /* could refresh list later */
-                }}
-              />
-            </CardContent>
-          </Card>
-        )}
+          <TabsContent value="posts" className="space-y-6">
+            {membership.isMember && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Nowy post</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PostComposer
+                    communityId={community.id}
+                    onPosted={() => {
+                      toast.success("Post został opublikowany")
+                    }}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
-        <Card>
-          <CardContent className="p-4">
-            <h2 className="text-lg font-semibold mb-1">Wiki</h2>
-            <p className="text-sm text-muted-foreground mb-2">
-              Wersja MVP: strona wiki społeczności. W kolejnej iteracji dodamy
-              edycję i listę stron.
-            </p>
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/c/${community.slug || community.id}/wiki`}>
-                Przejdź do wiki
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center py-8 text-muted-foreground">
+                  <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Posty społeczności będą widoczne tutaj</p>
+                  <p className="text-sm">
+                    System postów społeczności będzie dostępny w przyszłych
+                    wersjach
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {community.has_events && (
+            <TabsContent value="events" className="space-y-6">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Wydarzenia społeczności będą widoczne tutaj</p>
+                    <p className="text-sm">
+                      Integracja z systemem wydarzeń będzie dostępna wkrótce
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
+          {community.has_wiki && (
+            <TabsContent value="wiki" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    Wiki społeczności
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/c/${community.slug || community.id}/wiki`}>
+                        Przejdź do wiki
+                      </Link>
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">
+                    Wersja MVP: strona wiki społeczności. W kolejnej iteracji
+                    dodamy edycję i listę stron.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+        </Tabs>
       </div>
     </div>
   )
