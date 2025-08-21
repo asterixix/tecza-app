@@ -221,137 +221,179 @@ export default function CommunitiesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-4 md:p-6">
-      <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
-        <h1 className="text-2xl font-bold flex-1">Społeczności</h1>
+    <div className="mx-auto max-w-6xl p-4 md:p-6">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-5">
+        <div>
+          <h1 className="text-2xl font-bold">Społeczności</h1>
+          <p className="text-sm text-muted-foreground">
+            Dołącz do lokalnych i tematycznych grup. Odkrywaj, rozmawiaj, twórz
+            wydarzenia.
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           {/* Search removed per request */}
-          <Button onClick={() => setOpen(true)}>Utwórz</Button>
+          <Button
+            onClick={() => setOpen(true)}
+            className="bg-gradient-to-r from-[#e40303] via-[#ff8c00] to-[#0078d7] text-white hover:opacity-90"
+          >
+            Utwórz
+          </Button>
         </div>
       </div>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {items.map((c) => {
-          const typeIcon = {
-            public: Globe,
-            private: Lock,
-            restricted: Shield,
-          }[c.type]
 
-          const TypeIcon = typeIcon
-
-          return (
-            <Card
-              key={c.id}
-              className="overflow-hidden hover:shadow-lg transition-shadow"
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {items.length === 0 ? (
+          <div className="col-span-full flex flex-col items-center justify-center rounded-xl border bg-card p-8 text-center">
+            <Image
+              src="/icons/tecza-icons/1.svg"
+              alt=""
+              width={48}
+              height={48}
+              className="opacity-80"
+            />
+            <h2 className="mt-3 text-lg font-semibold">Brak społeczności</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Bądź pierwszą osobą, która stworzy nową społeczność.
+            </p>
+            <Button
+              onClick={() => setOpen(true)}
+              className="mt-4 bg-gradient-to-r from-[#e40303] via-[#ff8c00] to-[#0078d7] text-white hover:opacity-90"
             >
-              <Link href={`/c/${c.slug || c.id}`} className="block">
-                {/* Cover Image */}
-                <div className="relative h-32 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 overflow-hidden">
-                  {c.cover_image_url ? (
-                    <Image
-                      src={c.cover_image_url}
-                      alt={`${c.name} cover`}
-                      className="w-full h-full object-cover"
-                      fill
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                      priority={false}
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 opacity-80" />
-                  )}
+              Utwórz społeczność
+            </Button>
+          </div>
+        ) : (
+          items.map((c) => {
+            const typeIcon = {
+              public: Globe,
+              private: Lock,
+              restricted: Shield,
+            }[c.type]
+            const TypeIcon = typeIcon
 
-                  {/* Community Type Badge */}
-                  <div className="absolute top-3 right-3">
-                    <Badge
-                      variant={
-                        c.type === "public"
-                          ? "default"
+            return (
+              <Card
+                key={c.id}
+                className="group relative overflow-hidden rounded-xl border bg-card transition-all hover:-translate-y-0.5 hover:shadow-xl"
+              >
+                <Link
+                  href={`/c/${c.slug || c.id}`}
+                  className="block outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  aria-label={`Przejdź do społeczności ${c.name}`}
+                >
+                  {/* Cover Image with overlay */}
+                  <div className="relative h-36 sm:h-40 overflow-hidden">
+                    {c.cover_image_url ? (
+                      <Image
+                        src={c.cover_image_url}
+                        alt={`${c.name} cover`}
+                        className="object-cover"
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        priority={false}
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/0 to-black/35" />
+                    {/* Community Type Badge */}
+                    <div className="absolute top-3 right-3">
+                      <Badge
+                        variant="secondary"
+                        className="flex items-center gap-1 bg-white/90 text-gray-900 dark:bg-white/80 hover:bg-white"
+                      >
+                        <TypeIcon className="w-3 h-3" />
+                        {c.type === "public"
+                          ? "Publiczna"
                           : c.type === "private"
-                            ? "destructive"
-                            : "secondary"
-                      }
-                      className="flex items-center gap-1 bg-white/90 text-gray-900 hover:bg-white"
-                    >
-                      <TypeIcon className="w-3 h-3" />
-                      {c.type === "public"
-                        ? "Publiczna"
-                        : c.type === "private"
-                          ? "Prywatna"
-                          : "Ograniczona"}
-                    </Badge>
-                  </div>
-
-                  {/* Avatar positioned over cover */}
-                  <div className="absolute -bottom-6 left-4">
-                    <Image
-                      src={c.avatar_url || "/icons/tecza-icons/1.svg"}
-                      alt={`${c.name} avatar`}
-                      width={48}
-                      height={48}
-                      className="w-12 h-12 rounded-full object-cover border-4 border-white shadow-lg"
-                      priority={false}
-                    />
-                  </div>
-                </div>
-
-                <CardContent className="pt-8 pb-4">
-                  <div className="space-y-3">
-                    {/* Community Name and Category */}
-                    <div>
-                      <h3 className="font-bold text-lg leading-tight line-clamp-1">
-                        {c.name}
-                      </h3>
-                      {c.category && (
-                        <Badge variant="outline" className="mt-1 text-xs">
-                          {c.category}
-                        </Badge>
-                      )}
+                            ? "Prywatna"
+                            : "Ograniczona"}
+                      </Badge>
                     </div>
 
-                    {/* Description */}
-                    <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.5rem]">
-                      {c.description || "Brak opisu społeczności"}
-                    </p>
-
-                    {/* Stats and Info */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Users className="w-4 h-4" />
-                        <span className="font-medium">{c.members_count}</span>
-                        <span>członków</span>
-                      </div>
-
-                      {(c.city || c.country) && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="w-4 h-4" />
-                          <span>
-                            {[c.city, c.country].filter(Boolean).join(", ")}
-                          </span>
+                    {/* Avatar positioned over cover with rainbow ring */}
+                    <div className="absolute -bottom-8 left-4">
+                      <div className="p-0.5 rounded-full bg-[conic-gradient(var(--tw-gradient-stops))] from-[#e40303] via-[#ff8c00] via-30% via-[#ffed00] via-45% via-[#008018] via-60% via-[#0078d7] via-75% to-[#732982]">
+                        <div className="rounded-full bg-white dark:bg-neutral-900 p-0.5 shadow-lg">
+                          <Image
+                            src={c.avatar_url || "/icons/tecza-icons/1.svg"}
+                            alt={`${c.name} avatar`}
+                            width={72}
+                            height={72}
+                            className="h-14 w-14 sm:h-16 sm:w-16 rounded-full object-cover"
+                            priority={false}
+                          />
                         </div>
-                      )}
-
-                      {/* Features */}
-                      <div className="flex items-center gap-3 text-xs">
-                        {c.has_chat && (
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <MessageCircle className="w-3 h-3" />
-                            <span>Chat</span>
-                          </div>
-                        )}
-                        {c.has_events && (
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <Calendar className="w-3 h-3" />
-                            <span>Wydarzenia</span>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Link>
-            </Card>
-          )
-        })}
+
+                  <CardContent className="pt-12 pb-4">
+                    <div className="space-y-3">
+                      {/* Community Name and Category */}
+                      <div>
+                        <h3 className="font-bold text-lg leading-tight line-clamp-1 group-hover:underline decoration-2 decoration-primary/40">
+                          {c.name}
+                        </h3>
+                        {c.category && (
+                          <Badge variant="outline" className="mt-1 text-xs">
+                            {c.category}
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.5rem]">
+                        {c.description || "Brak opisu społeczności"}
+                      </p>
+
+                      {/* Stats and Info */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Users className="w-4 h-4" aria-hidden="true" />
+                          <span className="font-medium">{c.members_count}</span>
+                          <span className="sr-only">członków</span>
+                          <span aria-hidden="true">członków</span>
+                        </div>
+
+                        {(c.city || c.country) && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <MapPin className="w-4 h-4" aria-hidden="true" />
+                            <span>
+                              {[c.city, c.country].filter(Boolean).join(", ")}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Features */}
+                        <div className="flex items-center gap-3 text-xs">
+                          {c.has_chat && (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <MessageCircle
+                                className="w-3 h-3"
+                                aria-hidden="true"
+                              />
+                              <span>Chat</span>
+                            </div>
+                          )}
+                          {c.has_events && (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Calendar
+                                className="w-3 h-3"
+                                aria-hidden="true"
+                              />
+                              <span>Wydarzenia</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Link>
+              </Card>
+            )
+          })
+        )}
       </div>
 
       {/* Create Community Dialog */}
@@ -371,7 +413,11 @@ export default function CommunitiesPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="np. LGBTQ Kraków"
+                aria-label="Nazwa społeczności"
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Link: /c/{slugify(name) || "twoja-nazwa"}
+              </p>
             </div>
             <div>
               <div className="text-sm font-medium mb-1">Opis</div>
@@ -422,7 +468,11 @@ export default function CommunitiesPage() {
               <Button variant="outline" onClick={() => setOpen(false)}>
                 Anuluj
               </Button>
-              <Button onClick={createCommunity} disabled={loading}>
+              <Button
+                onClick={createCommunity}
+                disabled={loading}
+                className="bg-gradient-to-r from-[#e40303] via-[#ff8c00] to-[#0078d7] text-white hover:opacity-90 disabled:opacity-60"
+              >
                 {loading ? "Tworzenie…" : "Utwórz"}
               </Button>
             </div>
