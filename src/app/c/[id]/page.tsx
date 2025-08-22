@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PostComposer } from "@/components/dashboard/post-composer"
 import { CommunityAdminPanel } from "@/components/dashboard/community-admin-panel"
 import { CommunityChat } from "@/components/dashboard/community-chat"
+import { CommunityEvents } from "@/components/dashboard/community-events"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -243,11 +244,14 @@ export default function CommunityPage() {
 
     try {
       const { error } = await withTimeout(
-        supabase.from("community_memberships").insert({
-          community_id: community.id,
-          user_id: currentUser.id,
-          role,
-        }),
+        supabase.from("community_memberships").upsert(
+          {
+            community_id: community.id,
+            user_id: currentUser.id,
+            role,
+          },
+          { onConflict: "community_id,user_id" },
+        ),
         15000,
       )
 
@@ -485,7 +489,7 @@ export default function CommunityPage() {
         )}
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Przegląd</TabsTrigger>
             <TabsTrigger value="posts">Posty</TabsTrigger>
             {community.has_chat && <TabsTrigger value="chat">Czat</TabsTrigger>}
@@ -493,6 +497,7 @@ export default function CommunityPage() {
               <TabsTrigger value="events">Wydarzenia</TabsTrigger>
             )}
             {community.has_wiki && <TabsTrigger value="wiki">Wiki</TabsTrigger>}
+            <TabsTrigger value="market">Giełda</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -640,17 +645,11 @@ export default function CommunityPage() {
 
           {community.has_events && (
             <TabsContent value="events" className="space-y-6">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Wydarzenia społeczności będą widoczne tutaj</p>
-                    <p className="text-sm">
-                      Integracja z systemem wydarzeń będzie dostępna wkrótce
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              <CommunityEvents
+                communityId={community.id}
+                currentUserId={currentUser?.id || null}
+                isMember={membership.isMember}
+              />
             </TabsContent>
           )}
 
@@ -676,6 +675,29 @@ export default function CommunityPage() {
               </Card>
             </TabsContent>
           )}
+
+          <TabsContent value="market" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  Giełda społeczności
+                  <Button asChild variant="outline" size="sm">
+                    <Link
+                      href={`/c/${community.slug || community.id}/marketplace`}
+                    >
+                      Przejdź do giełdy
+                    </Link>
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Dodawaj i przeglądaj ogłoszenia. Wersja MVP listy i dodawania
+                  ogłoszeń jest dostępna w dedykowanej podstronie.
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </div>

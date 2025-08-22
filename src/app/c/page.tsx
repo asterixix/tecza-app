@@ -187,7 +187,10 @@ export default function CommunitiesPage() {
           statusText: mStatusText,
         } = await supabase
           .from("community_memberships")
-          .insert({ community_id: created!.id, user_id: me.id, role: "owner" })
+          .upsert(
+            { community_id: created!.id, user_id: me.id, role: "owner" },
+            { onConflict: "community_id,user_id" },
+          )
         if (memberErr) {
           const err = normalizeSupabaseError(
             memberErr,
@@ -271,6 +274,19 @@ export default function CommunitiesPage() {
                   className="block outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   aria-label={`Przejdź do społeczności ${c.name}`}
                 >
+                  {/* Avatar positioned over cover with rainbow ring */}
+                  <div className="absolute -bottom-8 left-4">
+                    <div className="rounded-full bg-white dark:bg-neutral-900 p-0.5 shadow-lg">
+                      <Image
+                        src={c.avatar_url || "/icons/tecza-icons/1.svg"}
+                        alt={`${c.name} avatar`}
+                        width={72}
+                        height={72}
+                        className="h-14 w-14 sm:h-16 sm:w-16 rounded-full object-cover"
+                        priority={false}
+                      />
+                    </div>
+                  </div>
                   {/* Cover Image with overlay */}
                   <div className="relative h-36 sm:h-40 overflow-hidden">
                     {c.cover_image_url ? (
@@ -442,11 +458,7 @@ export default function CommunitiesPage() {
               <Button variant="outline" onClick={() => setOpen(false)}>
                 Anuluj
               </Button>
-              <Button
-                onClick={createCommunity}
-                disabled={loading}
-                className="bg-gradient-to-r from-[#e40303] via-[#ff8c00] to-[#0078d7] text-white hover:opacity-90 disabled:opacity-60"
-              >
+              <Button onClick={createCommunity} disabled={loading}>
                 {loading ? "Tworzenie…" : "Utwórz"}
               </Button>
             </div>

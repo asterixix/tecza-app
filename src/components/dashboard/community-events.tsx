@@ -1,16 +1,18 @@
 "use client"
 
-import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { getSupabase } from "@/lib/supabase-browser"
-import type {
-  PostgrestError,
-  PostgrestSingleResponse,
-} from "@supabase/supabase-js"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -18,43 +20,53 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import Link from "next/link"
 import { toast } from "sonner"
-import { slugify } from "@/lib/utils"
 import { friendlyMessage, normalizeSupabaseError } from "@/lib/errors"
+import { slugify } from "@/lib/utils"
 
-interface EventRow {
+type Category =
+  | "pride"
+  | "support"
+  | "social"
+  | "activism"
+  | "education"
+  | "other"
+
+type ParticipationStatus = "interested" | "attending" | "not_attending"
+
+type EventRow = {
   id: string
-  slug?: string | null
+  slug: string | null
   title: string
   description: string | null
   start_date: string
   end_date: string | null
   city: string | null
   country: string | null
-  category: string
+  category: Category
   is_online: boolean
   is_free: boolean
   cover_image_url: string | null
   organizer_id: string
   max_participants: number | null
+  community_id: string | null
 }
 
-export default function EventsPage() {
+export function CommunityEvents(props: {
+  communityId: string
+  currentUserId: string | null
+  isMember: boolean
+}) {
+  const { communityId, currentUserId, isMember } = props
   const supabase = getSupabase()
   const [items, setItems] = useState<EventRow[]>([])
-  const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null)
-  const [participations, setParticipations] = useState<Record<string, string>>(
-    {},
-  )
+  const [participations, setParticipations] = useState<
+    Record<string, ParticipationStatus>
+  >({})
   const [savingRsvp, setSavingRsvp] = useState<string | null>(null)
-  // Create event dialog state
+
+  // Create dialog state
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -63,84 +75,80 @@ export default function EventsPage() {
   const [timezone, setTimezone] = useState("Europe/Warsaw")
   const [city, setCity] = useState("")
   const [country, setCountry] = useState("")
-  const [category, setCategory] = useState<
-    "pride" | "support" | "social" | "activism" | "education" | "other"
-  >("other")
+  const [category, setCategory] = useState<Category>("other")
   const [isOnline, setIsOnline] = useState(false)
   const [isFree, setIsFree] = useState(true)
   const [loading, setLoading] = useState(false)
-  const [loadError, setLoadError] = useState<null | {
-    message: string
-    code?: string
-    hint?: string | null
-    details?: string | null
-  }>(null)
+
+  const nowIso = useMemo(() => new Date().toISOString(), [])
 
   useEffect(() => {
+    let cancelled = false
     async function load() {
-      if (!supabase) return
-      const now = new Date().toISOString()
+      if (!supabase || !communityId) return
       const { data, error, status, statusText } = await supabase
         .from("events")
         .select(
-          "id,slug,title,description,start_date,end_date,city,country,category,is_online,is_free,cover_image_url,organizer_id,max_participants",
+          "id,slug,title,description,start_date,end_date,city,country,category,is_online,is_free,cover_image_url,organizer_id,max_participants,community_id",
         )
-        .gte("start_date", now)
+        .eq("community_id", communityId)
+        .gte("start_date", nowIso)
         .order("start_date", { ascending: true })
-        .limit(50)
+        .limit(100)
       if (error) {
         const err = normalizeSupabaseError(
           error,
           "Nie udało się pobrać wydarzeń",
-          { status, statusText },
+          {
+            status,
+            statusText,
+          },
         )
-        setLoadError(err)
         toast.error(friendlyMessage(err))
       }
-      setItems(data || [])
+      if (!cancelled) setItems(data || [])
 
-      // Load current user and their participations
-      const { data: user } = await supabase.auth.getUser()
-      setCurrentUser(user.user)
-
-      if (user.user && data?.length) {
-        const eventIds = data.map((e) => e.id)
+      if (currentUserId && data?.length) {
+        const ids = data.map((e) => e.id)
         const { data: parts } = await supabase
           .from("event_participations")
           .select("event_id,status")
-          .eq("user_id", user.user.id)
-          .in("event_id", eventIds)
-
-        const participationMap: Record<string, string> = {}
+          .eq("user_id", currentUserId)
+          .in("event_id", ids)
+        const map: Record<string, ParticipationStatus> = {}
         parts?.forEach((p) => {
-          participationMap[p.event_id] = p.status
+          const s = p.status as ParticipationStatus
+          if (
+            s === "interested" ||
+            s === "attending" ||
+            s === "not_attending"
+          ) {
+            map[p.event_id] = s
+          }
         })
-        setParticipations(participationMap)
+        if (!cancelled) setParticipations(map)
       }
     }
     load()
-  }, [supabase])
+    return () => {
+      cancelled = true
+    }
+  }, [supabase, communityId, currentUserId, nowIso])
 
-  async function handleRsvp(eventId: string, newStatus: string) {
-    if (!supabase || !currentUser) return
+  async function handleRsvp(eventId: string, newStatus: ParticipationStatus) {
+    if (!supabase || !currentUserId) return
     setSavingRsvp(eventId)
     try {
       const { error } = await supabase
         .from("event_participations")
         .upsert(
-          { event_id: eventId, user_id: currentUser.id, status: newStatus },
+          { event_id: eventId, user_id: currentUserId, status: newStatus },
           { onConflict: "event_id,user_id" },
         )
-
       if (error) throw error
-
-      setParticipations((prev) => ({
-        ...prev,
-        [eventId]: newStatus,
-      }))
+      setParticipations((prev) => ({ ...prev, [eventId]: newStatus }))
       toast.success("Zapisano status")
-    } catch (e) {
-      console.error(e)
+    } catch {
       toast.error("Nie udało się zapisać statusu")
     } finally {
       setSavingRsvp(null)
@@ -148,28 +156,17 @@ export default function EventsPage() {
   }
 
   async function createEvent() {
-    if (!supabase) return toast.error("Brak konfiguracji Supabase")
+    if (!supabase) return
     if (!title.trim() || !start)
       return toast.error("Podaj tytuł i datę rozpoczęcia")
     setLoading(true)
     try {
-      const me = (await supabase.auth.getUser()).data.user
-      if (!me) throw new Error("Musisz być zalogowany")
-      const newId =
-        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-          ? crypto.randomUUID()
-          : undefined
+      if (!currentUserId) throw new Error("Musisz być zalogowany")
       const baseSlug = slugify(title)
-      type InsertResult = { id: string; slug: string | null }
-
-      // helper to perform insert with a given slug value
-      const doInsert = async (
-        slugValue: string | null,
-      ): Promise<PostgrestSingleResponse<InsertResult>> =>
+      const tryInsert = async (slugValue: string | null) =>
         await supabase
           .from("events")
           .insert({
-            ...(newId ? { id: newId } : {}),
             title,
             description,
             start_date: new Date(start).toISOString(),
@@ -180,44 +177,23 @@ export default function EventsPage() {
             is_online: isOnline,
             is_free: isFree,
             category,
-            organizer_id: me.id,
+            organizer_id: currentUserId,
+            community_id: communityId,
             ...(slugValue ? { slug: slugValue } : {}),
           })
           .select("id,slug")
           .single()
 
-      // First try with base slug; on conflict, retry with suffix once
-      let data: InsertResult | null = null
-      let error: PostgrestError | null = null
-      let status: number | undefined
-      let statusText: string | undefined
-      ;({ data, error, status, statusText } = await doInsert(baseSlug))
-      // If unique violation on slug, retry once with a random suffix
-      const code = error?.code ?? error?.details ?? ""
-      if (
-        error &&
-        (code === "23505" ||
-          String(code).includes("duplicate") ||
-          String(code).toLowerCase().includes("unique"))
-      ) {
+      let { data, error } = await tryInsert(baseSlug)
+      if (error && String(error.code).includes("23505")) {
         const suffix = Math.random().toString(36).slice(2, 6)
-        const retry = await doInsert(`${baseSlug}-${suffix}`)
-        data = retry.data as InsertResult
-        error = (retry.error as PostgrestError) || null
-        status = retry.status
-        statusText = retry.statusText
+        const r = await tryInsert(`${baseSlug}-${suffix}`)
+        data = r.data
+        error = r.error
       }
-      if (error) {
-        const err = normalizeSupabaseError(
-          error,
-          "Nie udało się utworzyć wydarzenia",
-          { status, statusText },
-        )
-        throw new Error(friendlyMessage(err))
-      }
+      if (error) throw error
       toast.success("Wydarzenie utworzone")
       setOpen(false)
-      // reset form
       setTitle("")
       setDescription("")
       setStart("")
@@ -228,43 +204,25 @@ export default function EventsPage() {
       setCategory("other")
       setIsOnline(false)
       setIsFree(true)
-      // navigate
+      // Navigate to event
       window.location.href = `/w/${data!.slug || data!.id}`
     } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "Nie udało się utworzyć wydarzenia"
-      toast.error(message)
+      const err = normalizeSupabaseError(e, "Nie udało się utworzyć wydarzenia")
+      toast.error(friendlyMessage(err))
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-4 md:p-6">
-      <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
-        <h1 className="text-2xl font-bold flex-1">Wydarzenia</h1>
-        <div className="flex items-center gap-2">
-          <Button onClick={() => setOpen(true)}>Utwórz</Button>
+    <div className="space-y-4">
+      {isMember && (
+        <div className="flex justify-end">
+          <Button onClick={() => setOpen(true)}>Utwórz wydarzenie</Button>
         </div>
-      </div>
-      {loadError ? (
-        <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">
-          <div className="font-semibold">Nie udało się załadować wydarzeń</div>
-          <div className="mt-1">{loadError.message}</div>
-          {loadError.code ? (
-            <div className="mt-1 opacity-80">Kod: {loadError.code}</div>
-          ) : null}
-          {loadError.hint ? (
-            <div className="mt-1 opacity-80">Wskazówka: {loadError.hint}</div>
-          ) : null}
-          {loadError.details ? (
-            <div className="mt-1 opacity-80">
-              Szczegóły: {loadError.details}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-      <div className="grid sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      )}
+
+      <div className="grid sm:grid-cols-1 lg:grid-cols-2 gap-4">
         {items.map((e) => {
           const userStatus = participations[e.id]
           const isLoading = savingRsvp === e.id
@@ -274,13 +232,9 @@ export default function EventsPage() {
             ? "Online"
             : [e.city, e.country].filter(Boolean).join(", ") ||
               "Nieznana lokalizacja"
-
           return (
-            <Card
-              key={e.id}
-              className="overflow-hidden hover:shadow-lg transition-shadow -py-6"
-            >
-              <div className="relative h-48 overflow-hidden">
+            <Card key={e.id} className="overflow-hidden">
+              <div className="relative h-40 overflow-hidden">
                 {e.cover_image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -308,7 +262,6 @@ export default function EventsPage() {
                   </div>
                 </div>
               </div>
-
               <CardContent className="p-4 space-y-3">
                 <div>
                   <h3 className="font-semibold text-lg leading-tight mb-1 line-clamp-2">
@@ -346,7 +299,7 @@ export default function EventsPage() {
                 )}
 
                 <div className="flex flex-wrap gap-2 pt-2">
-                  {currentUser ? (
+                  {currentUserId ? (
                     <>
                       <Button
                         variant={
@@ -378,7 +331,6 @@ export default function EventsPage() {
                       </Button>
                     </Link>
                   )}
-
                   <Button variant="outline" size="sm" asChild className="px-3">
                     <a
                       href={`/w/${e.slug || e.id}/ical`}
@@ -389,7 +341,6 @@ export default function EventsPage() {
                       📅
                     </a>
                   </Button>
-
                   <Button variant="outline" size="sm" asChild className="px-3">
                     <Link
                       href={`/w/${e.slug || e.id}`}
@@ -403,16 +354,20 @@ export default function EventsPage() {
             </Card>
           )
         })}
+        {items.length === 0 && (
+          <div className="text-center text-muted-foreground py-12 w-full">
+            Brak nadchodzących wydarzeń.
+          </div>
+        )}
       </div>
 
-      {/* Create Event Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Utwórz wydarzenie</DialogTitle>
             <DialogDescription>
-              Wypełnij pola, aby dodać wydarzenie. Wydarzenia są widoczne
-              publicznie, chyba że wybierzesz inną widoczność w edycji.
+              To wydarzenie będzie powiązane ze społecznością i podlega jej
+              zasadom.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
@@ -421,7 +376,7 @@ export default function EventsPage() {
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="np. Pride Warszawa"
+                placeholder="np. Spotkanie społeczności"
               />
             </div>
             <div>
@@ -429,7 +384,6 @@ export default function EventsPage() {
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Szczegóły wydarzenia"
                 rows={4}
               />
             </div>
@@ -463,18 +417,13 @@ export default function EventsPage() {
               </div>
               <div>
                 <div className="text-sm font-medium mb-1">Miasto</div>
-                <Input
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="np. Warszawa"
-                />
+                <Input value={city} onChange={(e) => setCity(e.target.value)} />
               </div>
               <div>
                 <div className="text-sm font-medium mb-1">Kraj</div>
                 <Input
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
-                  placeholder="np. Poland"
                 />
               </div>
             </div>
@@ -483,15 +432,7 @@ export default function EventsPage() {
                 <div className="text-sm font-medium mb-1">Kategoria</div>
                 <Select
                   value={category}
-                  onValueChange={(
-                    v:
-                      | "pride"
-                      | "support"
-                      | "social"
-                      | "activism"
-                      | "education"
-                      | "other",
-                  ) => setCategory(v)}
+                  onValueChange={(v: Category) => setCategory(v)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Wybierz" />
@@ -529,7 +470,7 @@ export default function EventsPage() {
               <Button variant="outline" onClick={() => setOpen(false)}>
                 Anuluj
               </Button>
-              <Button onClick={createEvent} disabled={loading}>
+              <Button onClick={createEvent} disabled={loading || !isMember}>
                 {loading ? "Tworzenie…" : "Utwórz"}
               </Button>
             </div>
