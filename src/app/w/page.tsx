@@ -37,8 +37,8 @@ interface EventRow {
   description: string | null
   start_date: string
   end_date: string | null
-  city: string | null
-  country: string | null
+  location: string | null
+  coordinates: unknown | null
   category: string
   is_online: boolean
   is_free: boolean
@@ -62,8 +62,28 @@ export default function EventsPage() {
   const [start, setStart] = useState("")
   const [end, setEnd] = useState("")
   const [timezone, setTimezone] = useState("Europe/Warsaw")
-  const [city, setCity] = useState("")
-  const [country, setCountry] = useState("")
+  // Deprecated: city/country replaced by OSM picker
+  // OSM search state (replaces city/country)
+  const [locQuery, setLocQuery] = useState("")
+  const [locResults, setLocResults] = useState<
+    Array<{
+      display_name: string
+      lat: string
+      lon: string
+      boundingbox?: [string, string, string, string]
+    }>
+  >([])
+  const [locLoading, setLocLoading] = useState(false)
+  const [selectedLocName, setSelectedLocName] = useState<string>("")
+  const [selectedCoords, setSelectedCoords] = useState<
+    | null
+    | {
+        lat: number
+        lon: number
+      }
+    | [number, number, number, number]
+    | { bbox: [number, number, number, number] }
+  >(null)
   const [category, setCategory] = useState<
     "pride" | "support" | "social" | "activism" | "education" | "other"
   >("other")
@@ -85,7 +105,7 @@ export default function EventsPage() {
       const { data, error, status, statusText } = await supabase
         .from("events")
         .select(
-          "id,slug,title,description,start_date,end_date,city,country,category,is_online,is_free,cover_image_url,organizer_id,max_participants",
+          "id,slug,title,description,start_date,end_date,location,coordinates,category,is_online,is_free,cover_image_url,organizer_id,max_participants",
         )
         .gte("start_date", now)
         .order("start_date", { ascending: true })
@@ -123,6 +143,44 @@ export default function EventsPage() {
     load()
   }, [supabase])
 
+  // Minimal client-side OSM search (Nominatim)
+  useEffect(() => {
+    const q = locQuery.trim()
+    if (q.length < 3) {
+      setLocResults([])
+      return
+    }
+    const ctrl = new AbortController()
+    const t = setTimeout(async () => {
+      try {
+        setLocLoading(true)
+        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=0&limit=5&q=${encodeURIComponent(
+          q,
+        )}`
+        const res = await fetch(url, {
+          headers: { Accept: "application/json" },
+          signal: ctrl.signal,
+        })
+        if (!res.ok) throw new Error("Search failed")
+        const json = (await res.json()) as Array<{
+          display_name: string
+          lat: string
+          lon: string
+          boundingbox?: [string, string, string, string]
+        }>
+        setLocResults(json)
+      } catch {
+        setLocResults([])
+      } finally {
+        setLocLoading(false)
+      }
+    }, 350)
+    return () => {
+      clearTimeout(t)
+      ctrl.abort()
+    }
+  }, [locQuery])
+
   async function handleRsvp(eventId: string, newStatus: string) {
     if (!supabase || !currentUser) return
     setSavingRsvp(eventId)
@@ -153,6 +211,9 @@ export default function EventsPage() {
     if (!supabase) return toast.error("Brak konfiguracji Supabase")
     if (!title.trim() || !start)
       return toast.error("Podaj tytuł i datę rozpoczęcia")
+    if (!isOnline && !selectedLocName) {
+      return toast.error("Wybierz lokalizację (wyszukaj w OpenStreetMap)")
+    }
     setLoading(true)
     try {
       const me = (await supabase.auth.getUser()).data.user
@@ -196,8 +257,16 @@ export default function EventsPage() {
             start_date: new Date(start).toISOString(),
             end_date: end ? new Date(end).toISOString() : null,
             timezone: timezone || "Europe/Warsaw",
-            city: city || null,
-            country: country || null,
+            // location & coordinates
+            location: isOnline ? "Online" : selectedLocName || null,
+            coordinates: isOnline
+              ? null
+              : selectedCoords && Array.isArray(selectedCoords)
+                ? (selectedCoords as [number, number, number, number])
+                : selectedCoords &&
+                    (selectedCoords as { lat: number; lon: number })
+                  ? (selectedCoords as { lat: number; lon: number })
+                  : null,
             is_online: isOnline,
             is_free: isFree,
             category,
@@ -245,8 +314,10 @@ export default function EventsPage() {
       setStart("")
       setEnd("")
       setTimezone("Europe/Warsaw")
-      setCity("")
-      setCountry("")
+      setLocQuery("")
+      setLocResults([])
+      setSelectedLocName("")
+      setSelectedCoords(null)
       setCategory("other")
       setIsOnline(false)
       setIsFree(true)
@@ -294,8 +365,7 @@ export default function EventsPage() {
           const endDate = e.end_date ? new Date(e.end_date) : null
           const location = e.is_online
             ? "Online"
-            : [e.city, e.country].filter(Boolean).join(", ") ||
-              "Nieznana lokalizacja"
+            : e.location || "Nieznana lokalizacja"
 
           return (
             <Card
@@ -494,21 +564,60 @@ export default function EventsPage() {
                   onChange={(e) => setTimezone(e.target.value)}
                 />
               </div>
-              <div>
-                <div className="text-sm font-medium mb-1">Miasto</div>
+              <div className="md:col-span-2">
+                <div className="text-sm font-medium mb-1">
+                  Lokalizacja (OSM)
+                </div>
                 <Input
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="np. Warszawa"
+                  value={locQuery}
+                  onChange={(e) => setLocQuery(e.target.value)}
+                  placeholder="Szukaj miejsca…"
                 />
-              </div>
-              <div>
-                <div className="text-sm font-medium mb-1">Kraj</div>
-                <Input
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  placeholder="np. Poland"
-                />
+                {locLoading ? (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Szukanie…
+                  </div>
+                ) : null}
+                {locResults.length > 0 && (
+                  <div className="mt-1 max-h-40 overflow-auto rounded border bg-popover text-popover-foreground text-sm">
+                    {locResults.map((r, idx) => (
+                      <button
+                        key={`${r.display_name}-${idx}`}
+                        type="button"
+                        className="w-full text-left px-2 py-1 hover:bg-muted"
+                        onClick={() => {
+                          setSelectedLocName(r.display_name)
+                          if (r.boundingbox && r.boundingbox.length === 4) {
+                            const bb = r.boundingbox.map((s) =>
+                              parseFloat(s),
+                            ) as [number, number, number, number]
+                            // Nominatim bbox format: [south, north, west, east]
+                            // Our embed expects [minLon, minLat, maxLon, maxLat]
+                            const south = bb[0]
+                            const north = bb[1]
+                            const west = bb[2]
+                            const east = bb[3]
+                            setSelectedCoords([west, south, east, north])
+                          } else {
+                            setSelectedCoords({
+                              lat: parseFloat(r.lat),
+                              lon: parseFloat(r.lon),
+                            })
+                          }
+                          setLocResults([])
+                          setLocQuery(r.display_name)
+                        }}
+                      >
+                        {r.display_name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {selectedLocName && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Wybrano: {selectedLocName}
+                  </div>
+                )}
               </div>
             </div>
             <div className="grid md:grid-cols-3 gap-3">

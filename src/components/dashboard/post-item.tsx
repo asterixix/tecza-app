@@ -43,6 +43,7 @@ export type PostRecord = {
   created_at: string
   media_urls?: string[] | null
   hashtags?: string[] | null
+  community_id?: string | null
 }
 
 function visibilityLabel(v: PostRecord["visibility"]) {
@@ -89,6 +90,11 @@ export function PostItem({
     pronouns: string | null
   }
   const [author, setAuthor] = useState<Author | null>(null)
+  const [community, setCommunity] = useState<{
+    id: string
+    slug: string | null
+    name: string | null
+  } | null>(null)
   const [owner, setOwner] = useState(false)
   const [editing, setEditing] = useState(false)
   const [contentDraft, setContentDraft] = useState(post.content)
@@ -169,6 +175,32 @@ export function PostItem({
       cancelled = true
     }
   }, [post.user_id, supabase])
+
+  // Load community meta when applicable
+  useEffect(() => {
+    let cancelled = false
+    async function loadCommunity() {
+      if (!supabase || !post.community_id) {
+        if (!cancelled) setCommunity(null)
+        return
+      }
+      const { data } = await supabase
+        .from("communities")
+        .select("id,slug,name")
+        .eq("id", post.community_id)
+        .maybeSingle()
+      if (!cancelled) {
+        setCommunity(
+          (data as { id: string; slug: string | null; name: string | null }) ||
+            null,
+        )
+      }
+    }
+    void loadCommunity()
+    return () => {
+      cancelled = true
+    }
+  }, [post.community_id, supabase])
 
   // Decide if current user can manage this post
   useEffect(() => {
@@ -689,6 +721,17 @@ export function PostItem({
               </DropdownMenu>
             </div>
           </div>
+          {community && (
+            <div className="text-xs text-muted-foreground">
+              Opublikowano w{" "}
+              <Link
+                href={`/c/${community.slug || community.id}`}
+                className="underline hover:no-underline"
+              >
+                {community.name || "społeczności"}
+              </Link>
+            </div>
+          )}
           <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap">
             {renderContent(post.content)}
           </div>

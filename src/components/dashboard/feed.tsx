@@ -17,21 +17,55 @@ export function Feed({
   const load = useCallback(async () => {
     if (!supabase) return
     setLoading(true)
+    try {
+      // Determine communities current user belongs to
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-    let query = supabase
-      .from("posts")
-      .select("id,user_id,content,visibility,created_at,media_urls,hashtags")
-      .order("created_at", { ascending: false })
-      .limit(20)
+      let memberCommunityIds: string[] = []
+      if (user) {
+        const { data: memberships } = await supabase
+          .from("community_memberships")
+          .select("community_id")
+          .eq("user_id", user.id)
+        memberCommunityIds = (
+          (memberships as { community_id: string }[]) || []
+        ).map((m) => m.community_id)
+      }
 
-    // Filter by hashtag if provided
-    if (hashtag) {
-      query = query.contains("hashtags", [hashtag])
+      // Build posts query: include posts with community_id null OR in memberCommunityIds
+      let query = supabase
+        .from("posts")
+        .select(
+          "id,user_id,content,visibility,created_at,media_urls,hashtags,community_id",
+        )
+        .is("hidden_at", null)
+        .order("created_at", { ascending: false })
+        .limit(20)
+
+      // Filter by hashtag if provided
+      if (hashtag) {
+        query = query.contains("hashtags", [hashtag])
+      }
+
+      if (memberCommunityIds.length > 0) {
+        // Use OR to include public (no community) or member communities
+        query = query.or(
+          `community_id.is.null,community_id.in.(${memberCommunityIds
+            .map((id) => `${id}`)
+            .join(";")})`,
+        )
+      } else {
+        // Not a member of any community – only show non-community posts
+        query = query.is("community_id", null)
+      }
+
+      const { data, error } = await query
+      if (!error && data) setPosts(data as PostRecord[])
+    } finally {
+      setLoading(false)
     }
-
-    const { data, error } = await query
-    if (!error && data) setPosts(data as PostRecord[])
-    setLoading(false)
   }, [supabase, hashtag])
 
   useEffect(() => {

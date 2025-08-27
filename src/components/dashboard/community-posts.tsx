@@ -1,10 +1,11 @@
 "use client"
 import { useEffect, useState } from "react"
 import { getSupabase } from "@/lib/supabase-browser"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PostComposer } from "@/components/dashboard/post-composer"
 import { PostItem, type PostRecord } from "@/components/dashboard/post-item"
+import { RotateCw } from "lucide-react"
 
 // Safe error message extractor to avoid `any`
 function getErrorMessage(err: unknown): string {
@@ -96,14 +97,22 @@ export function CommunityPosts({
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between py-3">
-          <CardTitle className="text-base">Posty społeczności</CardTitle>
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-semibold">Posty społeczności</h3>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Odśwież"
+            onClick={() => setLocalRefresh((x) => x + 1)}
+          >
+            <RotateCw className="size-4" />
+          </Button>
           <Button size="sm" onClick={() => setComposerOpen(true)}>
             Nowy post
           </Button>
-        </CardHeader>
-      </Card>
+        </div>
+      </div>
 
       <PostComposer
         open={composerOpen}

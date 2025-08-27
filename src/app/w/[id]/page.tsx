@@ -169,8 +169,24 @@ export default function EventPage() {
   const [editStart, setEditStart] = useState("")
   const [editEnd, setEditEnd] = useState("")
   const [editTimezone, setEditTimezone] = useState("Europe/Warsaw")
-  const [editCity, setEditCity] = useState("")
-  const [editCountry, setEditCountry] = useState("")
+  // OSM edit state
+  const [editLocQuery, setEditLocQuery] = useState("")
+  const [editLocLoading, setEditLocLoading] = useState(false)
+  const [editLocResults, setEditLocResults] = useState<
+    Array<{
+      display_name: string
+      lat: string
+      lon: string
+      boundingbox?: [string, string, string, string]
+    }>
+  >([])
+  const [editSelectedLocName, setEditSelectedLocName] = useState<string>("")
+  const [editSelectedCoords, setEditSelectedCoords] = useState<
+    | null
+    | { lat: number; lon: number }
+    | [number, number, number, number]
+    | { bbox: [number, number, number, number] }
+  >(null)
   const [editCategory, setEditCategory] = useState<
     "pride" | "support" | "social" | "activism" | "education" | "other"
   >("other")
@@ -201,8 +217,23 @@ export default function EventPage() {
       setEditStart(toLocalDateTimeInputValue(event.start_date))
       setEditEnd(toLocalDateTimeInputValue(event.end_date))
       setEditTimezone(event.timezone || "Europe/Warsaw")
-      setEditCity(event.city || "")
-      setEditCountry(event.country || "")
+      setEditLocQuery(event.location || "")
+      setEditSelectedLocName(event.location || "")
+      // Normalize coordinates to supported union
+      const ec = (event.coordinates as CoordinatesShape) || null
+      if (ec === null) {
+        setEditSelectedCoords(null)
+      } else if (isBBox(ec)) {
+        setEditSelectedCoords(ec)
+      } else if (hasBBoxProp(ec)) {
+        setEditSelectedCoords(ec)
+      } else if (hasLatLon(ec)) {
+        setEditSelectedCoords({ lat: ec.lat, lon: ec.lon })
+      } else if (hasLatitudeLongitude(ec)) {
+        setEditSelectedCoords({ lat: ec.latitude, lon: ec.longitude })
+      } else {
+        setEditSelectedCoords(null)
+      }
       setEditCategory(
         (event.category as typeof editCategory) ||
           ("other" as typeof editCategory),
@@ -218,6 +249,42 @@ export default function EventPage() {
       setEditJoinUrl(event.join_url || "")
     }
   }, [editOpen, event])
+
+  // Debounced OSM search for edit dialog
+  useEffect(() => {
+    const q = editLocQuery.trim()
+    if (!editOpen || q.length < 3) {
+      setEditLocResults([])
+      return
+    }
+    const ctrl = new AbortController()
+    const t = setTimeout(async () => {
+      try {
+        setEditLocLoading(true)
+        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=0&limit=5&q=${encodeURIComponent(q)}`
+        const res = await fetch(url, {
+          headers: { Accept: "application/json" },
+          signal: ctrl.signal,
+        })
+        if (!res.ok) throw new Error("Search failed")
+        const json = (await res.json()) as Array<{
+          display_name: string
+          lat: string
+          lon: string
+          boundingbox?: [string, string, string, string]
+        }>
+        setEditLocResults(json)
+      } catch {
+        setEditLocResults([])
+      } finally {
+        setEditLocLoading(false)
+      }
+    }, 350)
+    return () => {
+      clearTimeout(t)
+      ctrl.abort()
+    }
+  }, [editLocQuery, editOpen])
 
   // Load counters for observers and attendees (moved above useEffect)
   const loadCounts = useCallback(
@@ -452,8 +519,6 @@ export default function EventPage() {
         title: editTitle.trim() || event.title,
         description: editDescription.trim() || null,
         timezone: editTimezone || "Europe/Warsaw",
-        city: editCity.trim() || null,
-        country: editCountry.trim() || null,
         is_online: !!editIsOnline,
         is_free: !!editIsFree,
         category: editCategory,
@@ -467,6 +532,19 @@ export default function EventPage() {
       // Max participants
       const mp = editMaxParticipants.trim()
       updates.max_participants = mp ? Math.max(0, parseInt(mp, 10) || 0) : null
+
+      // Location & coordinates
+      if (editIsOnline) {
+        updates.location = "Online"
+        updates.coordinates = null
+      } else {
+        updates.location = editSelectedLocName || null
+        updates.coordinates = editSelectedCoords
+          ? Array.isArray(editSelectedCoords)
+            ? (editSelectedCoords as [number, number, number, number])
+            : (editSelectedCoords as { lat: number; lon: number })
+          : null
+      }
 
       const { error, status, statusText, data } = await withTimeout(
         supabase
@@ -783,8 +861,7 @@ export default function EventPage() {
   const endDate = event.end_date ? new Date(event.end_date) : null
   const location = event.is_online
     ? "Online"
-    : [event.city, event.country].filter(Boolean).join(", ") ||
-      "Nieznana lokalizacja"
+    : event.location || "Nieznana lokalizacja"
 
   function buildOsmViewUrl(
     coords: CoordinatesShape | null | undefined,
@@ -1195,21 +1272,66 @@ export default function EventPage() {
                           onChange={(e) => setEditTimezone(e.target.value)}
                         />
                       </div>
-                      <div>
-                        <div className="text-sm font-medium mb-1">Miasto</div>
+                      <div className="md:col-span-2">
+                        <div className="text-sm font-medium mb-1">
+                          Lokalizacja (OSM)
+                        </div>
                         <Input
-                          value={editCity}
-                          onChange={(e) => setEditCity(e.target.value)}
-                          placeholder="np. Warszawa"
+                          value={editLocQuery}
+                          onChange={(e) => setEditLocQuery(e.target.value)}
+                          placeholder="Szukaj miejsca…"
                         />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium mb-1">Kraj</div>
-                        <Input
-                          value={editCountry}
-                          onChange={(e) => setEditCountry(e.target.value)}
-                          placeholder="np. Poland"
-                        />
+                        {editLocLoading ? (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Szukanie…
+                          </div>
+                        ) : null}
+                        {editLocResults.length > 0 && (
+                          <div className="mt-1 max-h-40 overflow-auto rounded border bg-popover text-popover-foreground text-sm">
+                            {editLocResults.map((r, idx) => (
+                              <button
+                                key={`${r.display_name}-${idx}`}
+                                type="button"
+                                className="w-full text-left px-2 py-1 hover:bg-muted"
+                                onClick={() => {
+                                  setEditSelectedLocName(r.display_name)
+                                  if (
+                                    r.boundingbox &&
+                                    r.boundingbox.length === 4
+                                  ) {
+                                    const bb = r.boundingbox.map((s) =>
+                                      parseFloat(s),
+                                    ) as [number, number, number, number]
+                                    const south = bb[0]
+                                    const north = bb[1]
+                                    const west = bb[2]
+                                    const east = bb[3]
+                                    setEditSelectedCoords([
+                                      west,
+                                      south,
+                                      east,
+                                      north,
+                                    ])
+                                  } else {
+                                    setEditSelectedCoords({
+                                      lat: parseFloat(r.lat),
+                                      lon: parseFloat(r.lon),
+                                    })
+                                  }
+                                  setEditLocResults([])
+                                  setEditLocQuery(r.display_name)
+                                }}
+                              >
+                                {r.display_name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {editSelectedLocName && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Wybrano: {editSelectedLocName}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="grid md:grid-cols-3 gap-3">

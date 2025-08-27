@@ -10,13 +10,7 @@ import { CommunityEvents } from "@/components/dashboard/community-events"
 import { CommunityPosts } from "@/components/dashboard/community-posts"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
 import Image from "next/image"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -38,6 +32,13 @@ import {
 import { CommunityWiki } from "@/components/dashboard/community-wiki"
 import { CommunityMarketplace } from "@/components/dashboard/community-marketplace"
 import { CommunityKanban } from "@/components/dashboard/community-kanban"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface Community {
   id: string
@@ -87,6 +88,7 @@ export default function CommunityPage() {
   const params = useParams<{ id: string }>()
   const idOrSlug = params?.id
   const [community, setCommunity] = useState<Community | null>(null)
+  const [activeTab, setActiveTab] = useState<string>("overview")
   const [currentUser, setCurrentUser] = useState<{
     id: string
     email?: string
@@ -244,6 +246,19 @@ export default function CommunityPage() {
     }
   }, [community, loadMembershipData])
 
+  // Ensure the selected tab is valid for current community capabilities
+  useEffect(() => {
+    if (!community) return
+    const available = new Set<string>(["overview"])
+    if (community.has_posts !== false) available.add("posts")
+    if (community.has_chat) available.add("chat")
+    if (community.has_events) available.add("events")
+    if (community.has_wiki) available.add("wiki")
+    if (community.has_kanban) available.add("kanban")
+    if (community.has_marketplace) available.add("market")
+    if (!available.has(activeTab)) setActiveTab("overview")
+  }, [community, activeTab])
+
   const handleJoin = async () => {
     if (!supabase || !community || !currentUser) return
 
@@ -375,8 +390,8 @@ export default function CommunityPage() {
       </div>
 
       {/* Community Header */}
-      <div className="px-4 md:px-6 -mt-16 relative z-10">
-        <div className="flex flex-col md:flex-row items-start md:items-end gap-4 mb-6">
+      <div className="px-4 md:px-6 -mt-10 md:-mt-12 pt-2 md:pt-4 relative z-10">
+        <div className="flex flex-col md:flex-row items-start md:items-end gap-4 md:gap-6 mb-4 md:mb-6">
           {/* Avatar */}
           <div className="relative">
             <Image
@@ -405,7 +420,7 @@ export default function CommunityPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 text-sm text-white/80 md:text-muted-foreground">
+            <div className="mt-1 md:mt-2 flex flex-wrap items-center gap-4 text-sm text-white/80 md:text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Users className="h-4 w-4" />
                 {community.members_count} członków
@@ -422,7 +437,7 @@ export default function CommunityPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2 mt-4 md:mt-0">
+          <div className="flex items-center gap-2 mt-4 md:mt-0 md:ml-auto">
             {membership.isMember ? (
               <Button
                 variant="outline"
@@ -501,75 +516,42 @@ export default function CommunityPage() {
           </Card>
         )}
 
-        <Tabs defaultValue="overview" className="space-y-6">
-          {/* Scrollable tabs with overflow menu for >6 */}
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-6"
+        >
+          {/* Select control for navigating between sections (more scalable than tabs) */}
           <div className="flex items-center gap-2">
-            <TabsList className="flex-1 overflow-x-auto no-scrollbar whitespace-nowrap">
-              <div className="inline-flex gap-1">
-                <TabsTrigger value="overview">Przegląd</TabsTrigger>
+            <Select value={activeTab} onValueChange={setActiveTab}>
+              <SelectTrigger
+                className="w-[220px] md:w-[280px]"
+                aria-label="Wybierz sekcję"
+              >
+                <SelectValue placeholder="Wybierz sekcję" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="overview">Przegląd</SelectItem>
                 {community.has_posts !== false && (
-                  <TabsTrigger value="posts">Posty</TabsTrigger>
+                  <SelectItem value="posts">Posty</SelectItem>
                 )}
                 {community.has_chat && (
-                  <TabsTrigger value="chat">Czat</TabsTrigger>
+                  <SelectItem value="chat">Czat</SelectItem>
                 )}
                 {community.has_events && (
-                  <TabsTrigger value="events">Wydarzenia</TabsTrigger>
+                  <SelectItem value="events">Wydarzenia</SelectItem>
                 )}
                 {community.has_wiki && (
-                  <TabsTrigger value="wiki">Wiki</TabsTrigger>
+                  <SelectItem value="wiki">Wiki</SelectItem>
                 )}
                 {community.has_kanban && (
-                  <TabsTrigger value="kanban">Zadania</TabsTrigger>
+                  <SelectItem value="kanban">Zadania</SelectItem>
                 )}
                 {community.has_marketplace && (
-                  <TabsTrigger value="market">Giełda</TabsTrigger>
+                  <SelectItem value="market">Giełda</SelectItem>
                 )}
-              </div>
-            </TabsList>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" aria-label="Więcej">
-                  Więcej
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-44">
-                {/* Mirror options for accessibility; checked indicates availability */}
-                <DropdownMenuCheckboxItem checked>
-                  Przegląd
-                </DropdownMenuCheckboxItem>
-                {community.has_posts !== false && (
-                  <DropdownMenuCheckboxItem checked>
-                    Posty
-                  </DropdownMenuCheckboxItem>
-                )}
-                {community.has_chat && (
-                  <DropdownMenuCheckboxItem checked>
-                    Czat
-                  </DropdownMenuCheckboxItem>
-                )}
-                {community.has_events && (
-                  <DropdownMenuCheckboxItem checked>
-                    Wydarzenia
-                  </DropdownMenuCheckboxItem>
-                )}
-                {community.has_wiki && (
-                  <DropdownMenuCheckboxItem checked>
-                    Wiki
-                  </DropdownMenuCheckboxItem>
-                )}
-                {community.has_kanban && (
-                  <DropdownMenuCheckboxItem checked>
-                    Zadania
-                  </DropdownMenuCheckboxItem>
-                )}
-                {community.has_marketplace && (
-                  <DropdownMenuCheckboxItem checked>
-                    Giełda
-                  </DropdownMenuCheckboxItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </SelectContent>
+            </Select>
           </div>
 
           <TabsContent value="overview" className="space-y-6">
