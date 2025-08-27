@@ -10,7 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Bell, Check, Loader2, X } from "lucide-react"
+import { Bell, Check, Loader2, X, Trash2 } from "lucide-react"
 import { getSupabase } from "@/lib/supabase-browser"
 import { cn } from "@/lib/utils"
 
@@ -138,6 +138,17 @@ export function NotificationsPopover() {
     )
   }
 
+  async function clearAll() {
+    if (!supabase) return
+    const me = (await supabase.auth.getUser()).data.user
+    if (!me) return
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("user_id", me.id)
+    if (!error) setItems([])
+  }
+
   async function handleFriendRequest(
     n: NotificationRow,
     action: "accept" | "reject",
@@ -227,16 +238,29 @@ export function NotificationsPopover() {
       >
         <div className="p-3 flex items-center justify-between gap-2">
           <div className="font-medium">Powiadomienia</div>
-          {items.some((i) => !i.read_at) && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={markAllRead}
-              aria-label="Oznacz wszystkie jako przeczytane"
-            >
-              Oznacz wszystkie
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {items.length > 0 && (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={clearAll}
+                aria-label="Wyczyść wszystkie powiadomienia"
+                title="Wyczyść wszystkie"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+            {items.some((i) => !i.read_at) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={markAllRead}
+                aria-label="Oznacz wszystkie jako przeczytane"
+              >
+                Oznacz wszystkie
+              </Button>
+            )}
+          </div>
         </div>
         <ScrollArea className="max-h-96">
           <ul className="divide-y">

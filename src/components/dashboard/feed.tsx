@@ -54,7 +54,7 @@ export function Feed({
         query = query.or(
           `community_id.is.null,community_id.in.(${memberCommunityIds
             .map((id) => `${id}`)
-            .join(";")})`,
+            .join(",")})`,
         )
       } else {
         // Not a member of any community – only show non-community posts
