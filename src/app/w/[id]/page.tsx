@@ -6,6 +6,14 @@ import { getSupabase } from "@/lib/supabase-browser"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
@@ -152,6 +160,64 @@ export default function EventPage() {
     avatar_url: string | null
   }
   const [organizer, setOrganizer] = useState<OrganizerProfile | null>(null)
+
+  // Edit dialog state
+  const [editOpen, setEditOpen] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [editTitle, setEditTitle] = useState("")
+  const [editDescription, setEditDescription] = useState("")
+  const [editStart, setEditStart] = useState("")
+  const [editEnd, setEditEnd] = useState("")
+  const [editTimezone, setEditTimezone] = useState("Europe/Warsaw")
+  const [editCity, setEditCity] = useState("")
+  const [editCountry, setEditCountry] = useState("")
+  const [editCategory, setEditCategory] = useState<
+    "pride" | "support" | "social" | "activism" | "education" | "other"
+  >("other")
+  const [editIsOnline, setEditIsOnline] = useState(false)
+  const [editIsFree, setEditIsFree] = useState(true)
+  const [editMaxParticipants, setEditMaxParticipants] = useState<string>("")
+  const [editTicketUrl, setEditTicketUrl] = useState<string>("")
+  const [editJoinUrl, setEditJoinUrl] = useState<string>("")
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  function toLocalDateTimeInputValue(iso: string | null | undefined): string {
+    if (!iso) return ""
+    try {
+      const dt = new Date(iso)
+      const off = dt.getTimezoneOffset()
+      const local = new Date(dt.getTime() - off * 60000)
+      return local.toISOString().slice(0, 16)
+    } catch {
+      return ""
+    }
+  }
+
+  // Prefill edit form when opening the dialog
+  useEffect(() => {
+    if (editOpen && event) {
+      setEditTitle(event.title || "")
+      setEditDescription(event.description || "")
+      setEditStart(toLocalDateTimeInputValue(event.start_date))
+      setEditEnd(toLocalDateTimeInputValue(event.end_date))
+      setEditTimezone(event.timezone || "Europe/Warsaw")
+      setEditCity(event.city || "")
+      setEditCountry(event.country || "")
+      setEditCategory(
+        (event.category as typeof editCategory) ||
+          ("other" as typeof editCategory),
+      )
+      setEditIsOnline(!!event.is_online)
+      setEditIsFree(!!event.is_free)
+      setEditMaxParticipants(
+        typeof event.max_participants === "number"
+          ? String(event.max_participants)
+          : "",
+      )
+      setEditTicketUrl(event.ticket_url || "")
+      setEditJoinUrl(event.join_url || "")
+    }
+  }, [editOpen, event])
 
   // Load counters for observers and attendees (moved above useEffect)
   const loadCounts = useCallback(

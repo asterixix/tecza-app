@@ -10,7 +10,7 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-4 md:px-6 py-6 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-3">
         <p className="leading-tight text-center sm:text-left">
           © Copyright <time aria-label="Rok">{year}</time> Tęcza.app{" "}
-          <Badge variant="outline" title="Wersja 0.1.4.2" color="purple">
+          <Badge variant="outline" title="Wersja 0.1.5" color="purple">
             <Link
               className="hover:underline"
               href="https://github.com/asterixix/tecza-app"

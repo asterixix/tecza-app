@@ -331,7 +331,7 @@ export default function EventsPage() {
                 </div>
               </div>
 
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 pb-4">
                 <div>
                   <h3 className="font-semibold text-lg leading-tight mb-1 line-clamp-2">
                     {e.title}
@@ -379,7 +379,7 @@ export default function EventsPage() {
                         disabled={isLoading}
                         className="flex-1 min-w-0"
                       >
-                        Obserwuj
+                        👀
                       </Button>
                       <Button
                         variant={
@@ -390,7 +390,7 @@ export default function EventsPage() {
                         disabled={isLoading}
                         className="flex-1 min-w-0"
                       >
-                        Biorę udział
+                        ✋
                       </Button>
                     </>
                   ) : (

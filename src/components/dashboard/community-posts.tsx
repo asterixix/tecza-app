@@ -1,8 +1,9 @@
 "use client"
 import { useEffect, useState } from "react"
 import { getSupabase } from "@/lib/supabase-browser"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { PostComposer } from "@/components/dashboard/post-composer"
 import { PostItem, type PostRecord } from "@/components/dashboard/post-item"
 
 // Safe error message extractor to avoid `any`
@@ -34,6 +35,8 @@ export function CommunityPosts({
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [composerOpen, setComposerOpen] = useState(false)
+  const [localRefresh, setLocalRefresh] = useState(0)
 
   async function loadFirst() {
     if (!supabase) return
@@ -89,10 +92,28 @@ export function CommunityPosts({
   useEffect(() => {
     void loadFirst()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [communityId, pageSize, refreshToken])
+  }, [communityId, pageSize, refreshToken, localRefresh])
 
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between py-3">
+          <CardTitle className="text-base">Posty społeczności</CardTitle>
+          <Button size="sm" onClick={() => setComposerOpen(true)}>
+            Nowy post
+          </Button>
+        </CardHeader>
+      </Card>
+
+      <PostComposer
+        open={composerOpen}
+        onOpenChange={setComposerOpen}
+        communityId={communityId}
+        onPosted={() => {
+          setComposerOpen(false)
+          setLocalRefresh((x) => x + 1)
+        }}
+      />
       {loading && posts.length === 0 ? (
         <Card>
           <CardContent className="p-6 text-center text-muted-foreground">

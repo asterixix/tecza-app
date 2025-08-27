@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { getSupabase } from "@/lib/supabase-browser"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -13,6 +13,24 @@ import {
   friendlyMessage,
   withTimeout,
 } from "@/lib/errors"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
+import remarkMath from "remark-math"
+import rehypeKatex from "rehype-katex"
+import "katex/dist/katex.min.css"
+import { Smile, Image as ImageIcon, Video as VideoIcon } from "lucide-react"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 interface WikiPage {
   id: string
@@ -33,11 +51,14 @@ export function CommunityWiki({
   const supabase = getSupabase()
   const [pages, setPages] = useState<WikiPage[]>([])
   const [search, setSearch] = useState("")
-  const [form, setForm] = useState({
-    slug: "about",
-    title: "O społeczności",
-    content: "",
-  })
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [slug, setSlug] = useState("about")
+  const [title, setTitle] = useState("O społeczności")
+  const [content, setContent] = useState("")
+  const [imgFile, setImgFile] = useState<File | null>(null)
+  const [vidFile, setVidFile] = useState<File | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const emojiList = ["😀", "😁", "😂", "🌈", "🏳️‍🌈", "🏳️‍⚧️", "🎉", "✨"]
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -68,24 +89,52 @@ export function CommunityWiki({
 
   async function createPage() {
     if (!supabase) return
-    const slug = form.slug.trim()
-    const title = form.title.trim()
-    const content = form.content.trim()
-    if (!slug || !title) {
+    const s = slug.trim()
+    const t = title.trim()
+    const c = content.trim()
+    if (!s || !t) {
       toast.info("Slug i tytuł są wymagane")
       return
     }
+    setSubmitting(true)
     const me = (await supabase.auth.getUser()).data.user
     if (!me) return
+
+    // Optional uploads
+    let contentFinal = c
+    try {
+      if (imgFile) {
+        const path = `${communityId}/${Date.now()}-${imgFile.name}`
+        const { error: upErr } = await supabase.storage
+          .from("wiki")
+          .upload(path, imgFile, { upsert: true })
+        if (!upErr) {
+          const pub = await supabase.storage.from("wiki").getPublicUrl(path)
+          if (pub.data?.publicUrl)
+            contentFinal += `\n\n![](${pub.data.publicUrl})\n`
+        }
+      }
+      if (vidFile) {
+        const path = `${communityId}/${Date.now()}-${vidFile.name}`
+        const { error: upErr } = await supabase.storage
+          .from("wiki")
+          .upload(path, vidFile, { upsert: true })
+        if (!upErr) {
+          const pub = await supabase.storage.from("wiki").getPublicUrl(path)
+          if (pub.data?.publicUrl)
+            contentFinal += `\n\n<video src="${pub.data.publicUrl}" controls />\n`
+        }
+      }
+    } catch {}
 
     const { error, data, status, statusText } = await withTimeout(
       supabase
         .from("community_wiki_pages")
         .insert({
           community_id: communityId,
-          slug,
-          title,
-          content: content || null,
+          slug: s,
+          title: t,
+          content: contentFinal || null,
           created_by: me.id,
         })
         .select("id,slug,title,content")
@@ -98,11 +147,18 @@ export function CommunityWiki({
         statusText,
       })
       toast.error(friendlyMessage(err))
+      setSubmitting(false)
       return
     }
     toast.success("Dodano stronę wiki")
     setPages((prev) => [data!, ...prev])
-    setForm({ slug: "", title: "", content: "" })
+    setSlug("")
+    setTitle("")
+    setContent("")
+    setImgFile(null)
+    setVidFile(null)
+    setDialogOpen(false)
+    setSubmitting(false)
   }
 
   return (
@@ -120,37 +176,121 @@ export function CommunityWiki({
       </div>
       {isEditor && (
         <Card>
-          <CardContent className="p-4">
-            <h2 className="text-lg font-semibold mb-2">Nowa strona</h2>
-            <div className="grid gap-2">
+          <CardHeader className="py-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-base">Wiki</CardTitle>
+            <Button size="sm" onClick={() => setDialogOpen(true)}>
+              Nowa strona
+            </Button>
+          </CardHeader>
+        </Card>
+      )}
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Nowa strona wiki</DialogTitle>
+          </DialogHeader>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Input
                 placeholder="Slug (np. about)"
-                value={form.slug}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, slug: e.target.value }))
-                }
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
               />
               <Input
                 placeholder="Tytuł"
-                value={form.title}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, title: e.target.value }))
-                }
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
               />
+              <div className="flex items-center gap-2">
+                <label className="text-sm">Dodaj:</label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() =>
+                    document.getElementById("wiki-img-input")?.click()
+                  }
+                  title="Obraz"
+                >
+                  <ImageIcon className="size-4" />
+                </Button>
+                <input
+                  id="wiki-img-input"
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={(e) => setImgFile(e.target.files?.[0] || null)}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() =>
+                    document.getElementById("wiki-vid-input")?.click()
+                  }
+                  title="Wideo"
+                >
+                  <VideoIcon className="size-4" />
+                </Button>
+                <input
+                  id="wiki-vid-input"
+                  type="file"
+                  className="hidden"
+                  accept="video/*"
+                  onChange={(e) => setVidFile(e.target.files?.[0] || null)}
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" title="Emoji">
+                      <Smile className="size-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-60">
+                    <div className="grid grid-cols-8 gap-1">
+                      {emojiList.map((e) => (
+                        <button
+                          key={e}
+                          type="button"
+                          className="rounded hover:bg-accent p-1 text-lg"
+                          onClick={() => setContent((v) => v + e)}
+                        >
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
               <Textarea
-                placeholder="Treść (opcjonalnie)"
-                value={form.content}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, content: e.target.value }))
-                }
+                placeholder="Treść (Markdown: GFM, LaTeX: $x^2$, $$\\int$$)"
+                rows={12}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
               />
-              <div className="flex justify-end">
-                <Button onClick={createPage}>Zapisz</Button>
+            </div>
+            <div className="rounded-md border p-3 overflow-auto">
+              <div className="text-sm text-muted-foreground mb-2">Podgląd</div>
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                >
+                  {content}
+                </ReactMarkdown>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Anuluj
+            </Button>
+            <Button onClick={createPage} disabled={submitting}>
+              {submitting ? "Zapisywanie…" : "Zapisz"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-3">
         {filtered.length === 0 ? (

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { PostComposer } from "@/components/dashboard/post-composer"
 import { CommunityAdminPanel } from "@/components/dashboard/community-admin-panel-new"
 import { CommunityChat } from "@/components/dashboard/community-chat"
 import { CommunityEvents } from "@/components/dashboard/community-events"
@@ -12,6 +11,12 @@ import { CommunityPosts } from "@/components/dashboard/community-posts"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import Image from "next/image"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -94,7 +99,7 @@ export default function CommunityPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [joining, setJoining] = useState(false)
   const [leaving, setLeaving] = useState(false)
-  const [postsRefreshToken, setPostsRefreshToken] = useState(0)
+  // Posts refresh is controlled inside CommunityPosts via its own composer button now
 
   const loadCommunityData = useCallback(async () => {
     if (!supabase || !idOrSlug) return
@@ -497,23 +502,75 @@ export default function CommunityPage() {
         )}
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="overview">Przegląd</TabsTrigger>
-            {community.has_posts !== false && (
-              <TabsTrigger value="posts">Posty</TabsTrigger>
-            )}
-            {community.has_chat && <TabsTrigger value="chat">Czat</TabsTrigger>}
-            {community.has_events && (
-              <TabsTrigger value="events">Wydarzenia</TabsTrigger>
-            )}
-            {community.has_wiki && <TabsTrigger value="wiki">Wiki</TabsTrigger>}
-            {community.has_kanban && (
-              <TabsTrigger value="kanban">Zadania</TabsTrigger>
-            )}
-            {community.has_marketplace && (
-              <TabsTrigger value="market">Giełda</TabsTrigger>
-            )}
-          </TabsList>
+          {/* Scrollable tabs with overflow menu for >6 */}
+          <div className="flex items-center gap-2">
+            <TabsList className="flex-1 overflow-x-auto no-scrollbar whitespace-nowrap">
+              <div className="inline-flex gap-1">
+                <TabsTrigger value="overview">Przegląd</TabsTrigger>
+                {community.has_posts !== false && (
+                  <TabsTrigger value="posts">Posty</TabsTrigger>
+                )}
+                {community.has_chat && (
+                  <TabsTrigger value="chat">Czat</TabsTrigger>
+                )}
+                {community.has_events && (
+                  <TabsTrigger value="events">Wydarzenia</TabsTrigger>
+                )}
+                {community.has_wiki && (
+                  <TabsTrigger value="wiki">Wiki</TabsTrigger>
+                )}
+                {community.has_kanban && (
+                  <TabsTrigger value="kanban">Zadania</TabsTrigger>
+                )}
+                {community.has_marketplace && (
+                  <TabsTrigger value="market">Giełda</TabsTrigger>
+                )}
+              </div>
+            </TabsList>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" aria-label="Więcej">
+                  Więcej
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-44">
+                {/* Mirror options for accessibility; checked indicates availability */}
+                <DropdownMenuCheckboxItem checked>
+                  Przegląd
+                </DropdownMenuCheckboxItem>
+                {community.has_posts !== false && (
+                  <DropdownMenuCheckboxItem checked>
+                    Posty
+                  </DropdownMenuCheckboxItem>
+                )}
+                {community.has_chat && (
+                  <DropdownMenuCheckboxItem checked>
+                    Czat
+                  </DropdownMenuCheckboxItem>
+                )}
+                {community.has_events && (
+                  <DropdownMenuCheckboxItem checked>
+                    Wydarzenia
+                  </DropdownMenuCheckboxItem>
+                )}
+                {community.has_wiki && (
+                  <DropdownMenuCheckboxItem checked>
+                    Wiki
+                  </DropdownMenuCheckboxItem>
+                )}
+                {community.has_kanban && (
+                  <DropdownMenuCheckboxItem checked>
+                    Zadania
+                  </DropdownMenuCheckboxItem>
+                )}
+                {community.has_marketplace && (
+                  <DropdownMenuCheckboxItem checked>
+                    Giełda
+                  </DropdownMenuCheckboxItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           <TabsContent value="overview" className="space-y-6">
             {/* Description */}
@@ -620,27 +677,7 @@ export default function CommunityPage() {
 
           {community.has_posts !== false && (
             <TabsContent value="posts" className="space-y-6">
-              {membership.isMember && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Nowy post</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <PostComposer
-                      communityId={community.id}
-                      onPosted={() => {
-                        toast.success("Post został opublikowany")
-                        setPostsRefreshToken((x) => x + 1)
-                      }}
-                    />
-                  </CardContent>
-                </Card>
-              )}
-
-              <CommunityPosts
-                communityId={community.id}
-                refreshToken={postsRefreshToken}
-              />
+              <CommunityPosts communityId={community.id} />
             </TabsContent>
           )}
 

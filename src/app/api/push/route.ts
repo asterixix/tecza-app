@@ -4,9 +4,14 @@ import { cookies } from "next/headers"
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const store = await cookies()
-  const token = store.get("sb-access-token")?.value
-  if (!token)
+  // Prefer cookie set by Supabase Auth helpers; fallback to Authorization header from client
+  const cookieToken = store.get("sb-access-token")?.value || null
+  const headerAuth = req.headers.get("authorization")
+  const headerToken = headerAuth?.replace(/^Bearer\s+/i, "") || null
+  const token = cookieToken || headerToken
+  if (!token) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+  }
 
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
   const edgeUrl = `${base.replace(/\/$/, "")}/functions/v1/web-push`

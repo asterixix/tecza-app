@@ -15,6 +15,13 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Search, Edit2 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 type UUID = string
 
@@ -30,7 +37,15 @@ type Listing = {
   images: string[] | null
 }
 
-type ListingWithImages = Listing
+type ProfileLite = {
+  username: string | null
+  display_name: string | null
+  avatar_url: string | null
+}
+
+type ListingWithImages = Listing & {
+  profiles?: ProfileLite | ProfileLite[] | null
+}
 
 export function CommunityMarketplace({ communityId }: { communityId: string }) {
   const supabase = getSupabase()
@@ -39,7 +54,8 @@ export function CommunityMarketplace({ communityId }: { communityId: string }) {
   const [listings, setListings] = useState<ListingWithImages[]>([])
   const [loading, setLoading] = useState(true)
 
-  // form state
+  // form state (dialog)
+  const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
@@ -62,7 +78,18 @@ export function CommunityMarketplace({ communityId }: { communityId: string }) {
         supabase
           .from("community_marketplace_listings")
           .select(
-            "id,title,description,price_cents,currency,status,created_at,seller_id,images",
+            `
+            id,
+            title,
+            description,
+            price_cents,
+            currency,
+            status,
+            created_at,
+            seller_id,
+            images,
+            profiles!community_marketplace_listings_seller_id_fkey(username, display_name, avatar_url)
+          `,
           )
           .eq("community_id", communityId)
           .order("created_at", { ascending: false }),
@@ -251,64 +278,121 @@ export function CommunityMarketplace({ communityId }: { communityId: string }) {
           >
             Odśwież
           </Button>
+          <Button onClick={() => setOpen(true)}>Dodaj ogłoszenie</Button>
         </div>
       </div>
 
-      {/* Create form */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Dodaj ogłoszenie</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label className="block text-sm mb-1">Tytuł</label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Np. Flaga tęczowa 90x150"
-            />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Dodaj ogłoszenie</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div>
+              <label className="block text-sm mb-1">Tytuł</label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Np. Flaga tęczowa 90x150"
+              />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Opis</label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-sm mb-1">Cena</label>
+                <Input
+                  inputMode="decimal"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Waluta</label>
+                <Input
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+                  placeholder="PLN"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Zdjęcia</label>
+              <Input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => setFiles(e.target.files)}
+              />
+            </div>
+            {/* Preview */}
+            <div className="rounded-md border p-3">
+              <div className="text-sm text-muted-foreground mb-2">Podgląd</div>
+              <Card className="overflow-hidden">
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    {title || "(bez tytułu)"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {files && files.length ? (
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {Array.from(files).map((f, i) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          key={i}
+                          src={URL.createObjectURL(f)}
+                          alt="podgląd"
+                          className="h-24 w-auto rounded border"
+                          onLoad={(e) =>
+                            URL.revokeObjectURL(
+                              (e.target as HTMLImageElement).src,
+                            )
+                          }
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                  {description && (
+                    <p className="text-sm text-muted-foreground line-clamp-3">
+                      {description}
+                    </p>
+                  )}
+                  <p className="text-sm">
+                    {price
+                      ? new Intl.NumberFormat("pl-PL", {
+                          style: "currency",
+                          currency,
+                        }).format(Number(price.replace(",", ".")) || 0)
+                      : "Cena do uzg."}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-          <div className="sm:col-span-2">
-            <label className="block text-sm mb-1">Opis</label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-            />
-          </div>
-          <div>
-            <label className="block text-sm mb-1">Cena</label>
-            <Input
-              inputMode="decimal"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="0.00"
-            />
-          </div>
-          <div>
-            <label className="block text-sm mb-1">Waluta</label>
-            <Input
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-              placeholder="PLN"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-sm mb-1">Zdjęcia</label>
-            <Input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => setFiles(e.target.files)}
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <Button onClick={createListing} disabled={!title.trim()}>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Anuluj
+            </Button>
+            <Button
+              onClick={async () => {
+                await createListing()
+                setOpen(false)
+              }}
+              disabled={!title.trim()}
+            >
               Dodaj
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Listings */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -323,6 +407,30 @@ export function CommunityMarketplace({ communityId }: { communityId: string }) {
                   )}
                 </div>
               </div>
+              {/* Seller link */}
+              {(() => {
+                const prof = Array.isArray(l.profiles)
+                  ? l.profiles[0]
+                  : l.profiles || null
+                const uname = prof?.username ?? null
+                const display = prof?.display_name || prof?.username || null
+                return display ? (
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    Sprzedający:{" "}
+                    {uname ? (
+                      <a
+                        href={`/u/${uname}`}
+                        className="underline underline-offset-2 hover:no-underline"
+                        aria-label={`Profil sprzedającego ${display}`}
+                      >
+                        {display}
+                      </a>
+                    ) : (
+                      <span>{display}</span>
+                    )}
+                  </div>
+                ) : null
+              })()}
             </CardHeader>
             <CardContent className="space-y-2">
               {l.images && l.images.length > 0 ? (

@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { Plus, Pencil, Trash2, Users } from "lucide-react"
+import { withTimeout } from "@/lib/errors"
 
 type Column = {
   id: string
@@ -127,6 +128,16 @@ export function CommunityKanban({ communityId }: { communityId: string }) {
 
   async function addTask(columnId: string) {
     if (!supabase || !boardId) return
+    // Basic UUID sanity-check to avoid 400 from invalid ids
+    const uuidRe =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    if (!uuidRe.test(boardId) || !uuidRe.test(columnId)) {
+      toast({
+        variant: "destructive",
+        description: "Błędny identyfikator tablicy lub kolumny",
+      })
+      return
+    }
     const title = newTitle.trim()
     if (!title) return
     try {
@@ -134,17 +145,26 @@ export function CommunityKanban({ communityId }: { communityId: string }) {
         0,
         ...tasks.filter((t) => t.column_id === columnId).map((t) => t.position),
       )
-      const { data, error } = await supabase
-        .from("board_tasks")
-        .insert({
-          board_id: boardId,
-          column_id: columnId,
-          title,
-          description: newDesc.trim() || null,
-          position: maxPos + 10,
-        })
-        .select("*")
-        .single()
+      const me = (await supabase.auth.getUser()).data.user
+      const { data, error } = await withTimeout(
+        supabase
+          .from("board_tasks")
+          .insert({
+            board_id: boardId,
+            column_id: columnId,
+            title,
+            description: newDesc.trim() || null,
+            labels: null,
+            due_at: null,
+            created_by: me?.id || null,
+            position: maxPos + 10,
+          })
+          .select(
+            "id,board_id,column_id,title,description,labels,due_at,created_by,position",
+          )
+          .single(),
+        15000,
+      )
       if (error) throw error
       setTasks((prev) => [...prev, data as Task])
       setNewTitle("")
@@ -154,7 +174,8 @@ export function CommunityKanban({ communityId }: { communityId: string }) {
     } catch {
       toast({
         variant: "destructive",
-        description: "Nie udało się dodać zadania",
+        description:
+          "Nie udało się dodać zadania (sprawdź uprawnienia i schemat)",
       })
     }
   }
