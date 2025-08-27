@@ -21,6 +21,7 @@ import {
   MapPin,
   Clock,
   Users,
+  User,
   Share2,
   Eye,
   Check,
@@ -144,6 +145,13 @@ export default function EventPage() {
       reporter_id: string
     }>
   >([])
+  type OrganizerProfile = {
+    id: string
+    username: string | null
+    display_name: string | null
+    avatar_url: string | null
+  }
+  const [organizer, setOrganizer] = useState<OrganizerProfile | null>(null)
 
   // Load counters for observers and attendees (moved above useEffect)
   const loadCounts = useCallback(
@@ -193,6 +201,28 @@ export default function EventPage() {
       setEvent(found)
       if (found?.id) {
         void loadCounts(found.id)
+      }
+      // Load organizer profile for display/linking
+      if (found?.organizer_id) {
+        try {
+          const { data: org } = await withTimeout(
+            supabase
+              .from("profiles")
+              .select("id,username,display_name,avatar_url")
+              .eq("id", found.organizer_id)
+              .maybeSingle(),
+            15000,
+          )
+          if (org) {
+            setOrganizer(org as OrganizerProfile)
+          } else {
+            setOrganizer(null)
+          }
+        } catch {
+          setOrganizer(null)
+        }
+      } else {
+        setOrganizer(null)
       }
       const me = (await supabase.auth.getUser()).data.user
       if (me && found?.id) {
@@ -777,6 +807,30 @@ export default function EventPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3 mb-6">
+          {/* Organizer */}
+          {organizer && (
+            <div className="flex items-center gap-2 mr-4 text-muted-foreground">
+              <User className="h-4 w-4" />
+              {organizer.username ? (
+                <a
+                  href={`/u/${organizer.username}`}
+                  className="inline-flex items-center gap-2 hover:underline"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={organizer.avatar_url || "/icons/tecza-icons/1.svg"}
+                    alt=""
+                    className="h-4 w-4 rounded-full border object-cover"
+                  />
+                  <span>
+                    {organizer.display_name || `@${organizer.username}`}
+                  </span>
+                </a>
+              ) : (
+                <span>{organizer.display_name || "Organizator"}</span>
+              )}
+            </div>
+          )}
           <div className="flex gap-2">
             <Button
               variant={status === "interested" ? "default" : "outline"}

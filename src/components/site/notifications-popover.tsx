@@ -267,12 +267,7 @@ export function NotificationsPopover() {
                   />
                 )}
                 <div className="flex items-start justify-between gap-2">
-                  <div
-                    className={cn(
-                      "text-sm leading-5",
-                      n.type === "broadcast" ? "" : "",
-                    )}
-                  >
+                  <div className={cn("text-sm leading-5")}>
                     <Link
                       href={linkFor(n)}
                       className={cn(

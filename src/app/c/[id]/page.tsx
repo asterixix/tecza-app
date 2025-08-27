@@ -30,6 +30,9 @@ import {
   normalizeSupabaseError,
   withTimeout,
 } from "@/lib/errors"
+import { CommunityWiki } from "@/components/dashboard/community-wiki"
+import { CommunityMarketplace } from "@/components/dashboard/community-marketplace"
+import { CommunityKanban } from "@/components/dashboard/community-kanban"
 
 interface Community {
   id: string
@@ -47,6 +50,9 @@ interface Community {
   has_chat: boolean
   has_events: boolean
   has_wiki: boolean
+  has_posts?: boolean
+  has_marketplace?: boolean
+  has_kanban?: boolean
 }
 
 interface CommunityMember {
@@ -493,13 +499,20 @@ export default function CommunityPage() {
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Przegląd</TabsTrigger>
-            <TabsTrigger value="posts">Posty</TabsTrigger>
+            {community.has_posts !== false && (
+              <TabsTrigger value="posts">Posty</TabsTrigger>
+            )}
             {community.has_chat && <TabsTrigger value="chat">Czat</TabsTrigger>}
             {community.has_events && (
               <TabsTrigger value="events">Wydarzenia</TabsTrigger>
             )}
             {community.has_wiki && <TabsTrigger value="wiki">Wiki</TabsTrigger>}
-            <TabsTrigger value="market">Giełda</TabsTrigger>
+            {community.has_kanban && (
+              <TabsTrigger value="kanban">Zadania</TabsTrigger>
+            )}
+            {community.has_marketplace && (
+              <TabsTrigger value="market">Giełda</TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -538,6 +551,18 @@ export default function CommunityPage() {
                     <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
                       <FileText className="h-5 w-5 text-primary" />
                       <span className="text-sm font-medium">Wiki</span>
+                    </div>
+                  )}
+                  {community.has_kanban && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
+                      <FileText className="h-5 w-5 text-primary" />
+                      <span className="text-sm font-medium">Zadania</span>
+                    </div>
+                  )}
+                  {community.has_marketplace && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
+                      <FileText className="h-5 w-5 text-primary" />
+                      <span className="text-sm font-medium">Giełda</span>
                     </div>
                   )}
                 </div>
@@ -593,29 +618,31 @@ export default function CommunityPage() {
             )}
           </TabsContent>
 
-          <TabsContent value="posts" className="space-y-6">
-            {membership.isMember && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Nowy post</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <PostComposer
-                    communityId={community.id}
-                    onPosted={() => {
-                      toast.success("Post został opublikowany")
-                      setPostsRefreshToken((x) => x + 1)
-                    }}
-                  />
-                </CardContent>
-              </Card>
-            )}
+          {community.has_posts !== false && (
+            <TabsContent value="posts" className="space-y-6">
+              {membership.isMember && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Nowy post</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <PostComposer
+                      communityId={community.id}
+                      onPosted={() => {
+                        toast.success("Post został opublikowany")
+                        setPostsRefreshToken((x) => x + 1)
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              )}
 
-            <CommunityPosts
-              communityId={community.id}
-              refreshToken={postsRefreshToken}
-            />
-          </TabsContent>
+              <CommunityPosts
+                communityId={community.id}
+                refreshToken={postsRefreshToken}
+              />
+            </TabsContent>
+          )}
 
           {community.has_chat && (
             <TabsContent value="chat" className="space-y-6">
@@ -650,49 +677,39 @@ export default function CommunityPage() {
 
           {community.has_wiki && (
             <TabsContent value="wiki" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    Wiki społeczności
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/c/${community.slug || community.id}/wiki`}>
-                        Przejdź do wiki
-                      </Link>
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Wersja MVP: strona wiki społeczności. W kolejnej iteracji
-                    dodamy edycję i listę stron.
-                  </p>
-                </CardContent>
-              </Card>
+              <CommunityWiki
+                communityId={community.id}
+                isEditor={
+                  /* prettier-ignore */
+                  membership.role === "owner" || membership.role === "moderator"
+                }
+                communitySlugOrId={community.slug || community.id}
+              />
             </TabsContent>
           )}
 
-          <TabsContent value="market" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  Giełda społeczności
-                  <Button asChild variant="outline" size="sm">
-                    <Link
-                      href={`/c/${community.slug || community.id}/marketplace`}
-                    >
-                      Przejdź do giełdy
-                    </Link>
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Dodawaj i przeglądaj ogłoszenia. Wersja MVP listy i dodawania
-                  ogłoszeń jest dostępna w dedykowanej podstronie.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {community.has_kanban && (
+            <TabsContent value="kanban" className="space-y-6">
+              {membership.isMember ? (
+                <CommunityKanban communityId={community.id} />
+              ) : (
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="text-center py-8 text-muted-foreground">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Dołącz do społeczności aby zobaczyć zadania</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          )}
+
+          {community.has_marketplace && (
+            <TabsContent value="market" className="space-y-6">
+              <CommunityMarketplace communityId={community.id} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>

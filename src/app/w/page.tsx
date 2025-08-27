@@ -331,7 +331,7 @@ export default function EventsPage() {
                 </div>
               </div>
 
-              <CardContent className="p-4 space-y-3">
+              <CardContent className="space-y-3">
                 <div>
                   <h3 className="font-semibold text-lg leading-tight mb-1 line-clamp-2">
                     {e.title}

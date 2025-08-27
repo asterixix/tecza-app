@@ -1,18 +1,11 @@
 "use client"
+
 import { useEffect, useMemo, useState } from "react"
 import { getSupabase } from "@/lib/supabase-browser"
-import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -39,10 +32,8 @@ type Listing = {
 
 type ListingWithImages = Listing
 
-export default function CommunityMarketplacePage() {
+export function CommunityMarketplace({ communityId }: { communityId: string }) {
   const supabase = getSupabase()
-  const params = useParams<{ id: string }>()
-  const communityId = params?.id as UUID
   const { toast } = useToast()
 
   const [listings, setListings] = useState<ListingWithImages[]>([])
@@ -119,9 +110,11 @@ export default function CommunityMarketplacePage() {
       const { data: me } = await supabase.auth.getUser()
       const uid = me.user?.id
       if (!uid) throw new Error("Brak użytkownika")
-      const price_cents = Math.round(parseFloat(price.replace(",", ".")) * 100)
-      if (!price_cents || Number.isNaN(price_cents))
-        throw new Error("Nieprawidłowa cena")
+      // Replace NaN check with robust parse + finite validation
+      const parsedPrice = Number(price.replace(",", "."))
+      if (!Number.isFinite(parsedPrice)) throw new Error("Nieprawidłowa cena")
+      const price_cents = Math.round(parsedPrice * 100)
+      if (price_cents <= 0) throw new Error("Nieprawidłowa cena")
       const { data: created, error } = await supabase
         .from("community_marketplace_listings")
         .insert({
@@ -224,9 +217,9 @@ export default function CommunityMarketplacePage() {
   )
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h1 className="text-xl font-semibold">Giełda społeczności</h1>
+        <h2 className="text-lg font-semibold">Giełda społeczności</h2>
         <div className="flex gap-2 items-center flex-wrap">
           <div className="relative">
             <Input
@@ -300,7 +293,6 @@ export default function CommunityMarketplacePage() {
               placeholder="PLN"
             />
           </div>
-          {/* Removed condition and category fields; not supported by current schema */}
           <div className="sm:col-span-2">
             <label className="block text-sm mb-1">Zdjęcia</label>
             <Input
@@ -333,7 +325,6 @@ export default function CommunityMarketplacePage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
-              {/* Thumb gallery */}
               {l.images && l.images.length > 0 ? (
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {l.images.map((path, i) => (
@@ -381,13 +372,11 @@ export default function CommunityMarketplacePage() {
   )
 }
 
-// Helper to build public URLs (bucket must allow RLS read via policies)
 function getPublicUrl(bucket: string, path: string) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   return `${url?.replace(/\/$/, "")}/storage/v1/object/public/${bucket}/${path}`
 }
 
-// Listing edit dialog component
 function ListingEditDialog({
   listing,
   onSaved,
@@ -408,7 +397,11 @@ function ListingEditDialog({
     if (!supabase) return
     setSaving(true)
     try {
-      const price_cents = Math.round(parseFloat(price.replace(",", ".")) * 100)
+      const parsedPrice = Number(price.replace(",", "."))
+      if (!Number.isFinite(parsedPrice)) throw new Error("Nieprawidłowa cena")
+      const price_cents = Math.round(parsedPrice * 100)
+      if (price_cents <= 0) throw new Error("Nieprawidłowa cena")
+
       const { error } = await supabase
         .from("community_marketplace_listings")
         .update({
@@ -434,40 +427,33 @@ function ListingEditDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="icon" variant="ghost" aria-label="Edytuj">
-          <Edit2 className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edytuj ogłoszenie</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-3">
-          <div>
-            <label className="text-sm">Tytuł</label>
+    <Button
+      size="icon"
+      variant="ghost"
+      aria-label="Edytuj"
+      onClick={() => setOpen((v) => !v)}
+    >
+      {open ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Edit2 className="h-4 w-4" />
+      )}
+      {/* Inline edit in a simple drop-in; keep lightweight for now */}
+      {open && (
+        <div className="absolute z-10 mt-8 right-0 bg-popover border rounded-md p-3 w-80 shadow-md">
+          <div className="grid gap-2">
             <Input value={title} onChange={(e) => setTitle(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-sm">Opis</label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={4}
+              rows={3}
             />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-sm">Cena</label>
+            <div className="grid grid-cols-2 gap-2">
               <Input
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 inputMode="decimal"
               />
-            </div>
-            <div>
-              <label className="text-sm">Status</label>
               <Select
                 value={status}
                 onValueChange={(v) => setStatus(v as Listing["status"])}
@@ -482,17 +468,21 @@ function ListingEditDialog({
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Anuluj
-            </Button>
-            <Button onClick={save} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Zapisz"}
-            </Button>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Anuluj
+              </Button>
+              <Button onClick={save} disabled={saving}>
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Zapisz"
+                )}
+              </Button>
+            </div>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+    </Button>
   )
 }

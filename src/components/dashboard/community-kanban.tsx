@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useParams } from "next/navigation"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -31,11 +30,9 @@ type Task = {
   position: number
 }
 
-export default function CommunityKanbanPage() {
+export function CommunityKanban({ communityId }: { communityId: string }) {
   const supabase = getSupabase()
   const { toast } = useToast()
-  const params = useParams<{ id: string }>()
-  const communityId = params?.id
   const [boardId, setBoardId] = useState<string | null>(null)
   const [columns, setColumns] = useState<Column[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
@@ -51,7 +48,6 @@ export default function CommunityKanbanPage() {
       if (!supabase || !communityId) return
       setLoading(true)
       try {
-        // Ensure default board exists and fetch its id
         const { data: meUser } = await supabase.auth.getUser()
         const uid = meUser.user?.id || null
         const { data: ensured, error: ensureErr } = await supabase.rpc(
@@ -92,8 +88,6 @@ export default function CommunityKanbanPage() {
           .order("position")
         if (!cancelled && t) setTasks(t as Task[])
 
-        // Permissions: moderators/owners can manage columns; members can add tasks
-        // We infer from ability to update a column (policy will gate it)
         if (cols && (cols as Column[]).length) {
           const probe = (cols as Column[])[0]
           const { error: updErr } = await supabase
@@ -186,13 +180,12 @@ export default function CommunityKanbanPage() {
       )
   }
 
-  if (loading)
-    return <div className="mx-auto max-w-6xl p-4 md:p-6">Wczytywanie…</div>
+  if (loading) return <div>Wczytywanie…</div>
 
   return (
-    <div className="mx-auto max-w-6xl p-4 md:p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Zadania społeczności</h1>
+    <div className="space-y-4">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Zadania społeczności</h2>
         <div className="text-sm text-muted-foreground inline-flex items-center gap-1">
           <Users className="h-4 w-4" /> Tylko członkowie widzą zadania
         </div>
@@ -255,7 +248,6 @@ export default function CommunityKanbanPage() {
                   </div>
                 ))}
 
-                {/* New task composer */}
                 <div className="pt-2">
                   {creatingTaskFor === col.id ? (
                     <div className="space-y-2">

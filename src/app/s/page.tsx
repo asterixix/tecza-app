@@ -1037,10 +1037,29 @@ function ToggleSetting({
   )
 }
 
+import {
+  subscribeToPush,
+  unsubscribeFromPush,
+  setupClientAudioBridge,
+  ensureServiceWorkerReady,
+} from "@/lib/push"
+
 function PushControls() {
   const supabase = getSupabase()
   const [enabled, setEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [permission, setPermission] = useState<NotificationPermission>(
+    typeof window !== "undefined" && "Notification" in window
+      ? Notification.permission
+      : "default",
+  )
+  const [endpoint, setEndpoint] = useState<string>("")
+  const [testing, setTesting] = useState(false)
+  const [audio] = useState(() =>
+    typeof window !== "undefined"
+      ? new Audio("/audio/tecza_powiadomienie.mp3")
+      : (null as unknown as HTMLAudioElement),
+  )
 
   useEffect(() => {
     ;(async () => {
@@ -1054,8 +1073,33 @@ function PushControls() {
         .maybeSingle()
       setEnabled(!!data?.push_enabled)
       setLoading(false)
+
+      // Probe current subscription endpoint
+      try {
+        const reg = await ensureServiceWorkerReady()
+        const sub = await reg?.pushManager.getSubscription()
+        setEndpoint(sub?.endpoint || "")
+      } catch {
+        setEndpoint("")
+      }
+      // Reflect current permission
+      if (typeof window !== "undefined" && "Notification" in window) {
+        setPermission(Notification.permission)
+      }
     })()
   }, [supabase])
+
+  useEffect(() => {
+    if (!audio) return
+    // Allow slightly louder notification but keep reasonable volume
+    audio.volume = 0.7
+    const cleanup = setupClientAudioBridge(() => {
+      audio.currentTime = 0
+      audio.play().catch(() => {})
+    })
+    return cleanup
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="rounded-md border p-3">
@@ -1071,17 +1115,80 @@ function PushControls() {
           if (!supabase) return
           const me = (await supabase.auth.getUser()).data.user
           if (!me) return
-          const next = !enabled
-          setEnabled(next)
-          const update: { user_id: string; push_enabled: boolean } = {
-            user_id: me.id,
-            push_enabled: next,
+          if (!enabled) {
+            const res = await subscribeToPush()
+            if (!res.ok) {
+              // rollback UI if failed
+              setEnabled(false)
+              return
+            }
+            setEnabled(true)
+            setPermission(
+              (typeof window !== "undefined" && "Notification" in window
+                ? Notification.permission
+                : "default") as NotificationPermission,
+            )
+            setEndpoint(res.endpoint)
+          } else {
+            const res = await unsubscribeFromPush()
+            if (!res.ok) return
+            setEnabled(false)
+            // Clear local endpoint
+            setEndpoint("")
           }
-          await supabase.from("notification_settings").upsert(update)
         }}
       >
         {enabled ? "Wyłącz push" : "Włącz push"}
       </Button>
+      <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+        <div>
+          Stan uprawnień: <span className="font-medium">{permission}</span>
+        </div>
+        <div className="break-all">
+          Endpoint:{" "}
+          {endpoint ? (
+            <span className="text-[11px]">{endpoint}</span>
+          ) : (
+            <span className="italic">brak</span>
+          )}
+        </div>
+      </div>
+      <div className="mt-2">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={testing || permission !== "granted"}
+          onClick={async () => {
+            setTesting(true)
+            try {
+              const res = await fetch("/api/push", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  payload: {
+                    title: "Tęcza.app",
+                    body: "Test powiadomienia push",
+                    url:
+                      typeof window !== "undefined"
+                        ? window.location.origin
+                        : "/",
+                  },
+                }),
+              })
+              if (!res.ok) throw new Error(await res.text())
+              toast.success("Wysłano test push")
+            } catch (e) {
+              const msg =
+                e instanceof Error ? e.message : "Nie udało się wysłać testu"
+              toast.error(msg)
+            } finally {
+              setTesting(false)
+            }
+          }}
+        >
+          Wyślij test
+        </Button>
+      </div>
     </div>
   )
 }

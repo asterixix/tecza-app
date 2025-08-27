@@ -1,9 +1,23 @@
 "use client"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PostItem, type PostRecord } from "@/components/dashboard/post-item"
+
+// Safe error message extractor to avoid `any`
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (typeof err === "string") return err
+  if (err && typeof err === "object" && "message" in err) {
+    const msg = (err as { message?: unknown }).message
+    if (typeof msg === "string") return msg
+  }
+  return ""
+}
+
+// Use "*" to ensure PostItem gets all required fields
+const SELECT_COLS = "*" as const
 
 export function CommunityPosts({
   communityId,
@@ -19,20 +33,16 @@ export function CommunityPosts({
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
-
-  const selectCols = useMemo(
-    () =>
-      "id,user_id,content,visibility,created_at,media_urls,hashtags" as const,
-    [],
-  )
+  const [error, setError] = useState<string | null>(null)
 
   async function loadFirst() {
     if (!supabase) return
     setLoading(true)
+    setError(null)
     try {
       const { data, error } = await supabase
         .from("posts")
-        .select(selectCols)
+        .select(SELECT_COLS)
         .eq("community_id", communityId)
         .is("hidden_at", null)
         .order("created_at", { ascending: false })
@@ -41,6 +51,9 @@ export function CommunityPosts({
       const rows = (data || []) as unknown as PostRecord[]
       setPosts(rows)
       setHasMore(rows.length === pageSize)
+    } catch (e: unknown) {
+      setError(getErrorMessage(e) || "Wystąpił błąd podczas ładowania postów.")
+      setHasMore(false)
     } finally {
       setLoading(false)
     }
@@ -50,11 +63,12 @@ export function CommunityPosts({
     if (!supabase) return
     if (loadingMore || !hasMore || posts.length === 0) return
     setLoadingMore(true)
+    setError(null)
     try {
       const last = posts[posts.length - 1]
       const { data, error } = await supabase
         .from("posts")
-        .select(selectCols)
+        .select(SELECT_COLS)
         .eq("community_id", communityId)
         .is("hidden_at", null)
         .lt("created_at", last.created_at)
@@ -64,6 +78,9 @@ export function CommunityPosts({
       const rows = (data || []) as unknown as PostRecord[]
       setPosts((prev) => [...prev, ...rows])
       setHasMore(rows.length === pageSize)
+    } catch (e: unknown) {
+      setError(getErrorMessage(e) || "Nie udało się wczytać kolejnych postów.")
+      setHasMore(false)
     } finally {
       setLoadingMore(false)
     }
@@ -72,7 +89,7 @@ export function CommunityPosts({
   useEffect(() => {
     void loadFirst()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [communityId, selectCols, pageSize, refreshToken])
+  }, [communityId, pageSize, refreshToken])
 
   return (
     <div className="space-y-4">
@@ -80,6 +97,17 @@ export function CommunityPosts({
         <Card>
           <CardContent className="p-6 text-center text-muted-foreground">
             Ładowanie postów…
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {error && posts.length === 0 ? (
+        <Card>
+          <CardContent className="p-6 text-center">
+            <p className="text-destructive mb-3">{error}</p>
+            <Button variant="outline" onClick={() => void loadFirst()}>
+              Spróbuj ponownie
+            </Button>
           </CardContent>
         </Card>
       ) : null}
@@ -95,7 +123,7 @@ export function CommunityPosts({
         />
       ))}
 
-      {!loading && posts.length === 0 && (
+      {!loading && !error && posts.length === 0 && (
         <Card>
           <CardContent className="p-6 text-center text-muted-foreground">
             Brak postów w tej społeczności.

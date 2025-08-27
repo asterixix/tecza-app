@@ -78,6 +78,9 @@ interface Community {
   has_chat: boolean
   has_events: boolean
   has_wiki: boolean
+  has_posts?: boolean
+  has_marketplace?: boolean
+  has_kanban?: boolean
 }
 
 interface CommunityMember {
@@ -133,6 +136,9 @@ export function CommunityAdminPanel({
     has_chat: community.has_chat,
     has_events: community.has_events,
     has_wiki: community.has_wiki,
+    has_posts: community.has_posts !== false,
+    has_marketplace: community.has_marketplace || false,
+    has_kanban: community.has_kanban || false,
   })
 
   // Announcement state
@@ -290,6 +296,9 @@ export function CommunityAdminPanel({
             has_chat: editForm.has_chat,
             has_events: editForm.has_events,
             has_wiki: editForm.has_wiki,
+            has_posts: editForm.has_posts,
+            has_marketplace: editForm.has_marketplace,
+            has_kanban: editForm.has_kanban,
             updated_at: new Date().toISOString(),
           })
           .eq("id", community.id),
@@ -825,6 +834,67 @@ export function CommunityAdminPanel({
                       checked={editForm.has_wiki}
                       onCheckedChange={(checked) =>
                         setEditForm((prev) => ({ ...prev, has_wiki: checked }))
+                      }
+                      disabled={!isOwner}
+                    />
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Posty</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Pozwala członkom publikować i przeglądać posty w
+                        społeczności
+                      </p>
+                    </div>
+                    <Switch
+                      checked={!!editForm.has_posts}
+                      onCheckedChange={(checked) =>
+                        setEditForm((prev) => ({ ...prev, has_posts: checked }))
+                      }
+                      disabled={!isOwner}
+                    />
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Giełda (Marketplace)</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Włącz lokalne ogłoszenia i sprzedaż między członkami
+                      </p>
+                    </div>
+                    <Switch
+                      checked={!!editForm.has_marketplace}
+                      onCheckedChange={(checked) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          has_marketplace: checked,
+                        }))
+                      }
+                      disabled={!isOwner}
+                    />
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Zadania (Kanban)</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Tablica z kolumnami i zadaniami dla społeczności
+                      </p>
+                    </div>
+                    <Switch
+                      checked={!!editForm.has_kanban}
+                      onCheckedChange={(checked) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          has_kanban: checked,
+                        }))
                       }
                       disabled={!isOwner}
                     />

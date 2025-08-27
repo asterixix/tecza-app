@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/site/theme-provider"
 import { HeaderSwitch } from "@/components/site/header-switch"
 import { FooterSwitch } from "@/components/site/footer-switch"
 import { CookieBanner } from "@/components/site/cookie-banner"
+import { PushAudio } from "@/components/site/push-audio"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -79,6 +80,8 @@ export default function RootLayout({
           </main>
           <FooterSwitch />
           <CookieBanner />
+          {/* Global audio bridge for push notifications */}
+          <PushAudio />
           <SpeedInsights />
         </ThemeProvider>
       </body>
