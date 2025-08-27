@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { useParams } from "next/navigation"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,7 +13,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import {
@@ -96,6 +95,7 @@ interface EventFull {
   ticket_url?: string | null
   max_participants?: number | null
   coordinates?: CoordinatesShape | null
+  join_url?: string | null
 }
 
 type Participation = "interested" | "attending" | "not_attending"
@@ -110,9 +110,24 @@ export default function EventPage() {
   const [savingRsvp, setSavingRsvp] = useState<Participation | null>(null)
   const [removing, setRemoving] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
-  const [inviteEmail, setInviteEmail] = useState("")
   const [inviteMessage, setInviteMessage] = useState("")
   const [sendingInvite, setSendingInvite] = useState(false)
+  const [friends, setFriends] = useState<
+    Array<{
+      id: string
+      username: string | null
+      display_name: string | null
+      avatar_url: string | null
+    }>
+  >([])
+  const [selectedFriends, setSelectedFriends] = useState<
+    Record<string, boolean>
+  >({})
+  const [loadingFriends, setLoadingFriends] = useState(false)
+  const [counts, setCounts] = useState<{
+    interested: number
+    attending: number
+  }>({ interested: 0, attending: 0 })
   const [reportOpen, setReportOpen] = useState(false)
   const [reportReason, setReportReason] = useState<
     "hate_speech" | "harassment" | "spam" | "inappropriate_content" | "other"
@@ -129,6 +144,33 @@ export default function EventPage() {
       reporter_id: string
     }>
   >([])
+
+  // Load counters for observers and attendees (moved above useEffect)
+  const loadCounts = useCallback(
+    async (eventId: string) => {
+      if (!supabase) return
+      try {
+        const [{ count: interested }, { count: attending }] = await Promise.all(
+          [
+            supabase
+              .from("event_participations")
+              .select("id", { count: "exact", head: true })
+              .eq("event_id", eventId)
+              .eq("status", "interested"),
+            supabase
+              .from("event_participations")
+              .select("id", { count: "exact", head: true })
+              .eq("event_id", eventId)
+              .eq("status", "attending"),
+          ],
+        )
+        setCounts({ interested: interested ?? 0, attending: attending ?? 0 })
+      } catch {
+        // ignore count errors
+      }
+    },
+    [supabase],
+  )
 
   useEffect(() => {
     async function load() {
@@ -149,6 +191,9 @@ export default function EventPage() {
         if (byId.data) found = byId.data as EventFull
       }
       setEvent(found)
+      if (found?.id) {
+        void loadCounts(found.id)
+      }
       const me = (await supabase.auth.getUser()).data.user
       if (me && found?.id) {
         const { data: p } = await withTimeout(
@@ -192,7 +237,50 @@ export default function EventPage() {
       }
     }
     load()
-  }, [supabase, idOrSlug])
+  }, [supabase, idOrSlug, loadCounts])
+
+  // Lazy-load friends when opening invite dialog
+  useEffect(() => {
+    async function loadFriends() {
+      if (!supabase || !inviteOpen) return
+      try {
+        setLoadingFriends(true)
+        const me = (await supabase.auth.getUser()).data.user
+        if (!me) return
+        const { data: friendships } = await withTimeout(
+          supabase
+            .from("friendships")
+            .select("user1_id,user2_id,status")
+            .or(`user1_id.eq.${me.id},user2_id.eq.${me.id}`)
+            .eq("status", "active"),
+          15000,
+        )
+        type FriendshipRow = {
+          user1_id: string
+          user2_id: string
+          status: string
+        }
+        const friendIds = ((friendships || []) as FriendshipRow[]).map((f) =>
+          f.user1_id === me.id ? f.user2_id : f.user1_id,
+        )
+        if (friendIds.length === 0) {
+          setFriends([])
+          return
+        }
+        const { data: profs } = await withTimeout(
+          supabase
+            .from("profiles")
+            .select("id,username,display_name,avatar_url")
+            .in("id", friendIds),
+          15000,
+        )
+        setFriends(profs || [])
+      } finally {
+        setLoadingFriends(false)
+      }
+    }
+    void loadFriends()
+  }, [inviteOpen, supabase])
 
   async function rsvp(newStatus: Participation) {
     if (!supabase || !event) return
@@ -222,6 +310,7 @@ export default function EventPage() {
         throw new Error(friendlyMessage(err))
       }
       setStatus(newStatus)
+      if (event?.id) void loadCounts(event.id)
       toast.success("Zapisano status")
     } catch (e) {
       const msg =
@@ -262,19 +351,41 @@ export default function EventPage() {
   }
 
   async function sendInvite() {
-    if (!supabase || !event || !inviteEmail.trim()) return
+    if (!supabase || !event) return
+    const me = (await supabase.auth.getUser()).data.user
+    if (!me) return
+    const selectedIds = Object.entries(selectedFriends)
+      .filter(([, v]) => v)
+      .map(([id]) => id)
+    if (selectedIds.length === 0) return
     setSendingInvite(true)
     try {
-      // For now, just copy link to clipboard and show success
-      // In a real app, you'd send an email via an API
       const eventUrl = `${window.location.origin}/w/${event.slug || event.id}`
-      await navigator.clipboard.writeText(eventUrl)
-      toast.success("Link do wydarzenia skopiowany do schowka")
+      const rows = selectedIds.map((uid) => ({
+        user_id: uid,
+        type: "event_invite",
+        title: "Zaproszenie na wydarzenie",
+        body:
+          inviteMessage?.trim() ||
+          `Zaproszono Cię na wydarzenie: ${event.title}`,
+        data: {
+          event_id: event.id,
+          slug: event.slug,
+          title: event.title,
+          url: eventUrl,
+        },
+      }))
+      const { error } = await withTimeout(
+        supabase.from("notifications").insert(rows),
+        15000,
+      )
+      if (error) throw error
+      toast.success("Zaproszenia wysłane")
       setInviteOpen(false)
-      setInviteEmail("")
       setInviteMessage("")
+      setSelectedFriends({})
     } catch {
-      toast.error("Nie udało się skopiować linku")
+      toast.error("Nie udało się wysłać zaproszeń")
     } finally {
       setSendingInvite(false)
     }
@@ -315,11 +426,25 @@ export default function EventPage() {
       const path = `${event.id}/cover_${Date.now()}.${ext}`
       const { error: upErr } = await supabase.storage
         .from("event-images")
-        .upload(path, file)
+        .upload(path, file, { upsert: true })
       if (upErr) throw upErr
       const { data: urlData } = supabase.storage
         .from("event-images")
         .getPublicUrl(path)
+      // Best-effort: remove previous cover file to avoid leaks
+      if (event.cover_image_url) {
+        try {
+          const oldUrl = new URL(event.cover_image_url)
+          // public URL format: /storage/v1/object/public/event-images/<objectPath>
+          const parts = oldUrl.pathname.split("/object/public/event-images/")
+          const oldPath = parts[1]
+          if (oldPath) {
+            await supabase.storage.from("event-images").remove([oldPath])
+          }
+        } catch {
+          // ignore cleanup errors
+        }
+      }
       const { error } = await withTimeout(
         supabase
           .from("events")
@@ -340,6 +465,19 @@ export default function EventPage() {
   async function removeCover() {
     if (!supabase || !event || !isOrganizer) return
     try {
+      // Best-effort: remove previous cover file from storage
+      if (event.cover_image_url) {
+        try {
+          const oldUrl = new URL(event.cover_image_url)
+          const parts = oldUrl.pathname.split("/object/public/event-images/")
+          const oldPath = parts[1]
+          if (oldPath) {
+            await supabase.storage.from("event-images").remove([oldPath])
+          }
+        } catch {
+          // ignore cleanup errors
+        }
+      }
       const { error } = await withTimeout(
         supabase
           .from("events")
@@ -410,6 +548,52 @@ export default function EventPage() {
   if (!event)
     return <div className="mx-auto max-w-4xl p-4 md:p-6">Wczytywanie…</div>
 
+  function EventCoverControls({
+    onPick,
+    onRemove,
+    hasCover,
+  }: {
+    onPick: (file: File) => void
+    onRemove: () => void
+    hasCover: boolean
+  }) {
+    const inputRef = useRef<HTMLInputElement | null>(null)
+    return (
+      <div className="absolute bottom-4 left-4 flex gap-2">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.currentTarget.files?.[0]
+            if (f) onPick(f)
+            // Reset the input so selecting the same file again will retrigger onChange
+            if (inputRef.current) inputRef.current.value = ""
+          }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          className="gap-2"
+          onClick={() => inputRef.current?.click()}
+        >
+          <Upload className="h-4 w-4" /> Zmień okładkę
+        </Button>
+        {hasCover && (
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={onRemove}
+            className="gap-2"
+          >
+            <Trash2 className="h-4 w-4" /> Usuń okładkę
+          </Button>
+        )}
+      </div>
+    )
+  }
+
   function buildOsmEmbedUrl(
     coords: CoordinatesShape | null | undefined,
   ): string | null {
@@ -455,6 +639,43 @@ export default function EventPage() {
     : [event.city, event.country].filter(Boolean).join(", ") ||
       "Nieznana lokalizacja"
 
+  function buildOsmViewUrl(
+    coords: CoordinatesShape | null | undefined,
+    fallbackQuery?: string,
+  ): string | null {
+    if (!coords && fallbackQuery) {
+      return `https://www.openstreetmap.org/search?query=${encodeURIComponent(fallbackQuery)}`
+    }
+    if (!coords) return null
+    if (isBBox(coords)) {
+      const [minLon, minLat, maxLon, maxLat] = coords
+      const lat = (minLat + maxLat) / 2
+      const lon = (minLon + maxLon) / 2
+      return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=12/${lat}/${lon}`
+    }
+    if (hasBBoxProp(coords)) {
+      const [minLon, minLat, maxLon, maxLat] = coords.bbox
+      const lat = (minLat + maxLat) / 2
+      const lon = (minLon + maxLon) / 2
+      return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=12/${lat}/${lon}`
+    }
+    if (hasLatLon(coords)) {
+      const { lat, lon } = coords
+      return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=14/${lat}/${lon}`
+    }
+    if (hasLatitudeLongitude(coords)) {
+      const { latitude: lat, longitude: lon } = coords
+      return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=14/${lat}/${lon}`
+    }
+    return fallbackQuery
+      ? `https://www.openstreetmap.org/search?query=${encodeURIComponent(fallbackQuery)}`
+      : null
+  }
+
+  const osmViewUrl = !event.is_online
+    ? buildOsmViewUrl(event.coordinates ?? null, location)
+    : null
+
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-6">
       {/* Cover Image */}
@@ -483,31 +704,11 @@ export default function EventPage() {
           )}
         </div>
         {isOrganizer && (
-          <div className="absolute bottom-4 left-4 flex gap-2">
-            <label className="inline-flex">
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) =>
-                  e.target.files?.[0] && uploadCover(e.target.files[0])
-                }
-              />
-              <Button type="button" variant="outline" className="gap-2">
-                <Upload className="h-4 w-4" /> Zmień okładkę
-              </Button>
-            </label>
-            {event.cover_image_url && (
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={removeCover}
-                className="gap-2"
-              >
-                <Trash2 className="h-4 w-4" /> Usuń okładkę
-              </Button>
-            )}
-          </div>
+          <EventCoverControls
+            onPick={(f: File) => uploadCover(f)}
+            onRemove={removeCover}
+            hasCover={!!event.cover_image_url}
+          />
         )}
       </div>
 
@@ -539,7 +740,31 @@ export default function EventPage() {
 
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4" />
-            <span>{location}</span>
+            {event.is_online ? (
+              event.join_url ? (
+                <a
+                  href={event.join_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-primary hover:underline"
+                >
+                  Dołącz do spotkania <ExternalLink className="h-3 w-3" />
+                </a>
+              ) : (
+                <span>Online</span>
+              )
+            ) : osmViewUrl ? (
+              <a
+                href={osmViewUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 hover:underline"
+              >
+                {location} <ExternalLink className="h-3 w-3" />
+              </a>
+            ) : (
+              <span>{location}</span>
+            )}
           </div>
 
           {event.max_participants && (
@@ -560,7 +785,7 @@ export default function EventPage() {
               className="gap-2"
             >
               <Eye className="h-4 w-4" />
-              Obserwuj
+              Obserwuj ({counts.interested})
             </Button>
             <Button
               variant={status === "attending" ? "default" : "outline"}
@@ -569,7 +794,7 @@ export default function EventPage() {
               className="gap-2"
             >
               <Check className="h-4 w-4" />
-              Biorę udział
+              Biorę udział ({counts.attending})
             </Button>
             <Button
               variant={status === "not_attending" ? "default" : "outline"}
@@ -664,14 +889,51 @@ export default function EventPage() {
                   <DialogTitle>Zaproś znajomych</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">Email</label>
-                    <Input
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="email@example.com"
-                    />
+                  <div className="max-h-64 overflow-y-auto border rounded-md p-2">
+                    {loadingFriends ? (
+                      <div className="text-sm text-muted-foreground p-2">
+                        Ładowanie znajomych…
+                      </div>
+                    ) : friends.length === 0 ? (
+                      <div className="text-sm text-muted-foreground p-2">
+                        Brak znajomych do zaproszenia
+                      </div>
+                    ) : (
+                      friends.map((f) => (
+                        <label
+                          key={f.id}
+                          className="flex items-center gap-3 p-2 rounded hover:bg-muted/50"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={f.avatar_url || "/icons/tecza-icons/1.svg"}
+                            alt=""
+                            className="h-6 w-6 rounded-full border object-cover"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">
+                              {f.display_name || f.username || "Użytkownik"}
+                            </div>
+                            {f.username && (
+                              <div className="text-xs text-muted-foreground truncate">
+                                @{f.username}
+                              </div>
+                            )}
+                          </div>
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={!!selectedFriends[f.id]}
+                            onChange={(e) =>
+                              setSelectedFriends((prev) => ({
+                                ...prev,
+                                [f.id]: e.target.checked,
+                              }))
+                            }
+                          />
+                        </label>
+                      ))
+                    )}
                   </div>
                   <div>
                     <label className="text-sm font-medium">
@@ -693,9 +955,12 @@ export default function EventPage() {
                     </Button>
                     <Button
                       onClick={sendInvite}
-                      disabled={sendingInvite || !inviteEmail.trim()}
+                      disabled={
+                        sendingInvite ||
+                        Object.values(selectedFriends).every((v) => !v)
+                      }
                     >
-                      {sendingInvite ? "Wysyłanie..." : "Wyślij zaproszenie"}
+                      {sendingInvite ? "Wysyłanie..." : "Wyślij zaproszenia"}
                     </Button>
                   </div>
                 </div>

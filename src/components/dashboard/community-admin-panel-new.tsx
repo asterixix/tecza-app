@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -160,11 +160,7 @@ export function CommunityAdminPanel({
   const isModerator = currentUserRole === "moderator" || isOwner
   const canManage = isModerator
 
-  if (!canManage) {
-    return null
-  }
-
-  const loadMembers = async () => {
+  const loadMembers = useCallback(async () => {
     if (!supabase) return
     setLoadingMembers(true)
     try {
@@ -209,9 +205,9 @@ export function CommunityAdminPanel({
     } finally {
       setLoadingMembers(false)
     }
-  }
+  }, [supabase, community.id])
 
-  const loadCommunityPosts = async () => {
+  const loadCommunityPosts = useCallback(async () => {
     if (!supabase) return
     setLoadingPosts(true)
     try {
@@ -262,6 +258,20 @@ export function CommunityAdminPanel({
     } finally {
       setLoadingPosts(false)
     }
+  }, [supabase, community.id])
+
+  // Ensure data is loaded when switching tabs so lists/moderation are immediately visible
+  useEffect(() => {
+    if (!canManage) return
+    if (activeTab === "members") {
+      void loadMembers()
+    } else if (activeTab === "moderation") {
+      void loadCommunityPosts()
+    }
+  }, [activeTab, canManage, loadMembers, loadCommunityPosts])
+
+  if (!canManage) {
+    return null
   }
 
   const handleSaveSettings = async () => {
@@ -675,14 +685,7 @@ export function CommunityAdminPanel({
                     </div>
                   </div>
 
-                  {isOwner && (
-                    <div className="flex justify-end">
-                      <Button onClick={handleSaveSettings} disabled={loading}>
-                        <Save className="h-4 w-4 mr-2" />
-                        Zapisz ustawienia
-                      </Button>
-                    </div>
-                  )}
+                  {/* Save button moved to dialog footer */}
                 </CardContent>
               </Card>
 
@@ -1195,6 +1198,12 @@ export function CommunityAdminPanel({
               <X className="h-4 w-4 mr-2" />
               Zamknij
             </Button>
+            {isOwner && activeTab === "overview" && (
+              <Button onClick={handleSaveSettings} disabled={loading}>
+                <Save className="h-4 w-4 mr-2" />
+                Zapisz ustawienia
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

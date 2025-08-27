@@ -303,8 +303,8 @@ export default function CommunitiesPage() {
                             : "Ograniczona"}
                       </Badge>
                     </div>
-                    {/* Avatar positioned inside cover to avoid clipping on mobile */}
-                    <div className="absolute -bottom-8 left-4 pointer-events-none">
+                    {/* Avatar positioned fully within cover for mobile visibility */}
+                    <div className="absolute bottom-3 left-4 pointer-events-none">
                       <div className="rounded-full bg-white dark:bg-neutral-900 p-0.5 shadow-lg">
                         <Image
                           src={c.avatar_url || "/icons/tecza-icons/1.svg"}
