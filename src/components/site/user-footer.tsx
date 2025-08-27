@@ -11,7 +11,7 @@ export function UserFooter() {
         <p className="leading-tight text-center sm:text-left">
           © Copyright <time aria-label="Rok">{year}</time> Tęcza.app —
           Dziękujemy, że jesteś z nami.{" "}
-          <Badge variant="outline" title="Wersja 0.1.4" color="purple">
+          <Badge variant="outline" title="Wersja 0.1.4.2" color="purple">
             <Link
               className="hover:underline"
               href="https://github.com/asterixix/tecza-app"

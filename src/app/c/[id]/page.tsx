@@ -5,9 +5,10 @@ import { useParams } from "next/navigation"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PostComposer } from "@/components/dashboard/post-composer"
-import { CommunityAdminPanel } from "@/components/dashboard/community-admin-panel"
+import { CommunityAdminPanel } from "@/components/dashboard/community-admin-panel-new"
 import { CommunityChat } from "@/components/dashboard/community-chat"
 import { CommunityEvents } from "@/components/dashboard/community-events"
+import { CommunityPosts } from "@/components/dashboard/community-posts"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -87,6 +88,7 @@ export default function CommunityPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [joining, setJoining] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  const [postsRefreshToken, setPostsRefreshToken] = useState(0)
 
   const loadCommunityData = useCallback(async () => {
     if (!supabase || !idOrSlug) return
@@ -602,24 +604,17 @@ export default function CommunityPage() {
                     communityId={community.id}
                     onPosted={() => {
                       toast.success("Post został opublikowany")
+                      setPostsRefreshToken((x) => x + 1)
                     }}
                   />
                 </CardContent>
               </Card>
             )}
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="text-center py-8 text-muted-foreground">
-                  <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Posty społeczności będą widoczne tutaj</p>
-                  <p className="text-sm">
-                    System postów społeczności będzie dostępny w przyszłych
-                    wersjach
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <CommunityPosts
+              communityId={community.id}
+              refreshToken={postsRefreshToken}
+            />
           </TabsContent>
 
           {community.has_chat && (

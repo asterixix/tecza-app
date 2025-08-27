@@ -9,6 +9,7 @@ import type {
 } from "@supabase/supabase-js"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input as FileInput } from "@/components/ui/input"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -69,6 +70,7 @@ export default function EventsPage() {
   const [isOnline, setIsOnline] = useState(false)
   const [isFree, setIsFree] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [coverFile, setCoverFile] = useState<File | null>(null)
   const [loadError, setLoadError] = useState<null | {
     message: string
     code?: string
@@ -162,6 +164,25 @@ export default function EventsPage() {
       const baseSlug = slugify(title)
       type InsertResult = { id: string; slug: string | null }
 
+      // Optional: upload cover file first
+      let coverUrl: string | null = null
+      if (coverFile) {
+        const sizeLimit = 5 * 1024 * 1024 // 5MB
+        if (coverFile.size > sizeLimit) {
+          throw new Error("Okładka przekracza 5MB")
+        }
+        const ext = coverFile.name.split(".").pop()
+        const path = `${(newId || baseSlug || Date.now().toString()).toString()}/cover_${Date.now()}.${ext}`
+        const { error: upErr } = await supabase.storage
+          .from("event-images")
+          .upload(path, coverFile)
+        if (upErr) throw upErr
+        const { data: urlData } = supabase.storage
+          .from("event-images")
+          .getPublicUrl(path)
+        coverUrl = urlData.publicUrl
+      }
+
       // helper to perform insert with a given slug value
       const doInsert = async (
         slugValue: string | null,
@@ -181,6 +202,7 @@ export default function EventsPage() {
             is_free: isFree,
             category,
             organizer_id: me.id,
+            cover_image_url: coverUrl,
             ...(slugValue ? { slug: slugValue } : {}),
           })
           .select("id,slug")
@@ -416,6 +438,17 @@ export default function EventsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
+            <div>
+              <div className="text-sm font-medium mb-1">
+                Okładka (opcjonalnie)
+              </div>
+              <FileInput
+                type="file"
+                accept="image/*"
+                onChange={(e) => setCoverFile(e.target.files?.[0] || null)}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">Maks. 5MB</p>
+            </div>
             <div>
               <div className="text-sm font-medium mb-1">Tytuł</div>
               <Input

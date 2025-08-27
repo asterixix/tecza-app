@@ -6,29 +6,29 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +43,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getSupabase } from "@/lib/supabase-browser"
 import { toast } from "sonner"
 import {
@@ -53,13 +54,12 @@ import {
   Upload,
   Trash2,
   UserMinus,
-  Crown,
-  UserCheck,
-  ImageIcon,
   Save,
   X,
+  Eye,
+  EyeOff,
 } from "lucide-react"
-import Link from "next/link"
+import Image from "next/image"
 import { withTimeout } from "@/lib/errors"
 
 interface Community {
@@ -99,9 +99,9 @@ interface CommunityPost {
   hidden_reason: string | null
   user_id: string
   profiles?: {
-    username?: string | null
-    display_name?: string | null
-    avatar_url?: string | null
+    username: string | null
+    display_name: string | null
+    avatar_url: string | null
   }
 }
 
@@ -164,143 +164,6 @@ export function CommunityAdminPanel({
     return null
   }
 
-  // (deduped) posts moderation state – already declared above
-
-  const loadCommunityPosts = async () => {
-    if (!supabase) return
-    setLoadingPosts(true)
-    try {
-      const { data: posts } = await withTimeout(
-        supabase
-          .from("posts")
-          .select(
-            `
-            id,
-            content,
-            created_at,
-            hidden_at,
-            hidden_reason,
-            user_id,
-            profiles!posts_user_id_fkey(username, display_name, avatar_url)
-          `,
-          )
-          .eq("community_id", community.id)
-          .order("created_at", { ascending: false })
-          .limit(20),
-        15000,
-      )
-
-      setCommunityPosts(
-        (posts || []).map(
-          (post: {
-            id: string
-            content: string
-            created_at: string
-            hidden_at: string | null
-            hidden_reason: string | null
-            user_id: string
-            profiles?:
-              | {
-                  username?: string | null
-                  display_name?: string | null
-                  avatar_url?: string | null
-                }
-              | Array<{
-                  username?: string | null
-                  display_name?: string | null
-                  avatar_url?: string | null
-                }>
-          }) => ({
-            ...post,
-            profiles: Array.isArray(post.profiles)
-              ? post.profiles[0]
-              : post.profiles,
-          }),
-        ),
-      )
-    } catch (error) {
-      console.error("Failed to load community posts:", error)
-      toast.error("Nie udało się wczytać postów")
-    } finally {
-      setLoadingPosts(false)
-    }
-  }
-
-  const handleHidePost = async (postId: string, reason: string) => {
-    if (!supabase || !canManage) return
-
-    setHidingPost(postId)
-    try {
-      const { error } = await withTimeout(
-        supabase
-          .from("posts")
-          .update({
-            hidden_at: new Date().toISOString(),
-            hidden_reason: reason,
-          })
-          .eq("id", postId),
-        15000,
-      )
-
-      if (error) throw error
-
-      setCommunityPosts((prev) =>
-        prev.map((post) =>
-          post.id === postId
-            ? {
-                ...post,
-                hidden_at: new Date().toISOString(),
-                hidden_reason: reason,
-              }
-            : post,
-        ),
-      )
-      toast.success("Post został ukryty")
-    } catch (error) {
-      console.error("Failed to hide post:", error)
-      toast.error("Nie udało się ukryć postu")
-    } finally {
-      setHidingPost(null)
-    }
-  }
-
-  const handleUnhidePost = async (postId: string) => {
-    if (!supabase || !canManage) return
-
-    setHidingPost(postId)
-    try {
-      const { error } = await withTimeout(
-        supabase
-          .from("posts")
-          .update({
-            hidden_at: null,
-            hidden_reason: null,
-          })
-          .eq("id", postId),
-        15000,
-      )
-
-      if (error) throw error
-
-      setCommunityPosts((prev) =>
-        prev.map((post) =>
-          post.id === postId
-            ? {
-                ...post,
-                hidden_at: null,
-                hidden_reason: null,
-              }
-            : post,
-        ),
-      )
-      toast.success("Post został przywrócony")
-    } catch (error) {
-      console.error("Failed to unhide post:", error)
-      toast.error("Nie udało się przywrócić postu")
-    } finally {
-      setHidingPost(null)
-    }
-  }
   const loadMembers = async () => {
     if (!supabase) return
     setLoadingMembers(true)
@@ -339,14 +202,65 @@ export function CommunityAdminPanel({
             }
           }),
         )
-      } else {
-        setMembers([])
       }
     } catch (error) {
       console.error("Failed to load members:", error)
       toast.error("Nie udało się wczytać listy członków")
     } finally {
       setLoadingMembers(false)
+    }
+  }
+
+  const loadCommunityPosts = async () => {
+    if (!supabase) return
+    setLoadingPosts(true)
+    try {
+      const { data: posts } = await withTimeout(
+        supabase
+          .from("posts")
+          .select(
+            `
+            id,
+    content,
+            created_at,
+            hidden_at,
+            hidden_reason,
+            user_id,
+            profiles!posts_user_id_fkey(username, display_name, avatar_url)
+          `,
+          )
+          .eq("community_id", community.id)
+          .order("created_at", { ascending: false })
+          .limit(20),
+        15000,
+      )
+
+      type ProfileLite = {
+        username: string | null
+        display_name: string | null
+        avatar_url: string | null
+      }
+      type PostRow = {
+        id: string
+        content: string
+        created_at: string
+        hidden_at: string | null
+        hidden_reason: string | null
+        user_id: string
+        profiles: ProfileLite | ProfileLite[] | null
+      }
+
+      const normalized = ((posts as PostRow[] | null) || []).map((p) => ({
+        ...p,
+        profiles: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles,
+      })) as CommunityPost[]
+
+      setCommunityPosts(normalized)
+    } catch (error) {
+      console.error("Failed to load community posts:", error)
+      toast.error("Nie udało się wczytać postów")
+    } finally {
+      setLoadingPosts(false)
     }
   }
 
@@ -522,6 +436,82 @@ export function CommunityAdminPanel({
     }
   }
 
+  const handleHidePost = async (postId: string, reason: string) => {
+    if (!supabase || !canManage) return
+
+    setHidingPost(postId)
+    try {
+      const { error } = await withTimeout(
+        supabase
+          .from("posts")
+          .update({
+            hidden_at: new Date().toISOString(),
+            hidden_reason: reason,
+          })
+          .eq("id", postId),
+        15000,
+      )
+
+      if (error) throw error
+
+      setCommunityPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                hidden_at: new Date().toISOString(),
+                hidden_reason: reason,
+              }
+            : post,
+        ),
+      )
+      toast.success("Post został ukryty")
+    } catch (error) {
+      console.error("Failed to hide post:", error)
+      toast.error("Nie udało się ukryć postu")
+    } finally {
+      setHidingPost(null)
+    }
+  }
+
+  const handleUnhidePost = async (postId: string) => {
+    if (!supabase || !canManage) return
+
+    setHidingPost(postId)
+    try {
+      const { error } = await withTimeout(
+        supabase
+          .from("posts")
+          .update({
+            hidden_at: null,
+            hidden_reason: null,
+          })
+          .eq("id", postId),
+        15000,
+      )
+
+      if (error) throw error
+
+      setCommunityPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                hidden_at: null,
+                hidden_reason: null,
+              }
+            : post,
+        ),
+      )
+      toast.success("Post został przywrócony")
+    } catch (error) {
+      console.error("Failed to unhide post:", error)
+      toast.error("Nie udało się przywrócić postu")
+    } finally {
+      setHidingPost(null)
+    }
+  }
+
   const handleDeleteCommunity = async () => {
     if (!supabase || !isOwner) return
 
@@ -629,10 +619,10 @@ export function CommunityAdminPanel({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="public">Publiczna</SelectItem>
+                          <SelectItem value="private">Prywatna</SelectItem>
                           <SelectItem value="restricted">
                             Ograniczona
                           </SelectItem>
-                          <SelectItem value="private">Prywatna</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -689,7 +679,7 @@ export function CommunityAdminPanel({
                     <div className="flex justify-end">
                       <Button onClick={handleSaveSettings} disabled={loading}>
                         <Save className="h-4 w-4 mr-2" />
-                        {loading ? "Zapisywanie..." : "Zapisz zmiany"}
+                        Zapisz ustawienia
                       </Button>
                     </div>
                   )}
@@ -708,30 +698,20 @@ export function CommunityAdminPanel({
                     <div className="space-y-2">
                       <Label>Awatar społeczności</Label>
                       <div className="flex items-center gap-4">
-                        <div className="h-16 w-16 rounded-lg border overflow-hidden">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={
-                              community.avatar_url || "/icons/tecza-icons/1.svg"
-                            }
-                            alt="Awatar"
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => avatarInputRef.current?.click()}
-                            disabled={loading}
-                          >
-                            <Upload className="h-4 w-4 mr-2" />
-                            Zmień awatar
-                          </Button>
-                          <p className="text-xs text-muted-foreground">
-                            Maksymalny rozmiar: 2MB
-                          </p>
-                        </div>
+                        <Avatar className="h-16 w-16">
+                          <AvatarImage src={community.avatar_url || ""} />
+                          <AvatarFallback>
+                            {community.name[0]?.toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <Button
+                          variant="outline"
+                          onClick={() => avatarInputRef.current?.click()}
+                          disabled={loading || !isOwner}
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Zmień awatar
+                        </Button>
                       </div>
                       <input
                         ref={avatarInputRef}
@@ -748,34 +728,26 @@ export function CommunityAdminPanel({
                     <div className="space-y-2">
                       <Label>Okładka społeczności</Label>
                       <div className="space-y-2">
-                        <div className="h-24 w-full rounded-lg border overflow-hidden bg-muted">
-                          {community.cover_image_url ? (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img
+                        {community.cover_image_url && (
+                          <div className="aspect-video w-full relative overflow-hidden rounded-md border">
+                            <Image
                               src={community.cover_image_url}
-                              alt="Okładka"
-                              className="h-full w-full object-cover"
+                              alt="Okładka społeczności"
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 800px"
+                              priority={false}
                             />
-                          ) : (
-                            <div className="h-full w-full flex items-center justify-center text-muted-foreground">
-                              <ImageIcon className="h-8 w-8" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => coverInputRef.current?.click()}
-                            disabled={loading}
-                          >
-                            <Upload className="h-4 w-4 mr-2" />
-                            Zmień okładkę
-                          </Button>
-                          <p className="text-xs text-muted-foreground">
-                            Maksymalny rozmiar: 5MB
-                          </p>
-                        </div>
+                          </div>
+                        )}
+                        <Button
+                          variant="outline"
+                          onClick={() => coverInputRef.current?.click()}
+                          disabled={loading || !isOwner}
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Zmień okładkę
+                        </Button>
                       </div>
                       <input
                         ref={coverInputRef}
@@ -843,7 +815,7 @@ export function CommunityAdminPanel({
                     <div className="space-y-0.5">
                       <Label>Wiki społeczności</Label>
                       <p className="text-sm text-muted-foreground">
-                        Wspólna baza wiedzy i dokumentacji
+                        Pozwala na tworzenie i edytowanie wiki społeczności
                       </p>
                     </div>
                     <Switch
@@ -870,7 +842,7 @@ export function CommunityAdminPanel({
                   <CardContent>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
+                        <Button variant="destructive" disabled={loading}>
                           <Trash2 className="h-4 w-4 mr-2" />
                           Usuń społeczność
                         </Button>
@@ -882,7 +854,7 @@ export function CommunityAdminPanel({
                           </AlertDialogTitle>
                           <AlertDialogDescription>
                             Ta akcja jest nieodwracalna. Wszystkie dane
-                            społeczności, posty, członkowie i historia zostaną
+                            społeczności, posty, członkowie i wydarzenia zostaną
                             trwale usunięte.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
@@ -915,15 +887,15 @@ export function CommunityAdminPanel({
                 <CardContent>
                   {loadingMembers ? (
                     <div className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        Wczytywanie członków...
-                      </p>
+                      <div className="text-sm text-muted-foreground">
+                        Ładowanie członków...
+                      </div>
                     </div>
                   ) : members.length === 0 ? (
                     <div className="text-center py-8">
-                      <p className="text-muted-foreground">
+                      <div className="text-sm text-muted-foreground">
                         Brak członków do wyświetlenia
-                      </p>
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -933,141 +905,85 @@ export function CommunityAdminPanel({
                           className="flex items-center justify-between p-4 border rounded-lg"
                         >
                           <div className="flex items-center gap-3">
-                            <Link
-                              href={
-                                member.username ? `/u/${member.username}` : "#"
+                            <Avatar>
+                              <AvatarImage src={member.avatar_url || ""} />
+                              <AvatarFallback>
+                                {member.display_name?.[0] ||
+                                  member.username?.[0] ||
+                                  "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium">
+                                {member.display_name || member.username}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                @{member.username}
+                              </div>
+                            </div>
+                            <Badge
+                              variant={
+                                member.role === "owner"
+                                  ? "default"
+                                  : member.role === "moderator"
+                                    ? "secondary"
+                                    : "outline"
                               }
                             >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={
-                                  member.avatar_url ||
-                                  "/icons/tecza-icons/1.svg"
-                                }
-                                alt="Awatar"
-                                className="h-10 w-10 rounded-full object-cover border"
-                              />
-                            </Link>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <p className="font-medium">
-                                  {member.display_name ||
-                                    member.username ||
-                                    "Użytkownik"}
-                                </p>
-                                <Badge
-                                  variant={
-                                    member.role === "owner"
-                                      ? "default"
-                                      : member.role === "moderator"
-                                        ? "secondary"
-                                        : "outline"
-                                  }
-                                >
-                                  {member.role === "owner"
-                                    ? "Właściciel"
-                                    : member.role === "moderator"
-                                      ? "Moderator"
-                                      : "Członek"}
-                                </Badge>
-                              </div>
-                              {member.username && (
-                                <p className="text-sm text-muted-foreground">
-                                  @{member.username}
-                                </p>
-                              )}
-                            </div>
+                              {member.role === "owner"
+                                ? "Właściciel"
+                                : member.role === "moderator"
+                                  ? "Moderator"
+                                  : "Członek"}
+                            </Badge>
                           </div>
-
                           <div className="flex items-center gap-2">
                             {isOwner && member.role !== "owner" && (
                               <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleRoleChange(member.id, "member")
-                                  }
-                                  disabled={actioningMember === member.id}
-                                  className={
-                                    member.role === "member"
-                                      ? "bg-secondary"
-                                      : ""
-                                  }
-                                >
-                                  <UserCheck className="h-4 w-4 mr-1" />
-                                  Członek
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleRoleChange(member.id, "moderator")
-                                  }
-                                  disabled={actioningMember === member.id}
-                                  className={
-                                    member.role === "moderator"
-                                      ? "bg-secondary"
-                                      : ""
-                                  }
-                                >
-                                  <Shield className="h-4 w-4 mr-1" />
-                                  Moderator
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleRoleChange(member.id, "owner")
-                                  }
+                                <Select
+                                  value={member.role}
+                                  onValueChange={(
+                                    role: "member" | "moderator" | "owner",
+                                  ) => handleRoleChange(member.id, role)}
                                   disabled={actioningMember === member.id}
                                 >
-                                  <Crown className="h-4 w-4 mr-1" />
-                                  Właściciel
+                                  <SelectTrigger className="w-32">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="member">
+                                      Członek
+                                    </SelectItem>
+                                    <SelectItem value="moderator">
+                                      Moderator
+                                    </SelectItem>
+                                    <SelectItem value="owner">
+                                      Właściciel
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleKickMember(member.id)}
+                                  disabled={actioningMember === member.id}
+                                >
+                                  <UserMinus className="h-4 w-4" />
                                 </Button>
                               </>
                             )}
-
-                            {canManage && member.role !== "owner" && (
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={actioningMember === member.id}
-                                  >
-                                    <UserMinus className="h-4 w-4 mr-1" />
-                                    Usuń
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>
-                                      Usunąć{" "}
-                                      {member.display_name || member.username}{" "}
-                                      ze społeczności?
-                                    </AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Użytkownik zostanie usunięty ze
-                                      społeczności i będzie musiał ponownie
-                                      dołączyć.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>
-                                      Anuluj
-                                    </AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() =>
-                                        handleKickMember(member.id)
-                                      }
-                                    >
-                                      Usuń
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            )}
+                            {isModerator &&
+                              !isOwner &&
+                              member.role === "member" && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleKickMember(member.id)}
+                                  disabled={actioningMember === member.id}
+                                >
+                                  <UserMinus className="h-4 w-4" />
+                                </Button>
+                              )}
                           </div>
                         </div>
                       ))}
@@ -1126,9 +1042,7 @@ export function CommunityAdminPanel({
                       }
                     >
                       <Megaphone className="h-4 w-4 mr-2" />
-                      {savingAnnouncement
-                        ? "Publikowanie..."
-                        : "Opublikuj ogłoszenie"}
+                      Dodaj ogłoszenie
                     </Button>
                   </div>
                 </CardContent>
@@ -1140,18 +1054,22 @@ export function CommunityAdminPanel({
                 <CardHeader>
                   <CardTitle>Moderacja postów</CardTitle>
                   <CardDescription>
-                    Ukrywaj i przywracaj posty dodane w społeczności
+                    Zarządzaj postami opublikowanymi w społeczności
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {loadingPosts ? (
                     <div className="text-center py-8">
-                      <p className="text-muted-foreground">Wczytywanie…</p>
+                      <div className="text-sm text-muted-foreground">
+                        Ładowanie postów...
+                      </div>
                     </div>
                   ) : communityPosts.length === 0 ? (
                     <div className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        Brak postów do moderacji
+                      <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Brak postów do moderacji</p>
+                      <p className="text-sm text-muted-foreground">
+                        Posty opublikowane w społeczności będą wyświetlane tutaj
                       </p>
                     </div>
                   ) : (
@@ -1159,69 +1077,109 @@ export function CommunityAdminPanel({
                       {communityPosts.map((post) => (
                         <div
                           key={post.id}
-                          className="p-4 border rounded-lg space-y-2"
+                          className={`p-4 border rounded-lg ${
+                            post.hidden_at ? "bg-muted/50" : ""
+                          }`}
                         >
-                          <div className="flex items-center gap-3">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={
-                                post.profiles?.avatar_url ||
-                                "/icons/tecza-icons/1.svg"
-                              }
-                              alt="Awatar"
-                              className="h-8 w-8 rounded-full border object-cover"
-                            />
-                            <div>
-                              <p className="font-medium">
-                                {post.profiles?.display_name ||
-                                  post.profiles?.username ||
-                                  "Użytkownik"}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(post.created_at).toLocaleString()}
-                              </p>
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage
+                                    src={post.profiles?.avatar_url || ""}
+                                  />
+                                  <AvatarFallback>
+                                    {post.profiles?.display_name?.[0] ||
+                                      post.profiles?.username?.[0] ||
+                                      "U"}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="text-sm font-medium">
+                                  {post.profiles?.display_name ||
+                                    post.profiles?.username ||
+                                    "Nieznany użytkownik"}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(post.created_at).toLocaleDateString(
+                                    "pl-PL",
+                                  )}
+                                </span>
+                                {post.hidden_at && (
+                                  <Badge variant="secondary">Ukryty</Badge>
+                                )}
+                              </div>
+                              <p className="text-sm">{post.content}</p>
+                              {post.hidden_at && post.hidden_reason && (
+                                <p className="text-xs text-muted-foreground">
+                                  Powód ukrycia: {post.hidden_reason}
+                                </p>
+                              )}
                             </div>
-                          </div>
-
-                          {post.hidden_at ? (
-                            <Badge variant="destructive">Ukryty</Badge>
-                          ) : null}
-
-                          <p className="whitespace-pre-wrap break-words">
-                            {post.content}
-                          </p>
-
-                          {post.hidden_reason ? (
-                            <p className="text-xs text-muted-foreground">
-                              Powód ukrycia: {post.hidden_reason}
-                            </p>
-                          ) : null}
-
-                          <div className="flex justify-end">
-                            {post.hidden_at ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={hidingPost === post.id}
-                                onClick={() => handleUnhidePost(post.id)}
-                              >
-                                Przywróć
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={hidingPost === post.id}
-                                onClick={() => {
-                                  const reason =
-                                    prompt("Podaj powód ukrycia:")?.trim() ||
-                                    "Naruszenie zasad"
-                                  handleHidePost(post.id, reason)
-                                }}
-                              >
-                                Ukryj
-                              </Button>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {post.hidden_at ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleUnhidePost(post.id)}
+                                  disabled={hidingPost === post.id}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  Pokaż
+                                </Button>
+                              ) : (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      disabled={hidingPost === post.id}
+                                    >
+                                      <EyeOff className="h-4 w-4" />
+                                      Ukryj
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>
+                                        Ukryj post
+                                      </AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Podaj powód ukrycia tego postu. Post
+                                        zostanie ukryty dla wszystkich
+                                        użytkowników.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <div className="py-4">
+                                      <Textarea
+                                        id={`reason-${post.id}`}
+                                        placeholder="Wprowadź powód ukrycia..."
+                                        rows={3}
+                                      />
+                                    </div>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>
+                                        Anuluj
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => {
+                                          const reasonInput =
+                                            document.getElementById(
+                                              `reason-${post.id}`,
+                                            ) as HTMLTextAreaElement
+                                          const reason =
+                                            reasonInput?.value ||
+                                            "Naruszenie regulaminu"
+                                          handleHidePost(post.id, reason)
+                                        }}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Ukryj post
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}

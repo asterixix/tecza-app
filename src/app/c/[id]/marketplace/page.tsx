@@ -21,43 +21,23 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { Heart, Loader2, Search, Edit2 } from "lucide-react"
+import { Loader2, Search, Edit2 } from "lucide-react"
 
 type UUID = string
-
-type Category = {
-  id: UUID
-  name: string
-  slug: string
-}
 
 type Listing = {
   id: UUID
   title: string
   description: string | null
-  price_cents: number | null
+  price_cents: number
   currency: string
   status: "active" | "sold" | "hidden"
-  condition: "new" | "like_new" | "good" | "used" | "poor" | null
   created_at: string
-  owner_id: UUID
-  category_id: UUID | null
+  seller_id: UUID
+  images: string[] | null
 }
 
-type ListingWithImages = Listing & {
-  images?: { storage_path: string; position: number }[]
-}
-
-const conditions: Array<{
-  value: NonNullable<Listing["condition"]>
-  label: string
-}> = [
-  { value: "new", label: "Nowe" },
-  { value: "like_new", label: "Jak nowe" },
-  { value: "good", label: "Dobre" },
-  { value: "used", label: "Używane" },
-  { value: "poor", label: "Słaby stan" },
-]
+type ListingWithImages = Listing
 
 export default function CommunityMarketplacePage() {
   const supabase = getSupabase()
@@ -65,7 +45,6 @@ export default function CommunityMarketplacePage() {
   const communityId = params?.id as UUID
   const { toast } = useToast()
 
-  const [categories, setCategories] = useState<Category[]>([])
   const [listings, setListings] = useState<ListingWithImages[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -74,57 +53,37 @@ export default function CommunityMarketplacePage() {
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
   const [currency, setCurrency] = useState("PLN")
-  const [condition, setCondition] = useState<Listing["condition"]>("used")
-  const [categoryId, setCategoryId] = useState<string | null>(null)
   const [files, setFiles] = useState<FileList | null>(null)
 
   // filters state
   type FilterStatus = "active" | "sold" | "hidden" | "all"
-  type FilterCondition = "all" | "new" | "like_new" | "good" | "used" | "poor"
-  const [filterCategoryId, setFilterCategoryId] = useState<string | undefined>(
-    undefined,
-  )
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("active")
-  const [filterCondition, setFilterCondition] = useState<FilterCondition>("all")
   const [searchQuery, setSearchQuery] = useState("")
 
   // favorites
-  const [favoriteSet, setFavoriteSet] = useState<Set<string>>(new Set())
   const [meId, setMeId] = useState<string | null>(null)
 
   const load = async () => {
     if (!supabase) return
     setLoading(true)
     try {
-      const [{ data: cats, error: catsErr }, { data: lst, error: lstErr }, me] =
-        await Promise.all([
-          supabase
-            .from("marketplace_categories")
-            .select("id,name,slug")
-            .eq("community_id", communityId)
-            .order("position"),
-          supabase
-            .from("marketplace_listings")
-            .select(
-              "id,title,description,price_cents,currency,status,condition,created_at,owner_id,category_id, images:marketplace_listing_images(storage_path,position)",
-            )
-            .eq("community_id", communityId)
-            .order("created_at", { ascending: false }),
-          supabase.auth.getUser(),
-        ])
-      if (catsErr) throw catsErr
+      const [{ data: lst, error: lstErr }, me] = await Promise.all([
+        supabase
+          .from("community_marketplace_listings")
+          .select(
+            "id,title,description,price_cents,currency,status,created_at,seller_id,images",
+          )
+          .eq("community_id", communityId)
+          .order("created_at", { ascending: false }),
+        supabase.auth.getUser(),
+      ])
       if (lstErr) throw lstErr
-      setCategories(cats ?? [])
-      const rawListings = (lst ?? []) as unknown as ListingWithImages[]
+      const rawListings = (lst ?? []) as ListingWithImages[]
 
       // Apply filters client-side (simple and safe with RLS)
       let filtered = rawListings
-      if (filterCategoryId)
-        filtered = filtered.filter((l) => l.category_id === filterCategoryId)
       if (filterStatus !== "all")
         filtered = filtered.filter((l) => l.status === filterStatus)
-      if (filterCondition !== "all")
-        filtered = filtered.filter((l) => l.condition === filterCondition)
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase()
         filtered = filtered.filter(
@@ -138,17 +97,6 @@ export default function CommunityMarketplacePage() {
 
       const uid = me.data?.user?.id ?? null
       setMeId(uid)
-      if (uid && filtered.length) {
-        const ids = filtered.map((l) => l.id)
-        const { data: favs } = await supabase
-          .from("marketplace_favorites")
-          .select("listing_id")
-          .eq("user_id", uid)
-          .in("listing_id", ids)
-        setFavoriteSet(new Set((favs ?? []).map((f) => f.listing_id as string)))
-      } else {
-        setFavoriteSet(new Set())
-      }
     } catch {
       toast({
         title: "Błąd",
@@ -168,21 +116,23 @@ export default function CommunityMarketplacePage() {
   const createListing = async () => {
     if (!supabase) return
     try {
-      const price_cents = price
-        ? Math.round(parseFloat(price.replace(",", ".")) * 100)
-        : null
+      const { data: me } = await supabase.auth.getUser()
+      const uid = me.user?.id
+      if (!uid) throw new Error("Brak użytkownika")
+      const price_cents = Math.round(parseFloat(price.replace(",", ".")) * 100)
+      if (!price_cents || Number.isNaN(price_cents))
+        throw new Error("Nieprawidłowa cena")
       const { data: created, error } = await supabase
-        .from("marketplace_listings")
+        .from("community_marketplace_listings")
         .insert({
           community_id: communityId,
+          seller_id: uid,
           title: title.trim(),
           description: description.trim() || null,
           price_cents,
           currency,
-          condition: condition ?? null,
-          category_id: categoryId,
         })
-        .select("id")
+        .select("id,images")
         .single()
       if (error) throw error
 
@@ -190,29 +140,28 @@ export default function CommunityMarketplacePage() {
       const listingId = created?.id as string | undefined
       if (listingId && files && files.length) {
         const bucket = supabase.storage.from("marketplace-images")
-        const uploads = Array.from(files).map(async (file, idx) => {
-          const path = `${communityId}/${listingId}/${file.name}`
+        const uploads = Array.from(files).map(async (file) => {
+          const path = `${communityId}/${listingId}/${Date.now()}-${file.name}`
           const { error: upErr } = await bucket.upload(path, file, {
             upsert: true,
             cacheControl: "3600",
           })
           if (upErr) throw upErr
-          const { error: imgErr } = await supabase
-            .from("marketplace_listing_images")
-            .insert({
-              listing_id: listingId,
-              storage_path: path,
-              position: idx * 10,
-            })
-          if (imgErr) throw imgErr
+          return path
         })
         try {
-          await Promise.all(uploads)
+          const paths = await Promise.all(uploads)
+          const nextImages = [...(created?.images ?? []), ...paths]
+          const { error: updateErr } = await supabase
+            .from("community_marketplace_listings")
+            .update({ images: nextImages })
+            .eq("id", listingId)
+          if (updateErr) throw updateErr
         } catch {
           toast({
             title: "Uwaga",
             description:
-              "Niektóre obrazy nie zostały przesłane. Upewnij się, że istnieje bucket 'marketplace-images' i RLS.",
+              "Niektóre obrazy nie zostały przesłane. Upewnij się, że istnieje bucket 'marketplace-images' i odpowiednie polityki.",
             variant: "warning",
           })
         }
@@ -222,8 +171,6 @@ export default function CommunityMarketplacePage() {
       setDescription("")
       setPrice("")
       setCurrency("PLN")
-      setCondition("used")
-      setCategoryId(null)
       setFiles(null)
       await load()
     } catch {
@@ -239,7 +186,7 @@ export default function CommunityMarketplacePage() {
     if (!supabase) return
     try {
       const { error } = await supabase
-        .from("marketplace_listings")
+        .from("community_marketplace_listings")
         .update({ status: "sold" })
         .eq("id", id)
       if (error) throw error
@@ -257,7 +204,7 @@ export default function CommunityMarketplacePage() {
     if (!supabase) return
     try {
       const { error } = await supabase
-        .from("marketplace_listings")
+        .from("community_marketplace_listings")
         .delete()
         .eq("id", id)
       if (error) throw error
@@ -276,35 +223,6 @@ export default function CommunityMarketplacePage() {
     [currency],
   )
 
-  const toggleFavorite = async (id: UUID) => {
-    if (!supabase || !meId) return
-    const liked = favoriteSet.has(id)
-    try {
-      if (liked) {
-        await supabase
-          .from("marketplace_favorites")
-          .delete()
-          .eq("listing_id", id)
-          .eq("user_id", meId)
-      } else {
-        await supabase
-          .from("marketplace_favorites")
-          .insert({ listing_id: id, user_id: meId })
-      }
-      const next = new Set(favoriteSet)
-      if (liked) next.delete(id)
-      else next.add(id)
-      setFavoriteSet(next)
-      await load()
-    } catch {
-      toast({
-        title: "Błąd",
-        description: "Nie udało się zaktualizować ulubionych.",
-        variant: "destructive",
-      })
-    }
-  }
-
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -320,24 +238,6 @@ export default function CommunityMarketplacePage() {
             <Search className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
           </div>
           <Select
-            value={filterCategoryId ?? "all"}
-            onValueChange={(v: string) =>
-              setFilterCategoryId(v === "all" ? undefined : v)
-            }
-          >
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Kategoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Wszystkie</SelectItem>
-              {categories.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
             value={filterStatus}
             onValueChange={(v: FilterStatus) => setFilterStatus(v)}
           >
@@ -349,22 +249,6 @@ export default function CommunityMarketplacePage() {
               <SelectItem value="active">Aktywne</SelectItem>
               <SelectItem value="sold">Sprzedane</SelectItem>
               <SelectItem value="hidden">Ukryte</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={filterCondition}
-            onValueChange={(v: FilterCondition) => setFilterCondition(v)}
-          >
-            <SelectTrigger className="w-36">
-              <SelectValue placeholder="Stan" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Wszystkie</SelectItem>
-              {conditions.map((c) => (
-                <SelectItem key={c.value} value={c.value}>
-                  {c.label}
-                </SelectItem>
-              ))}
             </SelectContent>
           </Select>
           <Button
@@ -416,42 +300,7 @@ export default function CommunityMarketplacePage() {
               placeholder="PLN"
             />
           </div>
-          <div>
-            <label className="block text-sm mb-1">Stan</label>
-            <Select
-              value={condition ?? undefined}
-              onValueChange={(v) => setCondition(v as Listing["condition"])}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Wybierz stan" />
-              </SelectTrigger>
-              <SelectContent>
-                {conditions.map((c) => (
-                  <SelectItem key={c.value} value={c.value}>
-                    {c.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="block text-sm mb-1">Kategoria</label>
-            <Select
-              value={categoryId ?? undefined}
-              onValueChange={(v) => setCategoryId(v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Wybierz kategorię" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Removed condition and category fields; not supported by current schema */}
           <div className="sm:col-span-2">
             <label className="block text-sm mb-1">Zdjęcia</label>
             <Input
@@ -477,17 +326,7 @@ export default function CommunityMarketplacePage() {
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-base">{l.title}</CardTitle>
                 <div className="flex items-center gap-2">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label="Ulubione"
-                    onClick={() => toggleFavorite(l.id)}
-                  >
-                    <Heart
-                      className={`h-4 w-4 ${favoriteSet.has(l.id) ? "text-red-500" : "text-muted-foreground"}`}
-                    />
-                  </Button>
-                  {meId === l.owner_id && (
+                  {meId === l.seller_id && (
                     <ListingEditDialog listing={l} onSaved={load} />
                   )}
                 </div>
@@ -497,21 +336,15 @@ export default function CommunityMarketplacePage() {
               {/* Thumb gallery */}
               {l.images && l.images.length > 0 ? (
                 <div className="flex gap-2 overflow-x-auto pb-1">
-                  {l.images
-                    .slice()
-                    .sort((a, b) => a.position - b.position)
-                    .map((img, i) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={img.storage_path + i}
-                        src={getPublicUrl(
-                          "marketplace-images",
-                          img.storage_path,
-                        )}
-                        alt="zdjęcie"
-                        className="h-24 w-auto rounded border"
-                      />
-                    ))}
+                  {l.images.map((path, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={path + i}
+                      src={getPublicUrl("marketplace-images", path)}
+                      alt="zdjęcie"
+                      className="h-24 w-auto rounded border"
+                    />
+                  ))}
                 </div>
               ) : null}
               {l.description ? (
@@ -567,11 +400,7 @@ function ListingEditDialog({
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState(listing.title)
   const [description, setDescription] = useState(listing.description ?? "")
-  const [price, setPrice] = useState(
-    typeof listing.price_cents === "number"
-      ? (listing.price_cents / 100).toFixed(2)
-      : "",
-  )
+  const [price, setPrice] = useState((listing.price_cents / 100).toFixed(2))
   const [status, setStatus] = useState<Listing["status"]>(listing.status)
   const [saving, setSaving] = useState(false)
 
@@ -579,11 +408,9 @@ function ListingEditDialog({
     if (!supabase) return
     setSaving(true)
     try {
-      const price_cents = price
-        ? Math.round(parseFloat(price.replace(",", ".")) * 100)
-        : null
+      const price_cents = Math.round(parseFloat(price.replace(",", ".")) * 100)
       const { error } = await supabase
-        .from("marketplace_listings")
+        .from("community_marketplace_listings")
         .update({
           title: title.trim(),
           description: description.trim() || null,

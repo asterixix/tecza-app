@@ -274,19 +274,6 @@ export default function CommunitiesPage() {
                   className="block outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   aria-label={`Przejdź do społeczności ${c.name}`}
                 >
-                  {/* Avatar positioned over cover with rainbow ring */}
-                  <div className="absolute -bottom-8 left-4">
-                    <div className="rounded-full bg-white dark:bg-neutral-900 p-0.5 shadow-lg">
-                      <Image
-                        src={c.avatar_url || "/icons/tecza-icons/1.svg"}
-                        alt={`${c.name} avatar`}
-                        width={72}
-                        height={72}
-                        className="h-14 w-14 sm:h-16 sm:w-16 rounded-full object-cover"
-                        priority={false}
-                      />
-                    </div>
-                  </div>
                   {/* Cover Image with overlay */}
                   <div className="relative h-36 sm:h-40 overflow-hidden">
                     {c.cover_image_url ? (
@@ -315,6 +302,19 @@ export default function CommunitiesPage() {
                             ? "Prywatna"
                             : "Ograniczona"}
                       </Badge>
+                    </div>
+                    {/* Avatar positioned inside cover to avoid clipping on mobile */}
+                    <div className="absolute -bottom-8 left-4 pointer-events-none">
+                      <div className="rounded-full bg-white dark:bg-neutral-900 p-0.5 shadow-lg">
+                        <Image
+                          src={c.avatar_url || "/icons/tecza-icons/1.svg"}
+                          alt={`${c.name} avatar`}
+                          width={72}
+                          height={72}
+                          className="h-14 w-14 sm:h-16 sm:w-16 rounded-full object-cover"
+                          priority={false}
+                        />
+                      </div>
                     </div>
                   </div>
 

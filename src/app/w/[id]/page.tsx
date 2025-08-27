@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import {
   Calendar,
+  Upload,
   MapPin,
   Clock,
   Users,
@@ -112,6 +113,22 @@ export default function EventPage() {
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviteMessage, setInviteMessage] = useState("")
   const [sendingInvite, setSendingInvite] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportReason, setReportReason] = useState<
+    "hate_speech" | "harassment" | "spam" | "inappropriate_content" | "other"
+  >("other")
+  const [reportDesc, setReportDesc] = useState("")
+  const [submittingReport, setSubmittingReport] = useState(false)
+  const [isStaff, setIsStaff] = useState(false)
+  const [pendingReports, setPendingReports] = useState<
+    Array<{
+      id: string
+      reason: string
+      description: string | null
+      created_at: string
+      reporter_id: string
+    }>
+  >([])
 
   useEffect(() => {
     async function load() {
@@ -145,6 +162,33 @@ export default function EventPage() {
         )
         setStatus((p?.status as Participation) || null)
         setIsOrganizer(me.id === found.organizer_id)
+
+        // Determine staff by checking roles from profiles
+        const { data: profile } = await withTimeout(
+          supabase
+            .from("profiles")
+            .select("roles")
+            .eq("id", me.id)
+            .maybeSingle(),
+          15000,
+        )
+        const roles: string[] = (profile?.roles as string[]) || []
+        const staff = roles.some((r) =>
+          ["moderator", "administrator", "super-administrator"].includes(r),
+        )
+        setIsStaff(staff)
+
+        if (staff && found?.id) {
+          const { data: reports } = await withTimeout(
+            supabase
+              .from("moderation_reports")
+              .select("id,reason,description,created_at,reporter_id")
+              .eq("target_type", "event")
+              .eq("target_id", found.id),
+            15000,
+          )
+          setPendingReports(reports || [])
+        }
       }
     }
     load()
@@ -262,6 +306,107 @@ export default function EventPage() {
     }
   }
 
+  async function uploadCover(file: File) {
+    if (!supabase || !event || !isOrganizer) return
+    try {
+      const sizeLimit = 5 * 1024 * 1024
+      if (file.size > sizeLimit) throw new Error("Okładka przekracza 5MB")
+      const ext = file.name.split(".").pop() || "jpg"
+      const path = `${event.id}/cover_${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from("event-images")
+        .upload(path, file)
+      if (upErr) throw upErr
+      const { data: urlData } = supabase.storage
+        .from("event-images")
+        .getPublicUrl(path)
+      const { error } = await withTimeout(
+        supabase
+          .from("events")
+          .update({ cover_image_url: urlData.publicUrl })
+          .eq("id", event.id),
+        15000,
+      )
+      if (error) throw error
+      setEvent({ ...event, cover_image_url: urlData.publicUrl })
+      toast.success("Okładka zaktualizowana")
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "Nie udało się zaktualizować okładki"
+      toast.error(msg)
+    }
+  }
+
+  async function removeCover() {
+    if (!supabase || !event || !isOrganizer) return
+    try {
+      const { error } = await withTimeout(
+        supabase
+          .from("events")
+          .update({ cover_image_url: null })
+          .eq("id", event.id),
+        15000,
+      )
+      if (error) throw error
+      setEvent({ ...event, cover_image_url: null })
+      toast.success("Okładka usunięta")
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "Nie udało się usunąć okładki"
+      toast.error(msg)
+    }
+  }
+
+  async function submitReport() {
+    if (!supabase || !event) return
+    setSubmittingReport(true)
+    try {
+      const me = (await supabase.auth.getUser()).data.user
+      if (!me) throw new Error("Musisz być zalogowany")
+      const { error } = await withTimeout(
+        supabase.from("moderation_reports").insert({
+          reporter_id: me.id,
+          target_type: "event",
+          target_id: event.id,
+          reason: reportReason,
+          description: reportDesc || null,
+        }),
+        15000,
+      )
+      if (error) throw error
+      toast.success("Zgłoszenie wysłane")
+      setReportOpen(false)
+      setReportDesc("")
+      setReportReason("other")
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "Nie udało się wysłać zgłoszenia"
+      toast.error(msg)
+    } finally {
+      setSubmittingReport(false)
+    }
+  }
+
+  async function updateReportStatus(
+    id: string,
+    status: "reviewed" | "resolved" | "dismissed",
+  ) {
+    if (!supabase || !isStaff) return
+    try {
+      const { error } = await withTimeout(
+        supabase.from("moderation_reports").update({ status }).eq("id", id),
+        15000,
+      )
+      if (error) throw error
+      setPendingReports((prev) => prev.filter((r) => r.id !== id))
+      toast.success("Status zgłoszenia zaktualizowany")
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "Aktualizacja nie powiodła się"
+      toast.error(msg)
+    }
+  }
+
   if (!event)
     return <div className="mx-auto max-w-4xl p-4 md:p-6">Wczytywanie…</div>
 
@@ -337,6 +482,33 @@ export default function EventPage() {
             <Badge className="bg-blue-500 text-white">Online</Badge>
           )}
         </div>
+        {isOrganizer && (
+          <div className="absolute bottom-4 left-4 flex gap-2">
+            <label className="inline-flex">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) =>
+                  e.target.files?.[0] && uploadCover(e.target.files[0])
+                }
+              />
+              <Button type="button" variant="outline" className="gap-2">
+                <Upload className="h-4 w-4" /> Zmień okładkę
+              </Button>
+            </label>
+            {event.cover_image_url && (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={removeCover}
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" /> Usuń okładkę
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Event Info */}
@@ -427,6 +599,59 @@ export default function EventPage() {
               Udostępnij
             </Button>
 
+            {/* Report Event */}
+            <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">Zgłoś</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Zgłoś wydarzenie</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium">Powód</label>
+                    <select
+                      className="mt-1 w-full border rounded-md p-2 text-sm bg-background"
+                      value={reportReason}
+                      onChange={(e) =>
+                        setReportReason(e.target.value as typeof reportReason)
+                      }
+                    >
+                      <option value="hate_speech">Mowa nienawiści</option>
+                      <option value="harassment">Nękanie</option>
+                      <option value="spam">Spam</option>
+                      <option value="inappropriate_content">
+                        Niewłaściwe treści
+                      </option>
+                      <option value="other">Inne</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">
+                      Opis (opcjonalnie)
+                    </label>
+                    <Textarea
+                      value={reportDesc}
+                      onChange={(e) => setReportDesc(e.target.value)}
+                      rows={4}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setReportOpen(false)}
+                    >
+                      Anuluj
+                    </Button>
+                    <Button onClick={submitReport} disabled={submittingReport}>
+                      {submittingReport ? "Wysyłanie..." : "Wyślij zgłoszenie"}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="gap-2">
@@ -500,6 +725,51 @@ export default function EventPage() {
           )}
         </div>
       </div>
+
+      {isStaff && pendingReports.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Zgłoszenia dla tego wydarzenia</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {pendingReports.map((r) => (
+              <div key={r.id} className="border rounded-md p-3">
+                <div className="text-sm font-medium">Powód: {r.reason}</div>
+                {r.description && (
+                  <div className="text-sm text-muted-foreground mt-1">
+                    {r.description}
+                  </div>
+                )}
+                <div className="text-xs text-muted-foreground mt-1">
+                  Zgłoszono: {new Date(r.created_at).toLocaleString()}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => updateReportStatus(r.id, "reviewed")}
+                  >
+                    Oznacz jako sprawdzone
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => updateReportStatus(r.id, "resolved")}
+                  >
+                    Rozwiąż
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => updateReportStatus(r.id, "dismissed")}
+                  >
+                    Odrzuć
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Description */}
       <Card className="mb-6">
