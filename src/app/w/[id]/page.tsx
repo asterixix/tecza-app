@@ -419,8 +419,6 @@ export default function EventPage() {
 
   async function removeEvent() {
     if (!supabase || !event) return
-    const ok = window.confirm("Usunąć to wydarzenie?")
-    if (!ok) return
     setRemoving(true)
     try {
       const { error, status, statusText } = await withTimeout(
@@ -443,6 +441,59 @@ export default function EventPage() {
       toast.error(msg)
     } finally {
       setRemoving(false)
+    }
+  }
+
+  async function updateEventDetails() {
+    if (!supabase || !event) return
+    setUpdating(true)
+    try {
+      const updates: Record<string, unknown> = {
+        title: editTitle.trim() || event.title,
+        description: editDescription.trim() || null,
+        timezone: editTimezone || "Europe/Warsaw",
+        city: editCity.trim() || null,
+        country: editCountry.trim() || null,
+        is_online: !!editIsOnline,
+        is_free: !!editIsFree,
+        category: editCategory,
+        ticket_url: editTicketUrl.trim() ? editTicketUrl.trim() : null,
+        join_url: editJoinUrl.trim() ? editJoinUrl.trim() : null,
+      }
+      // Dates
+      if (editStart) updates.start_date = new Date(editStart).toISOString()
+      if (editEnd) updates.end_date = new Date(editEnd).toISOString()
+      else updates.end_date = null
+      // Max participants
+      const mp = editMaxParticipants.trim()
+      updates.max_participants = mp ? Math.max(0, parseInt(mp, 10) || 0) : null
+
+      const { error, status, statusText, data } = await withTimeout(
+        supabase
+          .from("events")
+          .update(updates)
+          .eq("id", event.id)
+          .select("*")
+          .single(),
+        15000,
+      )
+      if (error) {
+        const err = normalizeSupabaseError(
+          error,
+          "Nie udało się zaktualizować wydarzenia",
+          { status, statusText },
+        )
+        throw new Error(friendlyMessage(err))
+      }
+      const updated = data as EventFull
+      setEvent(updated)
+      setEditOpen(false)
+      toast.success("Zapisano zmiany")
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Nie udało się zapisać zmian"
+      toast.error(msg)
+    } finally {
+      setUpdating(false)
     }
   }
 
@@ -799,7 +850,7 @@ export default function EventPage() {
             <Badge className="bg-blue-500 text-white">Online</Badge>
           )}
         </div>
-        {isOrganizer && (
+        {(isOrganizer || isStaff) && (
           <EventCoverControls
             onPick={(f: File) => uploadCover(f)}
             onRemove={removeCover}
@@ -1086,6 +1137,175 @@ export default function EventPage() {
                 </div>
               </DialogContent>
             </Dialog>
+
+            {(isOrganizer || isStaff) && (
+              <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">Edytuj</Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Edytuj wydarzenie</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-3">
+                    <div>
+                      <div className="text-sm font-medium mb-1">Tytuł</div>
+                      <Input
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        placeholder="np. Pride Warszawa"
+                      />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium mb-1">Opis</div>
+                      <Textarea
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        placeholder="Szczegóły wydarzenia"
+                        rows={4}
+                      />
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-sm font-medium mb-1">Start</div>
+                        <Input
+                          type="datetime-local"
+                          value={editStart}
+                          onChange={(e) => setEditStart(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium mb-1">
+                          Koniec (opcjonalnie)
+                        </div>
+                        <Input
+                          type="datetime-local"
+                          value={editEnd}
+                          onChange={(e) => setEditEnd(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-3">
+                      <div>
+                        <div className="text-sm font-medium mb-1">
+                          Strefa czasowa
+                        </div>
+                        <Input
+                          value={editTimezone}
+                          onChange={(e) => setEditTimezone(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium mb-1">Miasto</div>
+                        <Input
+                          value={editCity}
+                          onChange={(e) => setEditCity(e.target.value)}
+                          placeholder="np. Warszawa"
+                        />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium mb-1">Kraj</div>
+                        <Input
+                          value={editCountry}
+                          onChange={(e) => setEditCountry(e.target.value)}
+                          placeholder="np. Poland"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-3">
+                      <div>
+                        <div className="text-sm font-medium mb-1">
+                          Kategoria
+                        </div>
+                        <Select
+                          value={editCategory}
+                          onValueChange={(v: typeof editCategory) =>
+                            setEditCategory(v)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Wybierz" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pride">Pride</SelectItem>
+                            <SelectItem value="support">Wsparcie</SelectItem>
+                            <SelectItem value="social">Spotkanie</SelectItem>
+                            <SelectItem value="activism">Aktywizm</SelectItem>
+                            <SelectItem value="education">Edukacja</SelectItem>
+                            <SelectItem value="other">Inne</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-end gap-4">
+                        <label className="text-sm">
+                          <input
+                            type="checkbox"
+                            checked={editIsOnline}
+                            onChange={(e) => setEditIsOnline(e.target.checked)}
+                          />{" "}
+                          Online
+                        </label>
+                        <label className="text-sm">
+                          <input
+                            type="checkbox"
+                            checked={editIsFree}
+                            onChange={(e) => setEditIsFree(e.target.checked)}
+                          />{" "}
+                          Darmowe
+                        </label>
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium mb-1">
+                          Max osób (opcjonalnie)
+                        </div>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          value={editMaxParticipants}
+                          onChange={(e) =>
+                            setEditMaxParticipants(e.target.value)
+                          }
+                          placeholder="np. 100"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-sm font-medium mb-1">
+                          Link do biletów (opcjonalnie)
+                        </div>
+                        <Input
+                          value={editTicketUrl}
+                          onChange={(e) => setEditTicketUrl(e.target.value)}
+                          placeholder="https://…"
+                        />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium mb-1">
+                          Link do spotkania (opcjonalnie)
+                        </div>
+                        <Input
+                          value={editJoinUrl}
+                          onChange={(e) => setEditJoinUrl(e.target.value)}
+                          placeholder="https://…"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setEditOpen(false)}
+                      >
+                        Anuluj
+                      </Button>
+                      <Button onClick={updateEventDetails} disabled={updating}>
+                        {updating ? "Zapisywanie…" : "Zapisz"}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
 
           {event.ticket_url && (
@@ -1097,16 +1317,45 @@ export default function EventPage() {
             </Button>
           )}
 
-          {isOrganizer && (
-            <Button
-              variant="destructive"
-              onClick={removeEvent}
-              disabled={removing}
-              className="gap-2"
-            >
-              <Trash2 className="h-4 w-4" />
-              Usuń wydarzenie
-            </Button>
+          {(isOrganizer || isStaff) && (
+            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  disabled={removing}
+                  className="gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Usuń wydarzenie
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Usunąć to wydarzenie?</DialogTitle>
+                </DialogHeader>
+                <div className="text-sm text-muted-foreground">
+                  Tej operacji nie można cofnąć.
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setDeleteOpen(false)}
+                  >
+                    Anuluj
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={async () => {
+                      await removeEvent()
+                      setDeleteOpen(false)
+                    }}
+                    disabled={removing}
+                  >
+                    {removing ? "Usuwanie…" : "Usuń"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           )}
         </div>
       </div>
