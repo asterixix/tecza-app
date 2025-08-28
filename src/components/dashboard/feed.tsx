@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { getSupabase } from "@/lib/supabase-browser"
 import { PostItem, type PostRecord } from "./post-item"
 
@@ -13,6 +13,9 @@ export function Feed({
   const supabase = getSupabase()
   const [posts, setPosts] = useState<PostRecord[]>([])
   const [loading, setLoading] = useState(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const pullingRef = useRef(false)
+  const startYRef = useRef(0)
 
   const load = useCallback(async () => {
     if (!supabase) return
@@ -79,7 +82,41 @@ export function Feed({
   if (!supabase) return null
 
   return (
-    <div className="space-y-3">
+    <div
+      ref={containerRef}
+      className="space-y-3"
+      onTouchStart={(e) => {
+        const el = containerRef.current
+        if (!el) return
+        const atTop = (document.scrollingElement?.scrollTop || 0) <= 0
+        if (atTop) {
+          pullingRef.current = true
+          startYRef.current = e.touches[0].clientY
+        }
+      }}
+      onTouchMove={(e) => {
+        if (!pullingRef.current) return
+        const dy = e.touches[0].clientY - startYRef.current
+        // Trigger reload when pulling down more than 60px
+        if (dy > 60 && !loading) {
+          pullingRef.current = false
+          void load()
+        }
+      }}
+      onTouchEnd={() => {
+        pullingRef.current = false
+      }}
+    >
+      <div className="flex justify-center">
+        <button
+          type="button"
+          className="text-xs text-muted-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded px-2 py-1"
+          aria-label="Odśwież feed"
+          onClick={() => load()}
+        >
+          Przeciągnij w dół aby odświeżyć • Kliknij aby odświeżyć
+        </button>
+      </div>
       {loading && (
         <div className="text-center">
           <div className="text-sm text-muted-foreground">

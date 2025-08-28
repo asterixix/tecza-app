@@ -7,8 +7,8 @@ self.addEventListener("push", (event) => {
     const title = payload.title || "Nowe powiadomienie"
     const body = payload.body || "Masz nowe powiadomienie w Tęcza.app"
     const url = payload.url || "/d"
-    const icon = payload.icon || "icons/tecza-icons/4.svg"
-    const badge = payload.badge || "icons/tecza-icons/4.svg"
+    const icon = payload.icon || "/icons/tecza-icons/4.svg"
+    const badge = payload.badge || "/icons/tecza-icons/4.svg"
 
     const showPromise = self.registration.showNotification(title, {
       body,
@@ -29,7 +29,7 @@ self.addEventListener("push", (event) => {
       })
 
     event.waitUntil(Promise.all([showPromise, pingClients]))
-  } catch (e) {
+  } catch {
     // no-op
   }
 })

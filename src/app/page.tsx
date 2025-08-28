@@ -5,6 +5,8 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import { StandaloneRedirect } from "@/components/site/standalone-redirect"
+import { InstallPrompt } from "@/components/site/install-prompt"
 import {
   ArrowRight,
   Users,
@@ -21,6 +23,8 @@ import {
 export default function Home() {
   return (
     <div className="mx-auto max-w-6xl px-4 md:px-6 py-10 md:py-16">
+      <StandaloneRedirect />
+      <InstallPrompt />
       {/* Sekcja o aplikacji */}
       <section
         id="about"

@@ -9,6 +9,7 @@ import { HeaderSwitch } from "@/components/site/header-switch"
 import { FooterSwitch } from "@/components/site/footer-switch"
 import { CookieBanner } from "@/components/site/cookie-banner"
 import { PushAudio } from "@/components/site/push-audio"
+import { MobileBottomNav } from "@/components/site/mobile-bottom-nav"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,8 +47,8 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icons/tecza-icons/2.svg", sizes: "any", type: "image/svg+xml" },
+      { url: "/icons/tecza-icons/4.svg", sizes: "any", type: "image/svg+xml" },
     ],
   },
 }
@@ -79,6 +80,8 @@ export default function RootLayout({
             {children}
           </main>
           <FooterSwitch />
+          {/* Mobile bottom navigation for authed users */}
+          <MobileBottomNav />
           <CookieBanner />
           {/* Global audio bridge for push notifications */}
           <PushAudio />

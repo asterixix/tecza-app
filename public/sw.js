@@ -1,1 +1,815 @@
-if(!self.define){let e,a={};const i=(i,s)=>(i=new URL(i+".js",s).href,a[i]||new Promise(a=>{if("document"in self){const e=document.createElement("script");e.src=i,e.onload=a,document.head.appendChild(e)}else e=i,importScripts(i),a()}).then(()=>{let e=a[i];if(!e)throw new Error(`Module ${i} didn’t register its module`);return e}));self.define=(s,t)=>{const c=e||("document"in self?document.currentScript.src:"")||location.href;if(a[c])return;let n={};const r=e=>i(e,c),d={module:{uri:c},exports:n,require:r};a[c]=Promise.all(s.map(e=>d[e]||r(e))).then(e=>(t(...e),n))}}define(["./workbox-4754cb34"],function(e){"use strict";importScripts("/sw-custom.js"),self.skipWaiting(),e.clientsClaim(),e.precacheAndRoute([{url:"/_next/app-build-manifest.json",revision:"a78527ffe67559c550e79bfbcab3e31e"},{url:"/_next/static/chunks/1071-1e57829653b35b28.js",revision:"1e57829653b35b28"},{url:"/_next/static/chunks/1271-f7ad719013bab401.js",revision:"f7ad719013bab401"},{url:"/_next/static/chunks/1385-1830d460ddfc1b9d.js",revision:"1830d460ddfc1b9d"},{url:"/_next/static/chunks/2354-2d4cd1b1d499aeca.js",revision:"2d4cd1b1d499aeca"},{url:"/_next/static/chunks/2804-03b66a95df53ad22.js",revision:"03b66a95df53ad22"},{url:"/_next/static/chunks/2947-52f00adedc73c28e.js",revision:"52f00adedc73c28e"},{url:"/_next/static/chunks/3063-1ee9e2c4135c2cb9.js",revision:"1ee9e2c4135c2cb9"},{url:"/_next/static/chunks/3438-af3cf0471e5ced10.js",revision:"af3cf0471e5ced10"},{url:"/_next/static/chunks/367-3294776aed311a53.js",revision:"3294776aed311a53"},{url:"/_next/static/chunks/3717-9a0f584a211245ba.js",revision:"9a0f584a211245ba"},{url:"/_next/static/chunks/4178-e7c73e22e531de0c.js",revision:"e7c73e22e531de0c"},{url:"/_next/static/chunks/4200-3fa7dab28391ad27.js",revision:"3fa7dab28391ad27"},{url:"/_next/static/chunks/4277-9f638e4633d45612.js",revision:"9f638e4633d45612"},{url:"/_next/static/chunks/472.2c08b965bd9148e2.js",revision:"2c08b965bd9148e2"},{url:"/_next/static/chunks/4bd1b696-cc729d47eba2cee4.js",revision:"cc729d47eba2cee4"},{url:"/_next/static/chunks/5038-d782d86ec198e8e7.js",revision:"d782d86ec198e8e7"},{url:"/_next/static/chunks/5071-a8b44382333d97cc.js",revision:"a8b44382333d97cc"},{url:"/_next/static/chunks/5337-240eedc8b4522eb6.js",revision:"240eedc8b4522eb6"},{url:"/_next/static/chunks/5558-1a8a2a752074f39c.js",revision:"1a8a2a752074f39c"},{url:"/_next/static/chunks/5964-6d6a41800488ba64.js",revision:"6d6a41800488ba64"},{url:"/_next/static/chunks/6671-24139d96056a6e31.js",revision:"24139d96056a6e31"},{url:"/_next/static/chunks/6874-414075bb21e16c80.js",revision:"414075bb21e16c80"},{url:"/_next/static/chunks/8067-750c92e359a2b267.js",revision:"750c92e359a2b267"},{url:"/_next/static/chunks/8249-1c5ab529ca147640.js",revision:"1c5ab529ca147640"},{url:"/_next/static/chunks/9341.8181fde8cccea77c.js",revision:"8181fde8cccea77c"},{url:"/_next/static/chunks/app/_not-found/page-32382bf3e6f18277.js",revision:"32382bf3e6f18277"},{url:"/_next/static/chunks/app/admin/moderation/communities/page-1be79592555592c8.js",revision:"1be79592555592c8"},{url:"/_next/static/chunks/app/admin/moderation/content/page-7788114b1b32ad98.js",revision:"7788114b1b32ad98"},{url:"/_next/static/chunks/app/admin/moderation/profiles/page-ab03ccac423f13dc.js",revision:"ab03ccac423f13dc"},{url:"/_next/static/chunks/app/admin/notifications/page-84be357c68b4bd79.js",revision:"84be357c68b4bd79"},{url:"/_next/static/chunks/app/admin/page-838e525e9e270a6c.js",revision:"838e525e9e270a6c"},{url:"/_next/static/chunks/app/admin/profiles/page-d7df60e7d6963cf4.js",revision:"d7df60e7d6963cf4"},{url:"/_next/static/chunks/app/admin/roles/page-ad4899d73d5a8422.js",revision:"ad4899d73d5a8422"},{url:"/_next/static/chunks/app/api/link-preview/route-32382bf3e6f18277.js",revision:"32382bf3e6f18277"},{url:"/_next/static/chunks/app/api/moderate/route-32382bf3e6f18277.js",revision:"32382bf3e6f18277"},{url:"/_next/static/chunks/app/api/push/route-32382bf3e6f18277.js",revision:"32382bf3e6f18277"},{url:"/_next/static/chunks/app/api/video-transcode/route-32382bf3e6f18277.js",revision:"32382bf3e6f18277"},{url:"/_next/static/chunks/app/c/%5Bid%5D/page-8b036cb876a3ea73.js",revision:"8b036cb876a3ea73"},{url:"/_next/static/chunks/app/c/%5Bid%5D/wiki/%5Bslug%5D/page-c2659b9d927f1799.js",revision:"c2659b9d927f1799"},{url:"/_next/static/chunks/app/c/page-3aff18f2afb69b4e.js",revision:"3aff18f2afb69b4e"},{url:"/_next/static/chunks/app/d/page-a0a88b82bea7e496.js",revision:"a0a88b82bea7e496"},{url:"/_next/static/chunks/app/error-d88e84747673532a.js",revision:"d88e84747673532a"},{url:"/_next/static/chunks/app/l/page-b3725f19e1e2c3af.js",revision:"b3725f19e1e2c3af"},{url:"/_next/static/chunks/app/layout-59355ed9c6422aca.js",revision:"59355ed9c6422aca"},{url:"/_next/static/chunks/app/not-found-471570b67c5e973a.js",revision:"471570b67c5e973a"},{url:"/_next/static/chunks/app/onboarding/account/page-b5681a600ce7ae54.js",revision:"b5681a600ce7ae54"},{url:"/_next/static/chunks/app/onboarding/intro/page-44ef4775174d6087.js",revision:"44ef4775174d6087"},{url:"/_next/static/chunks/app/onboarding/profile/page-94893910d9810840.js",revision:"94893910d9810840"},{url:"/_next/static/chunks/app/p/%5Bid%5D/page-d0aac67b26e5de0d.js",revision:"d0aac67b26e5de0d"},{url:"/_next/static/chunks/app/page-bfb949a96d6983f3.js",revision:"bfb949a96d6983f3"},{url:"/_next/static/chunks/app/pp/page-32382bf3e6f18277.js",revision:"32382bf3e6f18277"},{url:"/_next/static/chunks/app/r/page-e17f049136014191.js",revision:"e17f049136014191"},{url:"/_next/static/chunks/app/reset-password/page-f37b6a5c1d0aadd2.js",revision:"f37b6a5c1d0aadd2"},{url:"/_next/static/chunks/app/s/page-5a9566b0ef65a70c.js",revision:"5a9566b0ef65a70c"},{url:"/_next/static/chunks/app/tos/page-32382bf3e6f18277.js",revision:"32382bf3e6f18277"},{url:"/_next/static/chunks/app/u/%5Busername%5D/friends/page-3f4ebc5d9123d952.js",revision:"3f4ebc5d9123d952"},{url:"/_next/static/chunks/app/u/%5Busername%5D/page-9e437e93f2bff14b.js",revision:"9e437e93f2bff14b"},{url:"/_next/static/chunks/app/w/%5Bid%5D/ical/route-32382bf3e6f18277.js",revision:"32382bf3e6f18277"},{url:"/_next/static/chunks/app/w/%5Bid%5D/page-ff7653328cb385b4.js",revision:"ff7653328cb385b4"},{url:"/_next/static/chunks/app/w/page-f57e7cf2904ecaa8.js",revision:"f57e7cf2904ecaa8"},{url:"/_next/static/chunks/d3ac728e-126267ab7d9db9db.js",revision:"126267ab7d9db9db"},{url:"/_next/static/chunks/framework-6a579fe8df05a747.js",revision:"6a579fe8df05a747"},{url:"/_next/static/chunks/main-87670dedeb91a1b5.js",revision:"87670dedeb91a1b5"},{url:"/_next/static/chunks/main-app-4a99b13d2aa43ec4.js",revision:"4a99b13d2aa43ec4"},{url:"/_next/static/chunks/pages/_app-711a943019cc4c3f.js",revision:"711a943019cc4c3f"},{url:"/_next/static/chunks/pages/_error-74a3ff45f87fd51c.js",revision:"74a3ff45f87fd51c"},{url:"/_next/static/chunks/polyfills-42372ed130431b0a.js",revision:"846118c33b2c0e922d7b3a7676f81f6f"},{url:"/_next/static/chunks/webpack-e6e1c7af4097c6d7.js",revision:"e6e1c7af4097c6d7"},{url:"/_next/static/css/09dfadb69bdaa005.css",revision:"09dfadb69bdaa005"},{url:"/_next/static/css/d4aa4d0038afc744.css",revision:"d4aa4d0038afc744"},{url:"/_next/static/media/569ce4b8f30dc480-s.p.woff2",revision:"ef6cefb32024deac234e82f932a95cbd"},{url:"/_next/static/media/747892c23ea88013-s.woff2",revision:"a0761690ccf4441ace5cec893b82d4ab"},{url:"/_next/static/media/8d697b304b401681-s.woff2",revision:"cc728f6c0adb04da0dfcb0fc436a8ae5"},{url:"/_next/static/media/93f479601ee12b01-s.p.woff2",revision:"da83d5f06d825c5ae65b7cca706cb312"},{url:"/_next/static/media/9610d9e46709d722-s.woff2",revision:"7b7c0ef93df188a852344fc272fc096b"},{url:"/_next/static/media/KaTeX_AMS-Regular.1608a09b.woff",revision:"1608a09b"},{url:"/_next/static/media/KaTeX_AMS-Regular.4aafdb68.ttf",revision:"4aafdb68"},{url:"/_next/static/media/KaTeX_AMS-Regular.a79f1c31.woff2",revision:"a79f1c31"},{url:"/_next/static/media/KaTeX_Caligraphic-Bold.b6770918.woff",revision:"b6770918"},{url:"/_next/static/media/KaTeX_Caligraphic-Bold.cce5b8ec.ttf",revision:"cce5b8ec"},{url:"/_next/static/media/KaTeX_Caligraphic-Bold.ec17d132.woff2",revision:"ec17d132"},{url:"/_next/static/media/KaTeX_Caligraphic-Regular.07ef19e7.ttf",revision:"07ef19e7"},{url:"/_next/static/media/KaTeX_Caligraphic-Regular.55fac258.woff2",revision:"55fac258"},{url:"/_next/static/media/KaTeX_Caligraphic-Regular.dad44a7f.woff",revision:"dad44a7f"},{url:"/_next/static/media/KaTeX_Fraktur-Bold.9f256b85.woff",revision:"9f256b85"},{url:"/_next/static/media/KaTeX_Fraktur-Bold.b18f59e1.ttf",revision:"b18f59e1"},{url:"/_next/static/media/KaTeX_Fraktur-Bold.d42a5579.woff2",revision:"d42a5579"},{url:"/_next/static/media/KaTeX_Fraktur-Regular.7c187121.woff",revision:"7c187121"},{url:"/_next/static/media/KaTeX_Fraktur-Regular.d3c882a6.woff2",revision:"d3c882a6"},{url:"/_next/static/media/KaTeX_Fraktur-Regular.ed38e79f.ttf",revision:"ed38e79f"},{url:"/_next/static/media/KaTeX_Main-Bold.b74a1a8b.ttf",revision:"b74a1a8b"},{url:"/_next/static/media/KaTeX_Main-Bold.c3fb5ac2.woff2",revision:"c3fb5ac2"},{url:"/_next/static/media/KaTeX_Main-Bold.d181c465.woff",revision:"d181c465"},{url:"/_next/static/media/KaTeX_Main-BoldItalic.6f2bb1df.woff2",revision:"6f2bb1df"},{url:"/_next/static/media/KaTeX_Main-BoldItalic.70d8b0a5.ttf",revision:"70d8b0a5"},{url:"/_next/static/media/KaTeX_Main-BoldItalic.e3f82f9d.woff",revision:"e3f82f9d"},{url:"/_next/static/media/KaTeX_Main-Italic.47373d1e.ttf",revision:"47373d1e"},{url:"/_next/static/media/KaTeX_Main-Italic.8916142b.woff2",revision:"8916142b"},{url:"/_next/static/media/KaTeX_Main-Italic.9024d815.woff",revision:"9024d815"},{url:"/_next/static/media/KaTeX_Main-Regular.0462f03b.woff2",revision:"0462f03b"},{url:"/_next/static/media/KaTeX_Main-Regular.7f51fe03.woff",revision:"7f51fe03"},{url:"/_next/static/media/KaTeX_Main-Regular.b7f8fe9b.ttf",revision:"b7f8fe9b"},{url:"/_next/static/media/KaTeX_Math-BoldItalic.572d331f.woff2",revision:"572d331f"},{url:"/_next/static/media/KaTeX_Math-BoldItalic.a879cf83.ttf",revision:"a879cf83"},{url:"/_next/static/media/KaTeX_Math-BoldItalic.f1035d8d.woff",revision:"f1035d8d"},{url:"/_next/static/media/KaTeX_Math-Italic.5295ba48.woff",revision:"5295ba48"},{url:"/_next/static/media/KaTeX_Math-Italic.939bc644.ttf",revision:"939bc644"},{url:"/_next/static/media/KaTeX_Math-Italic.f28c23ac.woff2",revision:"f28c23ac"},{url:"/_next/static/media/KaTeX_SansSerif-Bold.8c5b5494.woff2",revision:"8c5b5494"},{url:"/_next/static/media/KaTeX_SansSerif-Bold.94e1e8dc.ttf",revision:"94e1e8dc"},{url:"/_next/static/media/KaTeX_SansSerif-Bold.bf59d231.woff",revision:"bf59d231"},{url:"/_next/static/media/KaTeX_SansSerif-Italic.3b1e59b3.woff2",revision:"3b1e59b3"},{url:"/_next/static/media/KaTeX_SansSerif-Italic.7c9bc82b.woff",revision:"7c9bc82b"},{url:"/_next/static/media/KaTeX_SansSerif-Italic.b4c20c84.ttf",revision:"b4c20c84"},{url:"/_next/static/media/KaTeX_SansSerif-Regular.74048478.woff",revision:"74048478"},{url:"/_next/static/media/KaTeX_SansSerif-Regular.ba21ed5f.woff2",revision:"ba21ed5f"},{url:"/_next/static/media/KaTeX_SansSerif-Regular.d4d7ba48.ttf",revision:"d4d7ba48"},{url:"/_next/static/media/KaTeX_Script-Regular.03e9641d.woff2",revision:"03e9641d"},{url:"/_next/static/media/KaTeX_Script-Regular.07505710.woff",revision:"07505710"},{url:"/_next/static/media/KaTeX_Script-Regular.fe9cbbe1.ttf",revision:"fe9cbbe1"},{url:"/_next/static/media/KaTeX_Size1-Regular.e1e279cb.woff",revision:"e1e279cb"},{url:"/_next/static/media/KaTeX_Size1-Regular.eae34984.woff2",revision:"eae34984"},{url:"/_next/static/media/KaTeX_Size1-Regular.fabc004a.ttf",revision:"fabc004a"},{url:"/_next/static/media/KaTeX_Size2-Regular.57727022.woff",revision:"57727022"},{url:"/_next/static/media/KaTeX_Size2-Regular.5916a24f.woff2",revision:"5916a24f"},{url:"/_next/static/media/KaTeX_Size2-Regular.d6b476ec.ttf",revision:"d6b476ec"},{url:"/_next/static/media/KaTeX_Size3-Regular.9acaf01c.woff",revision:"9acaf01c"},{url:"/_next/static/media/KaTeX_Size3-Regular.a144ef58.ttf",revision:"a144ef58"},{url:"/_next/static/media/KaTeX_Size3-Regular.b4230e7e.woff2",revision:"b4230e7e"},{url:"/_next/static/media/KaTeX_Size4-Regular.10d95fd3.woff2",revision:"10d95fd3"},{url:"/_next/static/media/KaTeX_Size4-Regular.7a996c9d.woff",revision:"7a996c9d"},{url:"/_next/static/media/KaTeX_Size4-Regular.fbccdabe.ttf",revision:"fbccdabe"},{url:"/_next/static/media/KaTeX_Typewriter-Regular.6258592b.woff",revision:"6258592b"},{url:"/_next/static/media/KaTeX_Typewriter-Regular.a8709e36.woff2",revision:"a8709e36"},{url:"/_next/static/media/KaTeX_Typewriter-Regular.d97aaf4a.ttf",revision:"d97aaf4a"},{url:"/_next/static/media/ba015fad6dcf6784-s.woff2",revision:"8ea4f719af3312a055caf09f34c89a77"},{url:"/_next/static/o8TW0eMHCEfqwJXGRH4Lo/_buildManifest.js",revision:"25fe71bbb91cccc155434e1264041fa2"},{url:"/_next/static/o8TW0eMHCEfqwJXGRH4Lo/_ssgManifest.js",revision:"b6652df95db52feb4daf4eca35380933"},{url:"/audio/tecza_powiadomienie.mp3",revision:"64990b83218dec15468bb4f11973a060"},{url:"/audio/tecza_start.mp3",revision:"f32c9862185a2f992f90e6001d4d7d67"},{url:"/audio/tecza_wiadomosc.mp3",revision:"8cf8675e88889a83fea3c2932f38da5f"},{url:"/icons/tecza-badge/1-anniversary.svg",revision:"4642394da1006336bb0197f0d79a69a5"},{url:"/icons/tecza-badge/10-anniversary.svg",revision:"5cc2d031462670b54b5acb7a7faada85"},{url:"/icons/tecza-badge/3-anniversary.svg",revision:"e062b2728a8f52c4ac27aef5dd2a0854"},{url:"/icons/tecza-badge/5-anniversary.svg",revision:"b5f7d2a0a03b3ee76b91a9e0b39d4003"},{url:"/icons/tecza-badge/ambassador.svg",revision:"151cda41b89bbdb6acccc5aaf5337483"},{url:"/icons/tecza-badge/banned.svg",revision:"06f5449ff4cd1c8a0f85c5d8f7570b98"},{url:"/icons/tecza-badge/company-supporter.svg",revision:"e80e5f369bfe4144d44e39f25bd3c130"},{url:"/icons/tecza-badge/company.svg",revision:"8a684cc5b5f065d3901f1991aa5483c4"},{url:"/icons/tecza-badge/early-tester.svg",revision:"50c077b8f313038329f07da7a3e37296"},{url:"/icons/tecza-badge/hiv-positive-campaigh.svg",revision:"ffebdf18dbc4265b2eb1df32827503e6"},{url:"/icons/tecza-badge/mod-admin.svg",revision:"2d7f20eeb7919b8c761e81480fa9ed2a"},{url:"/icons/tecza-badge/pride2026.svg",revision:"79ff168e6300c71d69dab2355594a0ad"},{url:"/icons/tecza-badge/tecza-team.svg",revision:"d0c00af5ecd2ef594503adba9daca7f7"},{url:"/icons/tecza-badge/tester.svg",revision:"19821ab5a57c0ad91242a39dcb3c7cab"},{url:"/icons/tecza-badge/user-supporter.svg",revision:"49dec42fabd6edbbe00e7a6da512044c"},{url:"/icons/tecza-icons-500x270/1.svg",revision:"5db375ad0cb9e57b091108ecdfe7e513"},{url:"/icons/tecza-icons-500x270/2.svg",revision:"18fd12ee2f6a135422cc1d42dd2ec759"},{url:"/icons/tecza-icons-500x270/3.svg",revision:"45085f9b7811d103d639468de3fdd201"},{url:"/icons/tecza-icons-500x270/4.svg",revision:"a852ea8250d32fc6c53bd250de9615e9"},{url:"/icons/tecza-icons/1.svg",revision:"52cf50c4e821c88ee68ff768112487e3"},{url:"/icons/tecza-icons/2.svg",revision:"b1bf3c7d3d032139d8d63ac2b863a113"},{url:"/icons/tecza-icons/3.svg",revision:"d6cc0ffcceaaa7173491faf43448300c"},{url:"/icons/tecza-icons/4.svg",revision:"034a27d9e7e2877ede1fe70cf762c788"},{url:"/image/tecza-homepage.webp",revision:"4891e9325cf0e66894f0ac7173b9978a"},{url:"/manifest.json",revision:"cadf36797028efd940dd78f916918cd0"},{url:"/sw-custom.js",revision:"3c372bbe0bbd3d2bc37d228358d6c79a"}],{ignoreURLParametersMatching:[]}),e.cleanupOutdatedCaches(),e.registerRoute("/",new e.NetworkFirst({cacheName:"start-url",plugins:[{cacheWillUpdate:async({request:e,response:a,event:i,state:s})=>a&&"opaqueredirect"===a.type?new Response(a.body,{status:200,statusText:"OK",headers:a.headers}):a}]}),"GET"),e.registerRoute(/^https:\/\/fonts\.(?:gstatic)\.com\/.*/i,new e.CacheFirst({cacheName:"google-fonts-webfonts",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:31536e3})]}),"GET"),e.registerRoute(/^https:\/\/fonts\.(?:googleapis)\.com\/.*/i,new e.StaleWhileRevalidate({cacheName:"google-fonts-stylesheets",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:604800})]}),"GET"),e.registerRoute(/\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,new e.StaleWhileRevalidate({cacheName:"static-font-assets",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:604800})]}),"GET"),e.registerRoute(/\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,new e.StaleWhileRevalidate({cacheName:"static-image-assets",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\/_next\/image\?url=.+$/i,new e.StaleWhileRevalidate({cacheName:"next-image",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\.(?:mp3|wav|ogg)$/i,new e.CacheFirst({cacheName:"static-audio-assets",plugins:[new e.RangeRequestsPlugin,new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\.(?:mp4)$/i,new e.CacheFirst({cacheName:"static-video-assets",plugins:[new e.RangeRequestsPlugin,new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\.(?:js)$/i,new e.StaleWhileRevalidate({cacheName:"static-js-assets",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\.(?:css|less)$/i,new e.StaleWhileRevalidate({cacheName:"static-style-assets",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\/_next\/data\/.+\/.+\.json$/i,new e.StaleWhileRevalidate({cacheName:"next-data",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\.(?:json|xml|csv)$/i,new e.NetworkFirst({cacheName:"static-data-assets",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(({url:e})=>{if(!(self.origin===e.origin))return!1;const a=e.pathname;return!a.startsWith("/api/auth/")&&!!a.startsWith("/api/")},new e.NetworkFirst({cacheName:"apis",networkTimeoutSeconds:10,plugins:[new e.ExpirationPlugin({maxEntries:16,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(({url:e})=>{if(!(self.origin===e.origin))return!1;return!e.pathname.startsWith("/api/")},new e.NetworkFirst({cacheName:"others",networkTimeoutSeconds:10,plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(({url:e})=>!(self.origin===e.origin),new e.NetworkFirst({cacheName:"cross-origin",networkTimeoutSeconds:10,plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:3600})]}),"GET")});
+if (!self.define) {
+  let e,
+    a = {}
+  const i = (i, c) => (
+    (i = new URL(i + ".js", c).href),
+    a[i] ||
+      new Promise((a) => {
+        if ("document" in self) {
+          const e = document.createElement("script")
+          ;((e.src = i), (e.onload = a), document.head.appendChild(e))
+        } else ((e = i), importScripts(i), a())
+      }).then(() => {
+        let e = a[i]
+        if (!e) throw new Error(`Module ${i} didn’t register its module`)
+        return e
+      })
+  )
+  self.define = (c, s) => {
+    const t =
+      e ||
+      ("document" in self ? document.currentScript.src : "") ||
+      location.href
+    if (a[t]) return
+    let n = {}
+    const r = (e) => i(e, t),
+      d = { module: { uri: t }, exports: n, require: r }
+    a[t] = Promise.all(c.map((e) => d[e] || r(e))).then((e) => (s(...e), n))
+  }
+}
+define(["./workbox-d50ca814"], function (e) {
+  "use strict"
+  ;(importScripts("/sw-custom.js"),
+    self.skipWaiting(),
+    e.clientsClaim(),
+    e.precacheAndRoute(
+      [
+        {
+          url: "/_next/app-build-manifest.json",
+          revision: "d1a49459a66d8515a802cdfd3eccb4f3",
+        },
+        {
+          url: "/_next/static/X1bbmhla7z_v5tfCC5K7C/_buildManifest.js",
+          revision: "487b5bea8a58f1c00e9868180b8b457d",
+        },
+        {
+          url: "/_next/static/X1bbmhla7z_v5tfCC5K7C/_ssgManifest.js",
+          revision: "b6652df95db52feb4daf4eca35380933",
+        },
+        {
+          url: "/_next/static/chunks/1071-1e57829653b35b28.js",
+          revision: "1e57829653b35b28",
+        },
+        {
+          url: "/_next/static/chunks/1271-f7ad719013bab401.js",
+          revision: "f7ad719013bab401",
+        },
+        {
+          url: "/_next/static/chunks/1385-1830d460ddfc1b9d.js",
+          revision: "1830d460ddfc1b9d",
+        },
+        {
+          url: "/_next/static/chunks/2354-2d4cd1b1d499aeca.js",
+          revision: "2d4cd1b1d499aeca",
+        },
+        {
+          url: "/_next/static/chunks/2804-03b66a95df53ad22.js",
+          revision: "03b66a95df53ad22",
+        },
+        {
+          url: "/_next/static/chunks/2947-52f00adedc73c28e.js",
+          revision: "52f00adedc73c28e",
+        },
+        {
+          url: "/_next/static/chunks/3063-1ee9e2c4135c2cb9.js",
+          revision: "1ee9e2c4135c2cb9",
+        },
+        {
+          url: "/_next/static/chunks/3438-af3cf0471e5ced10.js",
+          revision: "af3cf0471e5ced10",
+        },
+        {
+          url: "/_next/static/chunks/367-3294776aed311a53.js",
+          revision: "3294776aed311a53",
+        },
+        {
+          url: "/_next/static/chunks/3717-9a0f584a211245ba.js",
+          revision: "9a0f584a211245ba",
+        },
+        {
+          url: "/_next/static/chunks/4178-e7c73e22e531de0c.js",
+          revision: "e7c73e22e531de0c",
+        },
+        {
+          url: "/_next/static/chunks/4200-3fa7dab28391ad27.js",
+          revision: "3fa7dab28391ad27",
+        },
+        {
+          url: "/_next/static/chunks/4277-9f638e4633d45612.js",
+          revision: "9f638e4633d45612",
+        },
+        {
+          url: "/_next/static/chunks/472.2c08b965bd9148e2.js",
+          revision: "2c08b965bd9148e2",
+        },
+        {
+          url: "/_next/static/chunks/4bd1b696-cc729d47eba2cee4.js",
+          revision: "cc729d47eba2cee4",
+        },
+        {
+          url: "/_next/static/chunks/5038-d782d86ec198e8e7.js",
+          revision: "d782d86ec198e8e7",
+        },
+        {
+          url: "/_next/static/chunks/5071-a8b44382333d97cc.js",
+          revision: "a8b44382333d97cc",
+        },
+        {
+          url: "/_next/static/chunks/5337-240eedc8b4522eb6.js",
+          revision: "240eedc8b4522eb6",
+        },
+        {
+          url: "/_next/static/chunks/5558-1a8a2a752074f39c.js",
+          revision: "1a8a2a752074f39c",
+        },
+        {
+          url: "/_next/static/chunks/5964-6d6a41800488ba64.js",
+          revision: "6d6a41800488ba64",
+        },
+        {
+          url: "/_next/static/chunks/6671-24139d96056a6e31.js",
+          revision: "24139d96056a6e31",
+        },
+        {
+          url: "/_next/static/chunks/6874-414075bb21e16c80.js",
+          revision: "414075bb21e16c80",
+        },
+        {
+          url: "/_next/static/chunks/8249-1c5ab529ca147640.js",
+          revision: "1c5ab529ca147640",
+        },
+        {
+          url: "/_next/static/chunks/9085-e15cac2b2ae4c92a.js",
+          revision: "e15cac2b2ae4c92a",
+        },
+        {
+          url: "/_next/static/chunks/9341.8181fde8cccea77c.js",
+          revision: "8181fde8cccea77c",
+        },
+        {
+          url: "/_next/static/chunks/app/_not-found/page-01ca076eff5475ed.js",
+          revision: "01ca076eff5475ed",
+        },
+        {
+          url: "/_next/static/chunks/app/admin/moderation/communities/page-1be79592555592c8.js",
+          revision: "1be79592555592c8",
+        },
+        {
+          url: "/_next/static/chunks/app/admin/moderation/content/page-7788114b1b32ad98.js",
+          revision: "7788114b1b32ad98",
+        },
+        {
+          url: "/_next/static/chunks/app/admin/moderation/profiles/page-ab03ccac423f13dc.js",
+          revision: "ab03ccac423f13dc",
+        },
+        {
+          url: "/_next/static/chunks/app/admin/notifications/page-84be357c68b4bd79.js",
+          revision: "84be357c68b4bd79",
+        },
+        {
+          url: "/_next/static/chunks/app/admin/page-838e525e9e270a6c.js",
+          revision: "838e525e9e270a6c",
+        },
+        {
+          url: "/_next/static/chunks/app/admin/profiles/page-d7df60e7d6963cf4.js",
+          revision: "d7df60e7d6963cf4",
+        },
+        {
+          url: "/_next/static/chunks/app/admin/roles/page-ad4899d73d5a8422.js",
+          revision: "ad4899d73d5a8422",
+        },
+        {
+          url: "/_next/static/chunks/app/api/link-preview/route-01ca076eff5475ed.js",
+          revision: "01ca076eff5475ed",
+        },
+        {
+          url: "/_next/static/chunks/app/api/moderate/route-01ca076eff5475ed.js",
+          revision: "01ca076eff5475ed",
+        },
+        {
+          url: "/_next/static/chunks/app/api/push/route-01ca076eff5475ed.js",
+          revision: "01ca076eff5475ed",
+        },
+        {
+          url: "/_next/static/chunks/app/api/video-transcode/route-01ca076eff5475ed.js",
+          revision: "01ca076eff5475ed",
+        },
+        {
+          url: "/_next/static/chunks/app/c/%5Bid%5D/page-8b036cb876a3ea73.js",
+          revision: "8b036cb876a3ea73",
+        },
+        {
+          url: "/_next/static/chunks/app/c/%5Bid%5D/wiki/%5Bslug%5D/page-c2659b9d927f1799.js",
+          revision: "c2659b9d927f1799",
+        },
+        {
+          url: "/_next/static/chunks/app/c/page-3aff18f2afb69b4e.js",
+          revision: "3aff18f2afb69b4e",
+        },
+        {
+          url: "/_next/static/chunks/app/d/page-40e8d69cf0713a7c.js",
+          revision: "40e8d69cf0713a7c",
+        },
+        {
+          url: "/_next/static/chunks/app/error-d88e84747673532a.js",
+          revision: "d88e84747673532a",
+        },
+        {
+          url: "/_next/static/chunks/app/l/page-b3725f19e1e2c3af.js",
+          revision: "b3725f19e1e2c3af",
+        },
+        {
+          url: "/_next/static/chunks/app/layout-79681eab804464da.js",
+          revision: "79681eab804464da",
+        },
+        {
+          url: "/_next/static/chunks/app/not-found-471570b67c5e973a.js",
+          revision: "471570b67c5e973a",
+        },
+        {
+          url: "/_next/static/chunks/app/offline/page-01ca076eff5475ed.js",
+          revision: "01ca076eff5475ed",
+        },
+        {
+          url: "/_next/static/chunks/app/onboarding/account/page-b5681a600ce7ae54.js",
+          revision: "b5681a600ce7ae54",
+        },
+        {
+          url: "/_next/static/chunks/app/onboarding/intro/page-44ef4775174d6087.js",
+          revision: "44ef4775174d6087",
+        },
+        {
+          url: "/_next/static/chunks/app/onboarding/profile/page-94893910d9810840.js",
+          revision: "94893910d9810840",
+        },
+        {
+          url: "/_next/static/chunks/app/p/%5Bid%5D/page-d0aac67b26e5de0d.js",
+          revision: "d0aac67b26e5de0d",
+        },
+        {
+          url: "/_next/static/chunks/app/page-e1bddfabfe78bde2.js",
+          revision: "e1bddfabfe78bde2",
+        },
+        {
+          url: "/_next/static/chunks/app/pp/page-01ca076eff5475ed.js",
+          revision: "01ca076eff5475ed",
+        },
+        {
+          url: "/_next/static/chunks/app/r/page-e17f049136014191.js",
+          revision: "e17f049136014191",
+        },
+        {
+          url: "/_next/static/chunks/app/reset-password/page-f37b6a5c1d0aadd2.js",
+          revision: "f37b6a5c1d0aadd2",
+        },
+        {
+          url: "/_next/static/chunks/app/s/page-5a9566b0ef65a70c.js",
+          revision: "5a9566b0ef65a70c",
+        },
+        {
+          url: "/_next/static/chunks/app/tos/page-01ca076eff5475ed.js",
+          revision: "01ca076eff5475ed",
+        },
+        {
+          url: "/_next/static/chunks/app/u/%5Busername%5D/friends/page-3f4ebc5d9123d952.js",
+          revision: "3f4ebc5d9123d952",
+        },
+        {
+          url: "/_next/static/chunks/app/u/%5Busername%5D/page-9e437e93f2bff14b.js",
+          revision: "9e437e93f2bff14b",
+        },
+        {
+          url: "/_next/static/chunks/app/w/%5Bid%5D/ical/route-01ca076eff5475ed.js",
+          revision: "01ca076eff5475ed",
+        },
+        {
+          url: "/_next/static/chunks/app/w/%5Bid%5D/page-ff7653328cb385b4.js",
+          revision: "ff7653328cb385b4",
+        },
+        {
+          url: "/_next/static/chunks/app/w/page-8b7b27a7cf6f35ec.js",
+          revision: "8b7b27a7cf6f35ec",
+        },
+        {
+          url: "/_next/static/chunks/d3ac728e-126267ab7d9db9db.js",
+          revision: "126267ab7d9db9db",
+        },
+        {
+          url: "/_next/static/chunks/framework-6a579fe8df05a747.js",
+          revision: "6a579fe8df05a747",
+        },
+        {
+          url: "/_next/static/chunks/main-87670dedeb91a1b5.js",
+          revision: "87670dedeb91a1b5",
+        },
+        {
+          url: "/_next/static/chunks/main-app-4a99b13d2aa43ec4.js",
+          revision: "4a99b13d2aa43ec4",
+        },
+        {
+          url: "/_next/static/chunks/pages/_app-711a943019cc4c3f.js",
+          revision: "711a943019cc4c3f",
+        },
+        {
+          url: "/_next/static/chunks/pages/_error-74a3ff45f87fd51c.js",
+          revision: "74a3ff45f87fd51c",
+        },
+        {
+          url: "/_next/static/chunks/polyfills-42372ed130431b0a.js",
+          revision: "846118c33b2c0e922d7b3a7676f81f6f",
+        },
+        {
+          url: "/_next/static/chunks/webpack-e6e1c7af4097c6d7.js",
+          revision: "e6e1c7af4097c6d7",
+        },
+        {
+          url: "/_next/static/css/09dfadb69bdaa005.css",
+          revision: "09dfadb69bdaa005",
+        },
+        {
+          url: "/_next/static/css/a51676c595e7be25.css",
+          revision: "a51676c595e7be25",
+        },
+        {
+          url: "/_next/static/media/569ce4b8f30dc480-s.p.woff2",
+          revision: "ef6cefb32024deac234e82f932a95cbd",
+        },
+        {
+          url: "/_next/static/media/747892c23ea88013-s.woff2",
+          revision: "a0761690ccf4441ace5cec893b82d4ab",
+        },
+        {
+          url: "/_next/static/media/8d697b304b401681-s.woff2",
+          revision: "cc728f6c0adb04da0dfcb0fc436a8ae5",
+        },
+        {
+          url: "/_next/static/media/93f479601ee12b01-s.p.woff2",
+          revision: "da83d5f06d825c5ae65b7cca706cb312",
+        },
+        {
+          url: "/_next/static/media/9610d9e46709d722-s.woff2",
+          revision: "7b7c0ef93df188a852344fc272fc096b",
+        },
+        {
+          url: "/_next/static/media/KaTeX_AMS-Regular.1608a09b.woff",
+          revision: "1608a09b",
+        },
+        {
+          url: "/_next/static/media/KaTeX_AMS-Regular.4aafdb68.ttf",
+          revision: "4aafdb68",
+        },
+        {
+          url: "/_next/static/media/KaTeX_AMS-Regular.a79f1c31.woff2",
+          revision: "a79f1c31",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Caligraphic-Bold.b6770918.woff",
+          revision: "b6770918",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Caligraphic-Bold.cce5b8ec.ttf",
+          revision: "cce5b8ec",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Caligraphic-Bold.ec17d132.woff2",
+          revision: "ec17d132",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Caligraphic-Regular.07ef19e7.ttf",
+          revision: "07ef19e7",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Caligraphic-Regular.55fac258.woff2",
+          revision: "55fac258",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Caligraphic-Regular.dad44a7f.woff",
+          revision: "dad44a7f",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Fraktur-Bold.9f256b85.woff",
+          revision: "9f256b85",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Fraktur-Bold.b18f59e1.ttf",
+          revision: "b18f59e1",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Fraktur-Bold.d42a5579.woff2",
+          revision: "d42a5579",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Fraktur-Regular.7c187121.woff",
+          revision: "7c187121",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Fraktur-Regular.d3c882a6.woff2",
+          revision: "d3c882a6",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Fraktur-Regular.ed38e79f.ttf",
+          revision: "ed38e79f",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Main-Bold.b74a1a8b.ttf",
+          revision: "b74a1a8b",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Main-Bold.c3fb5ac2.woff2",
+          revision: "c3fb5ac2",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Main-Bold.d181c465.woff",
+          revision: "d181c465",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Main-BoldItalic.6f2bb1df.woff2",
+          revision: "6f2bb1df",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Main-BoldItalic.70d8b0a5.ttf",
+          revision: "70d8b0a5",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Main-BoldItalic.e3f82f9d.woff",
+          revision: "e3f82f9d",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Main-Italic.47373d1e.ttf",
+          revision: "47373d1e",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Main-Italic.8916142b.woff2",
+          revision: "8916142b",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Main-Italic.9024d815.woff",
+          revision: "9024d815",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Main-Regular.0462f03b.woff2",
+          revision: "0462f03b",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Main-Regular.7f51fe03.woff",
+          revision: "7f51fe03",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Main-Regular.b7f8fe9b.ttf",
+          revision: "b7f8fe9b",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Math-BoldItalic.572d331f.woff2",
+          revision: "572d331f",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Math-BoldItalic.a879cf83.ttf",
+          revision: "a879cf83",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Math-BoldItalic.f1035d8d.woff",
+          revision: "f1035d8d",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Math-Italic.5295ba48.woff",
+          revision: "5295ba48",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Math-Italic.939bc644.ttf",
+          revision: "939bc644",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Math-Italic.f28c23ac.woff2",
+          revision: "f28c23ac",
+        },
+        {
+          url: "/_next/static/media/KaTeX_SansSerif-Bold.8c5b5494.woff2",
+          revision: "8c5b5494",
+        },
+        {
+          url: "/_next/static/media/KaTeX_SansSerif-Bold.94e1e8dc.ttf",
+          revision: "94e1e8dc",
+        },
+        {
+          url: "/_next/static/media/KaTeX_SansSerif-Bold.bf59d231.woff",
+          revision: "bf59d231",
+        },
+        {
+          url: "/_next/static/media/KaTeX_SansSerif-Italic.3b1e59b3.woff2",
+          revision: "3b1e59b3",
+        },
+        {
+          url: "/_next/static/media/KaTeX_SansSerif-Italic.7c9bc82b.woff",
+          revision: "7c9bc82b",
+        },
+        {
+          url: "/_next/static/media/KaTeX_SansSerif-Italic.b4c20c84.ttf",
+          revision: "b4c20c84",
+        },
+        {
+          url: "/_next/static/media/KaTeX_SansSerif-Regular.74048478.woff",
+          revision: "74048478",
+        },
+        {
+          url: "/_next/static/media/KaTeX_SansSerif-Regular.ba21ed5f.woff2",
+          revision: "ba21ed5f",
+        },
+        {
+          url: "/_next/static/media/KaTeX_SansSerif-Regular.d4d7ba48.ttf",
+          revision: "d4d7ba48",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Script-Regular.03e9641d.woff2",
+          revision: "03e9641d",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Script-Regular.07505710.woff",
+          revision: "07505710",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Script-Regular.fe9cbbe1.ttf",
+          revision: "fe9cbbe1",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Size1-Regular.e1e279cb.woff",
+          revision: "e1e279cb",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Size1-Regular.eae34984.woff2",
+          revision: "eae34984",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Size1-Regular.fabc004a.ttf",
+          revision: "fabc004a",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Size2-Regular.57727022.woff",
+          revision: "57727022",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Size2-Regular.5916a24f.woff2",
+          revision: "5916a24f",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Size2-Regular.d6b476ec.ttf",
+          revision: "d6b476ec",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Size3-Regular.9acaf01c.woff",
+          revision: "9acaf01c",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Size3-Regular.a144ef58.ttf",
+          revision: "a144ef58",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Size3-Regular.b4230e7e.woff2",
+          revision: "b4230e7e",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Size4-Regular.10d95fd3.woff2",
+          revision: "10d95fd3",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Size4-Regular.7a996c9d.woff",
+          revision: "7a996c9d",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Size4-Regular.fbccdabe.ttf",
+          revision: "fbccdabe",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Typewriter-Regular.6258592b.woff",
+          revision: "6258592b",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Typewriter-Regular.a8709e36.woff2",
+          revision: "a8709e36",
+        },
+        {
+          url: "/_next/static/media/KaTeX_Typewriter-Regular.d97aaf4a.ttf",
+          revision: "d97aaf4a",
+        },
+        {
+          url: "/_next/static/media/ba015fad6dcf6784-s.woff2",
+          revision: "8ea4f719af3312a055caf09f34c89a77",
+        },
+        {
+          url: "/audio/tecza_powiadomienie.mp3",
+          revision: "64990b83218dec15468bb4f11973a060",
+        },
+        {
+          url: "/audio/tecza_start.mp3",
+          revision: "f32c9862185a2f992f90e6001d4d7d67",
+        },
+        {
+          url: "/audio/tecza_wiadomosc.mp3",
+          revision: "8cf8675e88889a83fea3c2932f38da5f",
+        },
+        {
+          url: "/icons/tecza-badge/1-anniversary.svg",
+          revision: "4642394da1006336bb0197f0d79a69a5",
+        },
+        {
+          url: "/icons/tecza-badge/10-anniversary.svg",
+          revision: "5cc2d031462670b54b5acb7a7faada85",
+        },
+        {
+          url: "/icons/tecza-badge/3-anniversary.svg",
+          revision: "e062b2728a8f52c4ac27aef5dd2a0854",
+        },
+        {
+          url: "/icons/tecza-badge/5-anniversary.svg",
+          revision: "b5f7d2a0a03b3ee76b91a9e0b39d4003",
+        },
+        {
+          url: "/icons/tecza-badge/ambassador.svg",
+          revision: "151cda41b89bbdb6acccc5aaf5337483",
+        },
+        {
+          url: "/icons/tecza-badge/banned.svg",
+          revision: "06f5449ff4cd1c8a0f85c5d8f7570b98",
+        },
+        {
+          url: "/icons/tecza-badge/company-supporter.svg",
+          revision: "e80e5f369bfe4144d44e39f25bd3c130",
+        },
+        {
+          url: "/icons/tecza-badge/company.svg",
+          revision: "8a684cc5b5f065d3901f1991aa5483c4",
+        },
+        {
+          url: "/icons/tecza-badge/early-tester.svg",
+          revision: "50c077b8f313038329f07da7a3e37296",
+        },
+        {
+          url: "/icons/tecza-badge/hiv-positive-campaigh.svg",
+          revision: "ffebdf18dbc4265b2eb1df32827503e6",
+        },
+        {
+          url: "/icons/tecza-badge/mod-admin.svg",
+          revision: "2d7f20eeb7919b8c761e81480fa9ed2a",
+        },
+        {
+          url: "/icons/tecza-badge/pride2026.svg",
+          revision: "79ff168e6300c71d69dab2355594a0ad",
+        },
+        {
+          url: "/icons/tecza-badge/tecza-team.svg",
+          revision: "d0c00af5ecd2ef594503adba9daca7f7",
+        },
+        {
+          url: "/icons/tecza-badge/tester.svg",
+          revision: "19821ab5a57c0ad91242a39dcb3c7cab",
+        },
+        {
+          url: "/icons/tecza-badge/user-supporter.svg",
+          revision: "49dec42fabd6edbbe00e7a6da512044c",
+        },
+        {
+          url: "/icons/tecza-icons-500x270/1.svg",
+          revision: "5db375ad0cb9e57b091108ecdfe7e513",
+        },
+        {
+          url: "/icons/tecza-icons-500x270/2.svg",
+          revision: "18fd12ee2f6a135422cc1d42dd2ec759",
+        },
+        {
+          url: "/icons/tecza-icons-500x270/3.svg",
+          revision: "45085f9b7811d103d639468de3fdd201",
+        },
+        {
+          url: "/icons/tecza-icons-500x270/4.svg",
+          revision: "a852ea8250d32fc6c53bd250de9615e9",
+        },
+        {
+          url: "/icons/tecza-icons/1.svg",
+          revision: "52cf50c4e821c88ee68ff768112487e3",
+        },
+        {
+          url: "/icons/tecza-icons/2.svg",
+          revision: "b1bf3c7d3d032139d8d63ac2b863a113",
+        },
+        {
+          url: "/icons/tecza-icons/3.svg",
+          revision: "d6cc0ffcceaaa7173491faf43448300c",
+        },
+        {
+          url: "/icons/tecza-icons/4.svg",
+          revision: "034a27d9e7e2877ede1fe70cf762c788",
+        },
+        {
+          url: "/image/tecza-homepage.webp",
+          revision: "4891e9325cf0e66894f0ac7173b9978a",
+        },
+        { url: "/manifest.json", revision: "916bc761cb22a17771072bdd03041251" },
+        { url: "/sw-custom.js", revision: "91044c2df2a5e140ce1a2cf662f913ef" },
+      ],
+      { ignoreURLParametersMatching: [] },
+    ),
+    e.cleanupOutdatedCaches(),
+    e.registerRoute(
+      "/",
+      new e.NetworkFirst({
+        cacheName: "start-url",
+        plugins: [
+          {
+            cacheWillUpdate: async ({
+              request: e,
+              response: a,
+              event: i,
+              state: c,
+            }) =>
+              a && "opaqueredirect" === a.type
+                ? new Response(a.body, {
+                    status: 200,
+                    statusText: "OK",
+                    headers: a.headers,
+                  })
+                : a,
+          },
+        ],
+      }),
+      "GET",
+    ),
+    e.registerRoute(
+      function (e) {
+        return "navigate" === e.request.mode
+      },
+      new e.NetworkFirst({
+        cacheName: "html-cache",
+        networkTimeoutSeconds: 3,
+        plugins: [
+          new e.ExpirationPlugin({ maxEntries: 64, maxAgeSeconds: 604800 }),
+          new e.CacheableResponsePlugin({ statuses: [200] }),
+          {
+            handlerDidError: function () {
+              return _async_to_generator(function () {
+                var e
+                return _ts_generator(this, function (a) {
+                  switch (a.label) {
+                    case 0:
+                      return (
+                        a.trys.push([0, 3, , 4]),
+                        [4, caches.open("html-cache")]
+                      )
+                    case 1:
+                      return [4, a.sent().match("/offline")]
+                    case 2:
+                      return (e = a.sent()) ? [2, e] : [3, 4]
+                    case 3:
+                      return (a.sent(), [3, 4])
+                    case 4:
+                      return [2, Response.error()]
+                  }
+                })
+              })()
+            },
+          },
+        ],
+      }),
+      "GET",
+    ),
+    e.registerRoute(
+      function (e) {
+        var a = e.request
+        return ["style", "script", "worker"].includes(a.destination)
+      },
+      new e.StaleWhileRevalidate({
+        cacheName: "asset-cache",
+        plugins: [
+          new e.ExpirationPlugin({ maxEntries: 128, maxAgeSeconds: 2592e3 }),
+        ],
+      }),
+      "GET",
+    ),
+    e.registerRoute(
+      function (e) {
+        return "image" === e.request.destination
+      },
+      new e.CacheFirst({
+        cacheName: "image-cache",
+        plugins: [
+          new e.ExpirationPlugin({ maxEntries: 128, maxAgeSeconds: 2592e3 }),
+          new e.CacheableResponsePlugin({ statuses: [200] }),
+        ],
+      }),
+      "GET",
+    ),
+    e.registerRoute(
+      function (e) {
+        var a = e.url
+        return (
+          a.hostname.endsWith("supabase.co") && a.pathname.includes("/rest/")
+        )
+      },
+      new e.NetworkFirst({
+        cacheName: "api-cache",
+        networkTimeoutSeconds: 5,
+        plugins: [
+          new e.ExpirationPlugin({ maxEntries: 64, maxAgeSeconds: 3600 }),
+        ],
+      }),
+      "GET",
+    ))
+})

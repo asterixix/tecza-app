@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { getSupabase } from "@/lib/supabase-browser"
 import type {
   PostgrestError,
@@ -143,43 +143,105 @@ export default function EventsPage() {
     load()
   }, [supabase])
 
-  // Minimal client-side OSM search (Nominatim)
-  useEffect(() => {
-    const q = locQuery.trim()
-    if (q.length < 3) {
-      setLocResults([])
-      return
-    }
-    const ctrl = new AbortController()
-    const t = setTimeout(async () => {
-      try {
-        setLocLoading(true)
-        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=0&limit=5&q=${encodeURIComponent(
-          q,
-        )}`
-        const res = await fetch(url, {
-          headers: { Accept: "application/json" },
-          signal: ctrl.signal,
-        })
-        if (!res.ok) throw new Error("Search failed")
-        const json = (await res.json()) as Array<{
+  // OSM search helpers (manual, throttled, cached per Nominatim policy)
+  const lastSearchRef = useRef<number>(0)
+  const cacheRef = useRef<
+    Record<
+      string,
+      {
+        t: number
+        r: Array<{
           display_name: string
           lat: string
           lon: string
           boundingbox?: [string, string, string, string]
         }>
-        setLocResults(json)
-      } catch {
-        setLocResults([])
-      } finally {
-        setLocLoading(false)
       }
-    }, 350)
-    return () => {
-      clearTimeout(t)
-      ctrl.abort()
+    >
+  >({})
+  const [searchNote, setSearchNote] = useState<string>("")
+
+  useEffect(() => {
+    // load cache from localStorage on mount
+    try {
+      const raw = localStorage.getItem("osm_search_cache_v1")
+      if (raw) cacheRef.current = JSON.parse(raw)
+    } catch {
+      // ignore
     }
-  }, [locQuery])
+  }, [])
+
+  function saveCache() {
+    try {
+      localStorage.setItem(
+        "osm_search_cache_v1",
+        JSON.stringify(cacheRef.current),
+      )
+    } catch {
+      // ignore
+    }
+  }
+
+  async function performOsmSearch() {
+    const q = locQuery.trim()
+    setSearchNote("")
+    if (q.length < 3) {
+      setLocResults([])
+      setSearchNote("Wpisz co najmniej 3 znaki.")
+      return
+    }
+    // 24h cache
+    const key = q.toLowerCase()
+    const now = Date.now()
+    const cached = cacheRef.current[key]
+    if (cached && now - cached.t < 24 * 60 * 60 * 1000) {
+      setLocResults(cached.r)
+      return
+    }
+    // throttle 1 req/s
+    const since = now - lastSearchRef.current
+    if (since < 1000) {
+      setSearchNote("Poczekaj chwilę przed kolejnym wyszukiwaniem…")
+      await new Promise((res) => setTimeout(res, 1000 - since))
+    }
+    lastSearchRef.current = Date.now()
+    const ctrl = new AbortController()
+    try {
+      setLocLoading(true)
+      const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=0&limit=5&q=${encodeURIComponent(q)}`
+      const res = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+          "Accept-Language": navigator.language || "pl",
+        },
+        signal: ctrl.signal,
+      })
+      if (res.status === 429) {
+        const retry = res.headers.get("Retry-After")
+        setSearchNote(
+          retry
+            ? `Przekroczono limit. Spróbuj ponownie za ${retry}s.`
+            : "Przekroczono limit zapytań. Spróbuj ponownie później.",
+        )
+        setLocResults([])
+        return
+      }
+      if (!res.ok) throw new Error("Search failed")
+      const json = (await res.json()) as Array<{
+        display_name: string
+        lat: string
+        lon: string
+        boundingbox?: [string, string, string, string]
+      }>
+      setLocResults(json)
+      cacheRef.current[key] = { t: Date.now(), r: json }
+      saveCache()
+    } catch {
+      setLocResults([])
+    } finally {
+      setLocLoading(false)
+    }
+  }
 
   async function handleRsvp(eventId: string, newStatus: string) {
     if (!supabase || !currentUser) return
@@ -570,14 +632,27 @@ export default function EventsPage() {
                 <div className="text-sm font-medium mb-1">
                   Lokalizacja (OSM)
                 </div>
-                <Input
-                  value={locQuery}
-                  onChange={(e) => setLocQuery(e.target.value)}
-                  placeholder="Szukaj miejsca…"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    value={locQuery}
+                    onChange={(e) => setLocQuery(e.target.value)}
+                    placeholder="Szukaj miejsca…"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={performOsmSearch}
+                  >
+                    Szukaj
+                  </Button>
+                </div>
                 {locLoading ? (
                   <div className="text-xs text-muted-foreground mt-1">
                     Szukanie…
+                  </div>
+                ) : searchNote ? (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {searchNote}
                   </div>
                 ) : null}
                 {locResults.length > 0 && (
@@ -620,6 +695,9 @@ export default function EventsPage() {
                     Wybrano: {selectedLocName}
                   </div>
                 )}
+                <div className="text-[10px] text-muted-foreground mt-2">
+                  Dane wyszukiwania: © OpenStreetMap & Nominatim
+                </div>
               </div>
             </div>
             <div className="grid md:grid-cols-3 gap-3">
