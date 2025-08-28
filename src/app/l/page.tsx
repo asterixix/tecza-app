@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge"
 import { Toaster } from "@/components/ui/sonner"
 import { toast } from "sonner"
 import { Mail, Lock, KeyRound } from "lucide-react"
+import AlphaWarningDialog from "@/components/site/alpha-warning-dialog"
 
 const schema = z.object({
   email: z.string().email("Podaj poprawny email"),
@@ -37,6 +38,10 @@ export default function LoginPage() {
   const [isRecovery, setIsRecovery] = useState(false)
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [alphaOpen, setAlphaOpen] = useState(false)
+  const [pendingProvider, setPendingProvider] = useState<
+    "google" | "discord" | null
+  >(null)
   const supabase = getSupabase()
 
   // Jeśli zalogowany (lub login przez OAuth), redirect do onboarding lub dashboardu
@@ -119,7 +124,7 @@ export default function LoginPage() {
     }
   }
   // OAuth support
-  async function oauth(provider: "google" | "discord") {
+  async function doOauth(provider: "google" | "discord") {
     if (!supabase) {
       toast.error("Brak konfiguracji Supabase")
       return
@@ -134,6 +139,25 @@ export default function LoginPage() {
       },
     })
     if (error) toast.error(error.message)
+  }
+  async function oauth(provider: "google" | "discord") {
+    // Require alpha acknowledgement once per device/session
+    try {
+      const ack =
+        typeof window !== "undefined"
+          ? localStorage.getItem("alpha_ack")
+          : "true"
+      if (!ack) {
+        setPendingProvider(provider)
+        setAlphaOpen(true)
+        return
+      }
+    } catch {
+      setPendingProvider(provider)
+      setAlphaOpen(true)
+      return
+    }
+    await doOauth(provider)
   }
   // Reset hasła
   async function reset() {
@@ -418,6 +442,16 @@ export default function LoginPage() {
           )}
         </CardContent>
       </Card>
+      <AlphaWarningDialog
+        open={alphaOpen}
+        onOpenChange={setAlphaOpen}
+        onAccept={() => {
+          if (pendingProvider) {
+            void doOauth(pendingProvider)
+            setPendingProvider(null)
+          }
+        }}
+      />
     </div>
   )
 }

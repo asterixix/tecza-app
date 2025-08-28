@@ -261,10 +261,12 @@ export default function EventsPage() {
             location: isOnline ? "Online" : selectedLocName || null,
             coordinates: isOnline
               ? null
-              : selectedCoords && Array.isArray(selectedCoords)
+              : Array.isArray(selectedCoords)
                 ? (selectedCoords as [number, number, number, number])
-                : selectedCoords &&
-                    (selectedCoords as { lat: number; lon: number })
+                : typeof selectedCoords === "object" &&
+                    selectedCoords !== null &&
+                    "lat" in (selectedCoords as Record<string, unknown>) &&
+                    "lon" in (selectedCoords as Record<string, unknown>)
                   ? (selectedCoords as { lat: number; lon: number })
                   : null,
             is_online: isOnline,

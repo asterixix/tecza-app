@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge"
 import { Toaster } from "@/components/ui/sonner"
 import { toast } from "sonner"
 import { Mail, Lock } from "lucide-react"
+import AlphaWarningDialog from "@/components/site/alpha-warning-dialog"
 
 const schema = z.object({
   email: z.string().email("Podaj poprawny email"),
@@ -39,6 +40,8 @@ type FormValues = z.infer<typeof schema>
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
+  const [alphaOpen, setAlphaOpen] = useState(false)
+  const [pending, setPending] = useState<FormValues | null>(null)
   const supabase = getSupabase()
 
   const form = useForm<FormValues>({
@@ -47,7 +50,7 @@ export default function RegisterPage() {
     mode: "onBlur",
   })
 
-  async function onSubmit(values: FormValues) {
+  async function doSignUp(values: FormValues) {
     if (!supabase) {
       toast.error("Brak konfiguracji Supabase")
       return
@@ -85,6 +88,27 @@ export default function RegisterPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function onSubmit(values: FormValues) {
+    // Show Alpha dialog once per device/session unless acknowledged
+    try {
+      const ack =
+        typeof window !== "undefined"
+          ? localStorage.getItem("alpha_ack")
+          : "true"
+      if (!ack) {
+        setPending(values)
+        setAlphaOpen(true)
+        return
+      }
+    } catch {
+      // if localStorage not accessible, still require confirmation
+      setPending(values)
+      setAlphaOpen(true)
+      return
+    }
+    await doSignUp(values)
   }
 
   return (
@@ -210,6 +234,16 @@ export default function RegisterPage() {
           </p>
         </CardContent>
       </Card>
+      <AlphaWarningDialog
+        open={alphaOpen}
+        onOpenChange={setAlphaOpen}
+        onAccept={() => {
+          if (pending) {
+            void doSignUp(pending)
+            setPending(null)
+          }
+        }}
+      />
     </div>
   )
 }

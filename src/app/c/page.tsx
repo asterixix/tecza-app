@@ -182,25 +182,20 @@ export default function CommunitiesPage() {
       // Auto-join only when community is active
       if (created?.status === "active") {
         const {
-          error: memberErr,
-          status: mStatus,
-          statusText: mStatusText,
-        } = await supabase
-        const {
-          error: memberErr,
-          status: mStatus,
-          statusText: mStatusText,
+          error: memberUpsertErr,
+          status: memberUpsertStatus,
+          statusText: memberUpsertStatusText,
         } = await supabase
           .from("community_memberships")
           .upsert(
             { community_id: created!.id, user_id: me.id, role: "owner" },
             { onConflict: "community_id,user_id" },
           )
-        if (memberErr) {
+        if (memberUpsertErr) {
           const err = normalizeSupabaseError(
-            memberErr,
+            memberUpsertErr,
             "Nie udało się dodać właściciela do społeczności",
-            { status: mStatus, statusText: mStatusText },
+            { status: memberUpsertStatus, statusText: memberUpsertStatusText },
           )
           throw new Error(friendlyMessage(err))
         }
@@ -220,9 +215,6 @@ export default function CommunitiesPage() {
       // Navigate to created community
       router.push(`/c/${created!.slug || created!.id}`)
     } catch (e: unknown) {
-      const msg =
-        e instanceof Error ? e.message : "Nie udało się utworzyć społeczności"
-      toast.error(msg)
       const msg =
         e instanceof Error ? e.message : "Nie udało się utworzyć społeczności"
       toast.error(msg)

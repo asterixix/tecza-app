@@ -182,10 +182,6 @@ export function NotificationsPopover() {
         const title = n.payload?.title || "Powiadomienie globalne"
         return title as string
       }
-      case "broadcast": {
-        const title = n.payload?.title || "Powiadomienie globalne"
-        return title as string
-      }
       case "friend_request":
         return `${name} wysłał(a) prośbę o połączenie`
       case "friend_request_accepted":
