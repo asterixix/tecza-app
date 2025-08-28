@@ -139,9 +139,9 @@ export function CommunityMarketplace({ communityId }: { communityId: string }) {
       if (!uid) throw new Error("Brak użytkownika")
       // Replace NaN check with robust parse + finite validation
       const parsedPrice = Number(price.replace(",", "."))
-      if (!Number.isFinite(parsedPrice)) throw new Error("Nieprawidłowa cena")
+      if (!Number.isFinite(parsedPrice)) throw new Error("Cena musi być liczbą")
       const price_cents = Math.round(parsedPrice * 100)
-      if (price_cents <= 0) throw new Error("Nieprawidłowa cena")
+      if (price_cents <= 0) throw new Error("Cena musi być liczbą większą od 0")
       const { data: created, error } = await supabase
         .from("community_marketplace_listings")
         .insert({
@@ -501,14 +501,20 @@ function ListingEditDialog({
   const [status, setStatus] = useState<Listing["status"]>(listing.status)
   const [saving, setSaving] = useState(false)
 
+  // Utility function to parse and validate price
+  function parseAndValidatePrice(priceStr: string): number {
+    const parsedPrice = Number(priceStr.replace(",", "."))
+    if (!Number.isFinite(parsedPrice)) throw new Error("Nieprawidłowa cena")
+    const price_cents = Math.round(parsedPrice * 100)
+    if (price_cents <= 0) throw new Error("Nieprawidłowa cena")
+    return price_cents
+  }
+
   async function save() {
     if (!supabase) return
     setSaving(true)
     try {
-      const parsedPrice = Number(price.replace(",", "."))
-      if (!Number.isFinite(parsedPrice)) throw new Error("Nieprawidłowa cena")
-      const price_cents = Math.round(parsedPrice * 100)
-      if (price_cents <= 0) throw new Error("Nieprawidłowa cena")
+      const price_cents = parseAndValidatePrice(price)
 
       const { error } = await supabase
         .from("community_marketplace_listings")
