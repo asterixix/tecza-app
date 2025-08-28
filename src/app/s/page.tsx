@@ -1055,6 +1055,10 @@ function PushControls() {
   )
   const [endpoint, setEndpoint] = useState<string>("")
   const [testing, setTesting] = useState(false)
+  const [swScope, setSwScope] = useState<string>("")
+  const [swReady, setSwReady] = useState<boolean>(false)
+  const vapidPresent =
+    (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "").length > 20
   const [audio] = useState(() =>
     typeof window !== "undefined"
       ? new Audio("/audio/tecza_powiadomienie.mp3")
@@ -1079,8 +1083,14 @@ function PushControls() {
         const reg = await ensureServiceWorkerReady()
         const sub = await reg?.pushManager.getSubscription()
         setEndpoint(sub?.endpoint || "")
+        if (reg) {
+          setSwScope(reg.scope || "")
+          setSwReady(true)
+        }
       } catch {
         setEndpoint("")
+        setSwScope("")
+        setSwReady(false)
       }
       // Reflect current permission
       if (typeof window !== "undefined" && "Notification" in window) {
@@ -1149,6 +1159,25 @@ function PushControls() {
         <div>
           Stan uprawnień: <span className="font-medium">{permission}</span>
         </div>
+        <div>
+          Service Worker:{" "}
+          {swReady ? (
+            <span className="font-medium">gotowy</span>
+          ) : (
+            <span className="italic">brak</span>
+          )}
+          {swScope ? (
+            <span className="ml-1 break-all text-[11px]">({swScope})</span>
+          ) : null}
+        </div>
+        <div>
+          Klucz VAPID:{" "}
+          {vapidPresent ? (
+            <span className="font-medium">obecny</span>
+          ) : (
+            <span className="italic">brak</span>
+          )}
+        </div>
         <div className="break-all">
           Endpoint:{" "}
           {endpoint ? (
@@ -1158,7 +1187,7 @@ function PushControls() {
           )}
         </div>
       </div>
-      <div className="mt-2">
+      <div className="mt-2 flex flex-wrap gap-2">
         <Button
           size="sm"
           variant="outline"
@@ -1197,6 +1226,48 @@ function PushControls() {
           }}
         >
           Wyślij test
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={loading}
+          onClick={async () => {
+            try {
+              const reg = await ensureServiceWorkerReady()
+              await reg?.update()
+              toast.success("Zaktualizowano Service Workera")
+            } catch (e) {
+              const msg =
+                e instanceof Error ? e.message : "Nie udało się odświeżyć SW"
+              toast.error(msg)
+            }
+          }}
+        >
+          Odśwież SW
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={loading}
+          onClick={async () => {
+            try {
+              const unsub = await unsubscribeFromPush()
+              if (!unsub.ok) throw new Error(unsub.reason || "błąd")
+              const sub = await subscribeToPush()
+              if (!sub.ok) throw new Error(sub.reason || "błąd")
+              setEndpoint(sub.endpoint)
+              setEnabled(true)
+              toast.success("Odświeżono subskrypcję push")
+            } catch (e) {
+              const msg =
+                e instanceof Error
+                  ? e.message
+                  : "Nie udało się odświeżyć subskrypcji"
+              toast.error(msg)
+            }
+          }}
+        >
+          Odśwież subskrypcję
         </Button>
       </div>
     </div>
