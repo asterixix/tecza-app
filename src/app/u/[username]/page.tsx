@@ -446,8 +446,12 @@ export default function PublicUserPage() {
 
       const { data: userPosts } = await supabase
         .from("posts")
-        .select("id,user_id,content,visibility,created_at,media_urls,hashtags")
+        .select(
+          "id,user_id,content,visibility,created_at,media_urls,hashtags,community_id",
+        )
         .eq("user_id", profRow.id)
+        .is("community_id", null)
+        .is("hidden_at", null)
         .order("created_at", { ascending: false })
         .limit(20)
       setPosts((userPosts as unknown as PostRecord[]) || [])

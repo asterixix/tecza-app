@@ -1,11 +1,43 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { useParams } from "next/navigation"
 import { getSupabase } from "@/lib/supabase-browser"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
+import {
+  Calendar,
+  Upload,
+  MapPin,
+  Clock,
+  Users,
+  User,
+  Share2,
+  Eye,
+  Check,
+  X,
+  ExternalLink,
+  Ticket,
+  Trash2,
+} from "lucide-react"
 import {
   friendlyMessage,
   normalizeSupabaseError,
@@ -70,7 +102,9 @@ interface EventFull {
   cover_image_url: string | null
   organizer_id: string
   ticket_url?: string | null
+  max_participants?: number | null
   coordinates?: CoordinatesShape | null
+  join_url?: string | null
 }
 
 type Participation = "interested" | "attending" | "not_attending"
@@ -84,6 +118,200 @@ export default function EventPage() {
   const [isOrganizer, setIsOrganizer] = useState(false)
   const [savingRsvp, setSavingRsvp] = useState<Participation | null>(null)
   const [removing, setRemoving] = useState(false)
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [inviteMessage, setInviteMessage] = useState("")
+  const [sendingInvite, setSendingInvite] = useState(false)
+  const [friends, setFriends] = useState<
+    Array<{
+      id: string
+      username: string | null
+      display_name: string | null
+      avatar_url: string | null
+    }>
+  >([])
+  const [selectedFriends, setSelectedFriends] = useState<
+    Record<string, boolean>
+  >({})
+  const [loadingFriends, setLoadingFriends] = useState(false)
+  const [counts, setCounts] = useState<{
+    interested: number
+    attending: number
+  }>({ interested: 0, attending: 0 })
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportReason, setReportReason] = useState<
+    "hate_speech" | "harassment" | "spam" | "inappropriate_content" | "other"
+  >("other")
+  const [reportDesc, setReportDesc] = useState("")
+  const [submittingReport, setSubmittingReport] = useState(false)
+  const [isStaff, setIsStaff] = useState(false)
+  const [pendingReports, setPendingReports] = useState<
+    Array<{
+      id: string
+      reason: string
+      description: string | null
+      created_at: string
+      reporter_id: string
+    }>
+  >([])
+  type OrganizerProfile = {
+    id: string
+    username: string | null
+    display_name: string | null
+    avatar_url: string | null
+  }
+  const [organizer, setOrganizer] = useState<OrganizerProfile | null>(null)
+
+  // Edit dialog state
+  const [editOpen, setEditOpen] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [editTitle, setEditTitle] = useState("")
+  const [editDescription, setEditDescription] = useState("")
+  const [editStart, setEditStart] = useState("")
+  const [editEnd, setEditEnd] = useState("")
+  const [editTimezone, setEditTimezone] = useState("Europe/Warsaw")
+  // OSM edit state
+  const [editLocQuery, setEditLocQuery] = useState("")
+  const [editLocLoading, setEditLocLoading] = useState(false)
+  const [editLocResults, setEditLocResults] = useState<
+    Array<{
+      display_name: string
+      lat: string
+      lon: string
+      boundingbox?: [string, string, string, string]
+    }>
+  >([])
+  const [editSelectedLocName, setEditSelectedLocName] = useState<string>("")
+  const [editSelectedCoords, setEditSelectedCoords] = useState<
+    | null
+    | { lat: number; lon: number }
+    | [number, number, number, number]
+    | { bbox: [number, number, number, number] }
+  >(null)
+  const [editCategory, setEditCategory] = useState<
+    "pride" | "support" | "social" | "activism" | "education" | "other"
+  >("other")
+  const [editIsOnline, setEditIsOnline] = useState(false)
+  const [editIsFree, setEditIsFree] = useState(true)
+  const [editMaxParticipants, setEditMaxParticipants] = useState<string>("")
+  const [editTicketUrl, setEditTicketUrl] = useState<string>("")
+  const [editJoinUrl, setEditJoinUrl] = useState<string>("")
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  function toLocalDateTimeInputValue(iso: string | null | undefined): string {
+    if (!iso) return ""
+    try {
+      const dt = new Date(iso)
+      const off = dt.getTimezoneOffset()
+      const local = new Date(dt.getTime() - off * 60000)
+      return local.toISOString().slice(0, 16)
+    } catch {
+      return ""
+    }
+  }
+
+  // Prefill edit form when opening the dialog
+  useEffect(() => {
+    if (editOpen && event) {
+      setEditTitle(event.title || "")
+      setEditDescription(event.description || "")
+      setEditStart(toLocalDateTimeInputValue(event.start_date))
+      setEditEnd(toLocalDateTimeInputValue(event.end_date))
+      setEditTimezone(event.timezone || "Europe/Warsaw")
+      setEditLocQuery(event.location || "")
+      setEditSelectedLocName(event.location || "")
+      // Normalize coordinates to supported union
+      const ec = (event.coordinates as CoordinatesShape) || null
+      if (ec === null) {
+        setEditSelectedCoords(null)
+      } else if (isBBox(ec)) {
+        setEditSelectedCoords(ec)
+      } else if (hasBBoxProp(ec)) {
+        setEditSelectedCoords(ec)
+      } else if (hasLatLon(ec)) {
+        setEditSelectedCoords({ lat: ec.lat, lon: ec.lon })
+      } else if (hasLatitudeLongitude(ec)) {
+        setEditSelectedCoords({ lat: ec.latitude, lon: ec.longitude })
+      } else {
+        setEditSelectedCoords(null)
+      }
+      setEditCategory(
+        (event.category as typeof editCategory) ||
+          ("other" as typeof editCategory),
+      )
+      setEditIsOnline(!!event.is_online)
+      setEditIsFree(!!event.is_free)
+      setEditMaxParticipants(
+        typeof event.max_participants === "number"
+          ? String(event.max_participants)
+          : "",
+      )
+      setEditTicketUrl(event.ticket_url || "")
+      setEditJoinUrl(event.join_url || "")
+    }
+  }, [editOpen, event])
+
+  // Debounced OSM search for edit dialog
+  useEffect(() => {
+    const q = editLocQuery.trim()
+    if (!editOpen || q.length < 3) {
+      setEditLocResults([])
+      return
+    }
+    const ctrl = new AbortController()
+    const t = setTimeout(async () => {
+      try {
+        setEditLocLoading(true)
+        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=0&limit=5&q=${encodeURIComponent(q)}`
+        const res = await fetch(url, {
+          headers: { Accept: "application/json" },
+          signal: ctrl.signal,
+        })
+        if (!res.ok) throw new Error("Search failed")
+        const json = (await res.json()) as Array<{
+          display_name: string
+          lat: string
+          lon: string
+          boundingbox?: [string, string, string, string]
+        }>
+        setEditLocResults(json)
+      } catch {
+        setEditLocResults([])
+      } finally {
+        setEditLocLoading(false)
+      }
+    }, 350)
+    return () => {
+      clearTimeout(t)
+      ctrl.abort()
+    }
+  }, [editLocQuery, editOpen])
+
+  // Load counters for observers and attendees (moved above useEffect)
+  const loadCounts = useCallback(
+    async (eventId: string) => {
+      if (!supabase) return
+      try {
+        const [{ count: interested }, { count: attending }] = await Promise.all(
+          [
+            supabase
+              .from("event_participations")
+              .select("id", { count: "exact", head: true })
+              .eq("event_id", eventId)
+              .eq("status", "interested"),
+            supabase
+              .from("event_participations")
+              .select("id", { count: "exact", head: true })
+              .eq("event_id", eventId)
+              .eq("status", "attending"),
+          ],
+        )
+        setCounts({ interested: interested ?? 0, attending: attending ?? 0 })
+      } catch {
+        // ignore count errors
+      }
+    },
+    [supabase],
+  )
 
   useEffect(() => {
     async function load() {
@@ -104,6 +332,31 @@ export default function EventPage() {
         if (byId.data) found = byId.data as EventFull
       }
       setEvent(found)
+      if (found?.id) {
+        void loadCounts(found.id)
+      }
+      // Load organizer profile for display/linking
+      if (found?.organizer_id) {
+        try {
+          const { data: org } = await withTimeout(
+            supabase
+              .from("profiles")
+              .select("id,username,display_name,avatar_url")
+              .eq("id", found.organizer_id)
+              .maybeSingle(),
+            15000,
+          )
+          if (org) {
+            setOrganizer(org as OrganizerProfile)
+          } else {
+            setOrganizer(null)
+          }
+        } catch {
+          setOrganizer(null)
+        }
+      } else {
+        setOrganizer(null)
+      }
       const me = (await supabase.auth.getUser()).data.user
       if (me && found?.id) {
         const { data: p } = await withTimeout(
@@ -117,10 +370,80 @@ export default function EventPage() {
         )
         setStatus((p?.status as Participation) || null)
         setIsOrganizer(me.id === found.organizer_id)
+
+        // Determine staff by checking roles from profiles
+        const { data: profile } = await withTimeout(
+          supabase
+            .from("profiles")
+            .select("roles")
+            .eq("id", me.id)
+            .maybeSingle(),
+          15000,
+        )
+        const roles: string[] = (profile?.roles as string[]) || []
+        const staff = roles.some((r) =>
+          ["moderator", "administrator", "super-administrator"].includes(r),
+        )
+        setIsStaff(staff)
+
+        if (staff && found?.id) {
+          const { data: reports } = await withTimeout(
+            supabase
+              .from("moderation_reports")
+              .select("id,reason,description,created_at,reporter_id")
+              .eq("target_type", "event")
+              .eq("target_id", found.id),
+            15000,
+          )
+          setPendingReports(reports || [])
+        }
       }
     }
     load()
-  }, [supabase, idOrSlug])
+  }, [supabase, idOrSlug, loadCounts])
+
+  // Lazy-load friends when opening invite dialog
+  useEffect(() => {
+    async function loadFriends() {
+      if (!supabase || !inviteOpen) return
+      try {
+        setLoadingFriends(true)
+        const me = (await supabase.auth.getUser()).data.user
+        if (!me) return
+        const { data: friendships } = await withTimeout(
+          supabase
+            .from("friendships")
+            .select("user1_id,user2_id,status")
+            .or(`user1_id.eq.${me.id},user2_id.eq.${me.id}`)
+            .eq("status", "active"),
+          15000,
+        )
+        type FriendshipRow = {
+          user1_id: string
+          user2_id: string
+          status: string
+        }
+        const friendIds = ((friendships || []) as FriendshipRow[]).map((f) =>
+          f.user1_id === me.id ? f.user2_id : f.user1_id,
+        )
+        if (friendIds.length === 0) {
+          setFriends([])
+          return
+        }
+        const { data: profs } = await withTimeout(
+          supabase
+            .from("profiles")
+            .select("id,username,display_name,avatar_url")
+            .in("id", friendIds),
+          15000,
+        )
+        setFriends(profs || [])
+      } finally {
+        setLoadingFriends(false)
+      }
+    }
+    void loadFriends()
+  }, [inviteOpen, supabase])
 
   async function rsvp(newStatus: Participation) {
     if (!supabase || !event) return
@@ -150,6 +473,7 @@ export default function EventPage() {
         throw new Error(friendlyMessage(err))
       }
       setStatus(newStatus)
+      if (event?.id) void loadCounts(event.id)
       toast.success("Zapisano status")
     } catch (e) {
       const msg =
@@ -162,8 +486,6 @@ export default function EventPage() {
 
   async function removeEvent() {
     if (!supabase || !event) return
-    const ok = window.confirm("Usunąć to wydarzenie?")
-    if (!ok) return
     setRemoving(true)
     try {
       const { error, status, statusText } = await withTimeout(
@@ -189,8 +511,313 @@ export default function EventPage() {
     }
   }
 
+  async function updateEventDetails() {
+    if (!supabase || !event) return
+    setUpdating(true)
+    try {
+      const updates: Record<string, unknown> = {
+        title: editTitle.trim() || event.title,
+        description: editDescription.trim() || null,
+        timezone: editTimezone || "Europe/Warsaw",
+        is_online: !!editIsOnline,
+        is_free: !!editIsFree,
+        category: editCategory,
+        ticket_url: editTicketUrl.trim() ? editTicketUrl.trim() : null,
+        join_url: editJoinUrl.trim() ? editJoinUrl.trim() : null,
+      }
+      // Dates
+      if (editStart) updates.start_date = new Date(editStart).toISOString()
+      if (editEnd) updates.end_date = new Date(editEnd).toISOString()
+      else updates.end_date = null
+      // Max participants
+      const mp = editMaxParticipants.trim()
+      updates.max_participants = mp ? Math.max(0, parseInt(mp, 10) || 0) : null
+
+      // Location & coordinates
+      if (editIsOnline) {
+        updates.location = "Online"
+        updates.coordinates = null
+      } else {
+        updates.location = editSelectedLocName || null
+        updates.coordinates = editSelectedCoords
+          ? Array.isArray(editSelectedCoords)
+            ? (editSelectedCoords as [number, number, number, number])
+            : (editSelectedCoords as { lat: number; lon: number })
+          : null
+      }
+
+      const { error, status, statusText, data } = await withTimeout(
+        supabase
+          .from("events")
+          .update(updates)
+          .eq("id", event.id)
+          .select("*")
+          .single(),
+        15000,
+      )
+      if (error) {
+        const err = normalizeSupabaseError(
+          error,
+          "Nie udało się zaktualizować wydarzenia",
+          { status, statusText },
+        )
+        throw new Error(friendlyMessage(err))
+      }
+      const updated = data as EventFull
+      setEvent(updated)
+      setEditOpen(false)
+      toast.success("Zapisano zmiany")
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Nie udało się zapisać zmian"
+      toast.error(msg)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  async function sendInvite() {
+    if (!supabase || !event) return
+    const me = (await supabase.auth.getUser()).data.user
+    if (!me) return
+    const selectedIds = Object.entries(selectedFriends)
+      .filter(([, v]) => v)
+      .map(([id]) => id)
+    if (selectedIds.length === 0) return
+    setSendingInvite(true)
+    try {
+      const eventUrl = `${window.location.origin}/w/${event.slug || event.id}`
+      const rows = selectedIds.map((uid) => ({
+        user_id: uid,
+        type: "event_invite",
+        title: "Zaproszenie na wydarzenie",
+        body:
+          inviteMessage?.trim() ||
+          `Zaproszono Cię na wydarzenie: ${event.title}`,
+        data: {
+          event_id: event.id,
+          slug: event.slug,
+          title: event.title,
+          url: eventUrl,
+        },
+      }))
+      const { error } = await withTimeout(
+        supabase.from("notifications").insert(rows),
+        15000,
+      )
+      if (error) throw error
+      toast.success("Zaproszenia wysłane")
+      setInviteOpen(false)
+      setInviteMessage("")
+      setSelectedFriends({})
+    } catch {
+      toast.error("Nie udało się wysłać zaproszeń")
+    } finally {
+      setSendingInvite(false)
+    }
+  }
+
+  async function shareEvent() {
+    if (!event) return
+    const eventUrl = `${window.location.origin}/w/${event.slug || event.id}`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: event.title,
+          text:
+            event.description ||
+            `${event.title} - ${new Date(event.start_date).toLocaleDateString()}`,
+          url: eventUrl,
+        })
+      } catch {
+        // User cancelled sharing
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(eventUrl)
+        toast.success("Link skopiowany do schowka")
+      } catch {
+        toast.error("Nie udało się skopiować linku")
+      }
+    }
+  }
+
+  async function uploadCover(file: File) {
+    if (!supabase || !event || !isOrganizer) return
+    try {
+      const sizeLimit = 5 * 1024 * 1024
+      if (file.size > sizeLimit) throw new Error("Okładka przekracza 5MB")
+      const ext = file.name.split(".").pop() || "jpg"
+      const path = `${event.id}/cover_${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from("event-images")
+        .upload(path, file, { upsert: true })
+      if (upErr) throw upErr
+      const { data: urlData } = supabase.storage
+        .from("event-images")
+        .getPublicUrl(path)
+      // Best-effort: remove previous cover file to avoid leaks
+      if (event.cover_image_url) {
+        try {
+          const oldUrl = new URL(event.cover_image_url)
+          // public URL format: /storage/v1/object/public/event-images/<objectPath>
+          const parts = oldUrl.pathname.split("/object/public/event-images/")
+          const oldPath = parts[1]
+          if (oldPath) {
+            await supabase.storage.from("event-images").remove([oldPath])
+          }
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+      const { error } = await withTimeout(
+        supabase
+          .from("events")
+          .update({ cover_image_url: urlData.publicUrl })
+          .eq("id", event.id),
+        15000,
+      )
+      if (error) throw error
+      setEvent({ ...event, cover_image_url: urlData.publicUrl })
+      toast.success("Okładka zaktualizowana")
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "Nie udało się zaktualizować okładki"
+      toast.error(msg)
+    }
+  }
+
+  async function removeCover() {
+    if (!supabase || !event || !isOrganizer) return
+    try {
+      // Best-effort: remove previous cover file from storage
+      if (event.cover_image_url) {
+        try {
+          const oldUrl = new URL(event.cover_image_url)
+          const parts = oldUrl.pathname.split("/object/public/event-images/")
+          const oldPath = parts[1]
+          if (oldPath) {
+            await supabase.storage.from("event-images").remove([oldPath])
+          }
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+      const { error } = await withTimeout(
+        supabase
+          .from("events")
+          .update({ cover_image_url: null })
+          .eq("id", event.id),
+        15000,
+      )
+      if (error) throw error
+      setEvent({ ...event, cover_image_url: null })
+      toast.success("Okładka usunięta")
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "Nie udało się usunąć okładki"
+      toast.error(msg)
+    }
+  }
+
+  async function submitReport() {
+    if (!supabase || !event) return
+    setSubmittingReport(true)
+    try {
+      const me = (await supabase.auth.getUser()).data.user
+      if (!me) throw new Error("Musisz być zalogowany")
+      const { error } = await withTimeout(
+        supabase.from("moderation_reports").insert({
+          reporter_id: me.id,
+          target_type: "event",
+          target_id: event.id,
+          reason: reportReason,
+          description: reportDesc || null,
+        }),
+        15000,
+      )
+      if (error) throw error
+      toast.success("Zgłoszenie wysłane")
+      setReportOpen(false)
+      setReportDesc("")
+      setReportReason("other")
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "Nie udało się wysłać zgłoszenia"
+      toast.error(msg)
+    } finally {
+      setSubmittingReport(false)
+    }
+  }
+
+  async function updateReportStatus(
+    id: string,
+    status: "reviewed" | "resolved" | "dismissed",
+  ) {
+    if (!supabase || !isStaff) return
+    try {
+      const { error } = await withTimeout(
+        supabase.from("moderation_reports").update({ status }).eq("id", id),
+        15000,
+      )
+      if (error) throw error
+      setPendingReports((prev) => prev.filter((r) => r.id !== id))
+      toast.success("Status zgłoszenia zaktualizowany")
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "Aktualizacja nie powiodła się"
+      toast.error(msg)
+    }
+  }
+
   if (!event)
     return <div className="mx-auto max-w-4xl p-4 md:p-6">Wczytywanie…</div>
+
+  function EventCoverControls({
+    onPick,
+    onRemove,
+    hasCover,
+  }: {
+    onPick: (file: File) => void
+    onRemove: () => void
+    hasCover: boolean
+  }) {
+    const inputRef = useRef<HTMLInputElement | null>(null)
+    return (
+      <div className="absolute bottom-4 left-4 flex gap-2">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.currentTarget.files?.[0]
+            if (f) onPick(f)
+            // Reset the input so selecting the same file again will retrigger onChange
+            if (inputRef.current) inputRef.current.value = ""
+          }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          className="gap-2"
+          onClick={() => inputRef.current?.click()}
+        >
+          <Upload className="h-4 w-4" /> Zmień okładkę
+        </Button>
+        {hasCover && (
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={onRemove}
+            className="gap-2"
+          >
+            <Trash2 className="h-4 w-4" /> Usuń okładkę
+          </Button>
+        )}
+      </div>
+    )
+  }
 
   function buildOsmEmbedUrl(
     coords: CoordinatesShape | null | undefined,
@@ -230,112 +857,716 @@ export default function EventPage() {
 
   const osmUrl = buildOsmEmbedUrl(event.coordinates ?? null)
 
+  const startDate = new Date(event.start_date)
+  const endDate = event.end_date ? new Date(event.end_date) : null
+  const location = event.is_online
+    ? "Online"
+    : event.location || "Nieznana lokalizacja"
+
+  function buildOsmViewUrl(
+    coords: CoordinatesShape | null | undefined,
+    fallbackQuery?: string,
+  ): string | null {
+    if (!coords && fallbackQuery) {
+      return `https://www.openstreetmap.org/search?query=${encodeURIComponent(fallbackQuery)}`
+    }
+    if (!coords) return null
+    if (isBBox(coords)) {
+      const [minLon, minLat, maxLon, maxLat] = coords
+      const lat = (minLat + maxLat) / 2
+      const lon = (minLon + maxLon) / 2
+      return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=12/${lat}/${lon}`
+    }
+    if (hasBBoxProp(coords)) {
+      const [minLon, minLat, maxLon, maxLat] = coords.bbox
+      const lat = (minLat + maxLat) / 2
+      const lon = (minLon + maxLon) / 2
+      return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=12/${lat}/${lon}`
+    }
+    if (hasLatLon(coords)) {
+      const { lat, lon } = coords
+      return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=14/${lat}/${lon}`
+    }
+    if (hasLatitudeLongitude(coords)) {
+      const { latitude: lat, longitude: lon } = coords
+      return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=14/${lat}/${lon}`
+    }
+    return fallbackQuery
+      ? `https://www.openstreetmap.org/search?query=${encodeURIComponent(fallbackQuery)}`
+      : null
+  }
+
+  const osmViewUrl = !event.is_online
+    ? buildOsmViewUrl(event.coordinates ?? null, location)
+    : null
+
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-6">
-      <div className="relative h-40 w-full overflow-hidden">
-        <div className="h-full w-full bg-muted" />
-      </div>
-      <div className="mt-4">
-        <h1 className="text-2xl font-bold">{event.title}</h1>
-        <div className="text-sm text-muted-foreground">
-          {new Date(event.start_date).toLocaleString()}{" "}
-          {event.end_date
-            ? `– ${new Date(event.end_date).toLocaleString()}`
-            : ""}{" "}
-          •{" "}
-          {event.city || event.country
-            ? [event.city, event.country].filter(Boolean).join(", ")
-            : event.is_online
-              ? "Online"
-              : ""}
+      {/* Cover Image */}
+      <div className="relative h-64 md:h-80 w-full overflow-hidden rounded-lg mb-6">
+        {event.cover_image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={event.cover_image_url}
+            alt={event.title}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="h-full w-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+            <div className="text-center text-muted-foreground">
+              <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
+              <div className="text-xl font-medium">{event.category}</div>
+            </div>
+          </div>
+        )}
+        <div className="absolute top-4 right-4 flex gap-2">
+          {event.is_free && (
+            <Badge className="bg-green-500 text-white">Darmowe</Badge>
+          )}
+          {event.is_online && (
+            <Badge className="bg-blue-500 text-white">Online</Badge>
+          )}
         </div>
-        <div className="mt-3 flex gap-2">
-          <Button
-            variant={status === "interested" ? "default" : "outline"}
-            onClick={() => rsvp("interested")}
-            disabled={savingRsvp !== null}
-          >
-            Obserwuj
-          </Button>
-          <Button
-            variant={status === "attending" ? "default" : "outline"}
-            onClick={() => rsvp("attending")}
-            disabled={savingRsvp !== null}
-          >
-            Biorę udział
-          </Button>
-          <Button
-            variant={status === "not_attending" ? "default" : "outline"}
-            onClick={() => rsvp("not_attending")}
-            disabled={savingRsvp !== null}
-          >
-            Nie biorę udziału
-          </Button>
-          <Button asChild variant="outline">
-            <a
-              href={`/w/${event.slug || event.id}/ical`}
-              target="_blank"
-              rel="noreferrer"
+        {(isOrganizer || isStaff) && (
+          <EventCoverControls
+            onPick={(f: File) => uploadCover(f)}
+            onRemove={removeCover}
+            hasCover={!!event.cover_image_url}
+          />
+        )}
+      </div>
+
+      {/* Event Info */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-3">{event.title}</h1>
+
+        <div className="flex flex-wrap gap-4 text-muted-foreground mb-4">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            <span>
+              {startDate.toLocaleDateString()}{" "}
+              {startDate.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+              {endDate && (
+                <span>
+                  {" "}
+                  - {endDate.toLocaleDateString()}{" "}
+                  {endDate.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              )}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            {event.is_online ? (
+              event.join_url ? (
+                <a
+                  href={event.join_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-primary hover:underline"
+                >
+                  Dołącz do spotkania <ExternalLink className="h-3 w-3" />
+                </a>
+              ) : (
+                <span>Online</span>
+              )
+            ) : osmViewUrl ? (
+              <a
+                href={osmViewUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 hover:underline"
+              >
+                {location} <ExternalLink className="h-3 w-3" />
+              </a>
+            ) : (
+              <span>{location}</span>
+            )}
+          </div>
+
+          {event.max_participants && (
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span>Max {event.max_participants} osób</span>
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          {/* Organizer */}
+          {organizer && (
+            <div className="flex items-center gap-2 mr-4 text-muted-foreground">
+              <User className="h-4 w-4" />
+              {organizer.username ? (
+                <a
+                  href={`/u/${organizer.username}`}
+                  className="inline-flex items-center gap-2 hover:underline"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={organizer.avatar_url || "/icons/tecza-icons/1.svg"}
+                    alt=""
+                    className="h-4 w-4 rounded-full border object-cover"
+                  />
+                  <span>
+                    {organizer.display_name || `@${organizer.username}`}
+                  </span>
+                </a>
+              ) : (
+                <span>{organizer.display_name || "Organizator"}</span>
+              )}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button
+              variant={status === "interested" ? "default" : "outline"}
+              onClick={() => rsvp("interested")}
+              disabled={savingRsvp !== null}
+              className="gap-2"
             >
-              iCal
-            </a>
-          </Button>
-          {event.cover_image_url ? (
-            <Button asChild variant="outline">
-              <a href={event.cover_image_url} target="_blank" rel="noreferrer">
-                Plakat
+              <Eye className="h-4 w-4" />
+              Obserwuj ({counts.interested})
+            </Button>
+            <Button
+              variant={status === "attending" ? "default" : "outline"}
+              onClick={() => rsvp("attending")}
+              disabled={savingRsvp !== null}
+              className="gap-2"
+            >
+              <Check className="h-4 w-4" />
+              Biorę udział ({counts.attending})
+            </Button>
+            <Button
+              variant={status === "not_attending" ? "default" : "outline"}
+              onClick={() => rsvp("not_attending")}
+              disabled={savingRsvp !== null}
+              className="gap-2"
+            >
+              <X className="h-4 w-4" />
+              Nie biorę udziału
+            </Button>
+          </div>
+
+          <div className="flex gap-2">
+            <Button variant="outline" className="gap-2" asChild>
+              <a
+                href={`/w/${event.slug || event.id}/ical`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Calendar className="h-4 w-4" />
+                Dodaj do kalendarza
               </a>
             </Button>
-          ) : null}
-          {event.ticket_url ? (
-            <Button asChild>
+
+            <Button variant="outline" onClick={shareEvent} className="gap-2">
+              <Share2 className="h-4 w-4" />
+              Udostępnij
+            </Button>
+
+            {/* Report Event */}
+            <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">Zgłoś</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Zgłoś wydarzenie</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium">Powód</label>
+                    <select
+                      className="mt-1 w-full border rounded-md p-2 text-sm bg-background"
+                      value={reportReason}
+                      onChange={(e) =>
+                        setReportReason(e.target.value as typeof reportReason)
+                      }
+                    >
+                      <option value="hate_speech">Mowa nienawiści</option>
+                      <option value="harassment">Nękanie</option>
+                      <option value="spam">Spam</option>
+                      <option value="inappropriate_content">
+                        Niewłaściwe treści
+                      </option>
+                      <option value="other">Inne</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">
+                      Opis (opcjonalnie)
+                    </label>
+                    <Textarea
+                      value={reportDesc}
+                      onChange={(e) => setReportDesc(e.target.value)}
+                      rows={4}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setReportOpen(false)}
+                    >
+                      Anuluj
+                    </Button>
+                    <Button onClick={submitReport} disabled={submittingReport}>
+                      {submittingReport ? "Wysyłanie..." : "Wyślij zgłoszenie"}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Users className="h-4 w-4" />
+                  Zaproś
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Zaproś znajomych</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="max-h-64 overflow-y-auto border rounded-md p-2">
+                    {loadingFriends ? (
+                      <div className="text-sm text-muted-foreground p-2">
+                        Ładowanie znajomych…
+                      </div>
+                    ) : friends.length === 0 ? (
+                      <div className="text-sm text-muted-foreground p-2">
+                        Brak znajomych do zaproszenia
+                      </div>
+                    ) : (
+                      friends.map((f) => (
+                        <label
+                          key={f.id}
+                          className="flex items-center gap-3 p-2 rounded hover:bg-muted/50"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={f.avatar_url || "/icons/tecza-icons/1.svg"}
+                            alt=""
+                            className="h-6 w-6 rounded-full border object-cover"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">
+                              {f.display_name || f.username || "Użytkownik"}
+                            </div>
+                            {f.username && (
+                              <div className="text-xs text-muted-foreground truncate">
+                                @{f.username}
+                              </div>
+                            )}
+                          </div>
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={!!selectedFriends[f.id]}
+                            onChange={(e) =>
+                              setSelectedFriends((prev) => ({
+                                ...prev,
+                                [f.id]: e.target.checked,
+                              }))
+                            }
+                          />
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">
+                      Wiadomość (opcjonalnie)
+                    </label>
+                    <Textarea
+                      value={inviteMessage}
+                      onChange={(e) => setInviteMessage(e.target.value)}
+                      placeholder="Dołącz do tego wydarzenia..."
+                      rows={3}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setInviteOpen(false)}
+                    >
+                      Anuluj
+                    </Button>
+                    <Button
+                      onClick={sendInvite}
+                      disabled={
+                        sendingInvite ||
+                        Object.values(selectedFriends).every((v) => !v)
+                      }
+                    >
+                      {sendingInvite ? "Wysyłanie..." : "Wyślij zaproszenia"}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {(isOrganizer || isStaff) && (
+              <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">Edytuj</Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Edytuj wydarzenie</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-3">
+                    <div>
+                      <div className="text-sm font-medium mb-1">Tytuł</div>
+                      <Input
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        placeholder="np. Pride Warszawa"
+                      />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium mb-1">Opis</div>
+                      <Textarea
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        placeholder="Szczegóły wydarzenia"
+                        rows={4}
+                      />
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-sm font-medium mb-1">Start</div>
+                        <Input
+                          type="datetime-local"
+                          value={editStart}
+                          onChange={(e) => setEditStart(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium mb-1">
+                          Koniec (opcjonalnie)
+                        </div>
+                        <Input
+                          type="datetime-local"
+                          value={editEnd}
+                          onChange={(e) => setEditEnd(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-3">
+                      <div>
+                        <div className="text-sm font-medium mb-1">
+                          Strefa czasowa
+                        </div>
+                        <Input
+                          value={editTimezone}
+                          onChange={(e) => setEditTimezone(e.target.value)}
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <div className="text-sm font-medium mb-1">
+                          Lokalizacja (OSM)
+                        </div>
+                        <Input
+                          value={editLocQuery}
+                          onChange={(e) => setEditLocQuery(e.target.value)}
+                          placeholder="Szukaj miejsca…"
+                        />
+                        {editLocLoading ? (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Szukanie…
+                          </div>
+                        ) : null}
+                        {editLocResults.length > 0 && (
+                          <div className="mt-1 max-h-40 overflow-auto rounded border bg-popover text-popover-foreground text-sm">
+                            {editLocResults.map((r, idx) => (
+                              <button
+                                key={`${r.display_name}-${idx}`}
+                                type="button"
+                                className="w-full text-left px-2 py-1 hover:bg-muted"
+                                onClick={() => {
+                                  setEditSelectedLocName(r.display_name)
+                                  if (
+                                    r.boundingbox &&
+                                    r.boundingbox.length === 4
+                                  ) {
+                                    const bb = r.boundingbox.map((s) =>
+                                      parseFloat(s),
+                                    ) as [number, number, number, number]
+                                    const south = bb[0]
+                                    const north = bb[1]
+                                    const west = bb[2]
+                                    const east = bb[3]
+                                    setEditSelectedCoords([
+                                      west,
+                                      south,
+                                      east,
+                                      north,
+                                    ])
+                                  } else {
+                                    setEditSelectedCoords({
+                                      lat: parseFloat(r.lat),
+                                      lon: parseFloat(r.lon),
+                                    })
+                                  }
+                                  setEditLocResults([])
+                                  setEditLocQuery(r.display_name)
+                                }}
+                              >
+                                {r.display_name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {editSelectedLocName && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Wybrano: {editSelectedLocName}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-3">
+                      <div>
+                        <div className="text-sm font-medium mb-1">
+                          Kategoria
+                        </div>
+                        <Select
+                          value={editCategory}
+                          onValueChange={(v: typeof editCategory) =>
+                            setEditCategory(v)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Wybierz" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pride">Pride</SelectItem>
+                            <SelectItem value="support">Wsparcie</SelectItem>
+                            <SelectItem value="social">Spotkanie</SelectItem>
+                            <SelectItem value="activism">Aktywizm</SelectItem>
+                            <SelectItem value="education">Edukacja</SelectItem>
+                            <SelectItem value="other">Inne</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-end gap-4">
+                        <label className="text-sm">
+                          <input
+                            type="checkbox"
+                            checked={editIsOnline}
+                            onChange={(e) => setEditIsOnline(e.target.checked)}
+                          />{" "}
+                          Online
+                        </label>
+                        <label className="text-sm">
+                          <input
+                            type="checkbox"
+                            checked={editIsFree}
+                            onChange={(e) => setEditIsFree(e.target.checked)}
+                          />{" "}
+                          Darmowe
+                        </label>
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium mb-1">
+                          Max osób (opcjonalnie)
+                        </div>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          value={editMaxParticipants}
+                          onChange={(e) =>
+                            setEditMaxParticipants(e.target.value)
+                          }
+                          placeholder="np. 100"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-sm font-medium mb-1">
+                          Link do biletów (opcjonalnie)
+                        </div>
+                        <Input
+                          value={editTicketUrl}
+                          onChange={(e) => setEditTicketUrl(e.target.value)}
+                          placeholder="https://…"
+                        />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium mb-1">
+                          Link do spotkania (opcjonalnie)
+                        </div>
+                        <Input
+                          value={editJoinUrl}
+                          onChange={(e) => setEditJoinUrl(e.target.value)}
+                          placeholder="https://…"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setEditOpen(false)}
+                      >
+                        Anuluj
+                      </Button>
+                      <Button onClick={updateEventDetails} disabled={updating}>
+                        {updating ? "Zapisywanie…" : "Zapisz"}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+
+          {event.ticket_url && (
+            <Button className="gap-2" asChild>
               <a href={event.ticket_url} target="_blank" rel="noreferrer">
+                <Ticket className="h-4 w-4" />
                 Kup bilet
               </a>
             </Button>
-          ) : null}
-          {isOrganizer && (
-            <Button
-              variant="destructive"
-              onClick={removeEvent}
-              disabled={removing}
-            >
-              Usuń wydarzenie
-            </Button>
+          )}
+
+          {(isOrganizer || isStaff) && (
+            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  disabled={removing}
+                  className="gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Usuń wydarzenie
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Usunąć to wydarzenie?</DialogTitle>
+                </DialogHeader>
+                <div className="text-sm text-muted-foreground">
+                  Tej operacji nie można cofnąć.
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setDeleteOpen(false)}
+                  >
+                    Anuluj
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={async () => {
+                      await removeEvent()
+                      setDeleteOpen(false)
+                    }}
+                    disabled={removing}
+                  >
+                    {removing ? "Usuwanie…" : "Usuń"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           )}
         </div>
-        {osmUrl ? (
-          <Card className="mt-4">
-            <CardContent className="p-0">
-              <iframe
-                title="Mapa"
-                className="w-full h-64 rounded"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                src={osmUrl}
-              />
-              <div className="p-2 text-xs text-muted-foreground">
-                <a
-                  href="https://www.openstreetmap.org/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:underline"
-                >
-                  Otwórz w OpenStreetMap
-                </a>
+      </div>
+
+      {isStaff && pendingReports.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Zgłoszenia dla tego wydarzenia</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {pendingReports.map((r) => (
+              <div key={r.id} className="border rounded-md p-3">
+                <div className="text-sm font-medium">Powód: {r.reason}</div>
+                {r.description && (
+                  <div className="text-sm text-muted-foreground mt-1">
+                    {r.description}
+                  </div>
+                )}
+                <div className="text-xs text-muted-foreground mt-1">
+                  Zgłoszono: {new Date(r.created_at).toLocaleString()}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => updateReportStatus(r.id, "reviewed")}
+                  >
+                    Oznacz jako sprawdzone
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => updateReportStatus(r.id, "resolved")}
+                  >
+                    Rozwiąż
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => updateReportStatus(r.id, "dismissed")}
+                  >
+                    Odrzuć
+                  </Button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        ) : null}
-        <Card className="mt-6">
-          <CardContent className="p-4">
-            <h2 className="text-lg font-semibold mb-1">Opis</h2>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-              {event.description || "Brak opisu."}
-            </p>
+            ))}
           </CardContent>
         </Card>
-      </div>
+      )}
+
+      {/* Description */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Opis wydarzenia</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="whitespace-pre-wrap text-muted-foreground">
+            {event.description || "Brak opisu wydarzenia."}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Map */}
+      {osmUrl && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Lokalizacja</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <iframe
+              title="Mapa"
+              className="w-full h-64 rounded-b-lg"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              src={osmUrl}
+            />
+            <div className="p-4 border-t">
+              <a
+                href="https://www.openstreetmap.org/"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-muted-foreground hover:underline inline-flex items-center gap-1"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Otwórz w OpenStreetMap
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

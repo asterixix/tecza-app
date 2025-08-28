@@ -10,7 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Bell, Check, Loader2, X } from "lucide-react"
+import { Bell, Check, Loader2, X, Trash2 } from "lucide-react"
 import { getSupabase } from "@/lib/supabase-browser"
 import { cn } from "@/lib/utils"
 
@@ -138,6 +138,17 @@ export function NotificationsPopover() {
     )
   }
 
+  async function clearAll() {
+    if (!supabase) return
+    const me = (await supabase.auth.getUser()).data.user
+    if (!me) return
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("user_id", me.id)
+    if (!error) setItems([])
+  }
+
   async function handleFriendRequest(
     n: NotificationRow,
     action: "accept" | "reject",
@@ -188,7 +199,9 @@ export function NotificationsPopover() {
 
   function linkFor(n: NotificationRow) {
     if (n.type === "broadcast" && n.action_url) return n.action_url
+    if (n.type === "broadcast" && n.action_url) return n.action_url
     if (n.action_url) return n.action_url
+    if (n.post_id) return `/p/${encodeURIComponent(n.post_id)}`
     const a = (n.actor_id && actors[n.actor_id]) || null
     if (a?.username) return `/u/${encodeURIComponent(a.username)}`
     return "/d"
@@ -227,16 +240,29 @@ export function NotificationsPopover() {
       >
         <div className="p-3 flex items-center justify-between gap-2">
           <div className="font-medium">Powiadomienia</div>
-          {items.some((i) => !i.read_at) && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={markAllRead}
-              aria-label="Oznacz wszystkie jako przeczytane"
-            >
-              Oznacz wszystkie
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {items.length > 0 && (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={clearAll}
+                aria-label="Wyczyść wszystkie powiadomienia"
+                title="Wyczyść wszystkie"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+            {items.some((i) => !i.read_at) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={markAllRead}
+                aria-label="Oznacz wszystkie jako przeczytane"
+              >
+                Oznacz wszystkie
+              </Button>
+            )}
+          </div>
         </div>
         <ScrollArea className="max-h-96">
           <ul className="divide-y">
@@ -254,6 +280,9 @@ export function NotificationsPopover() {
                   n.type === "broadcast"
                     ? "relative overflow-hidden rounded-md"
                     : "",
+                  n.type === "broadcast"
+                    ? "relative overflow-hidden rounded-md"
+                    : "",
                 )}
               >
                 {n.type === "broadcast" && (
@@ -266,13 +295,18 @@ export function NotificationsPopover() {
                     }}
                   />
                 )}
-                <div className="flex items-start justify-between gap-2">
+                {n.type === "broadcast" && (
                   <div
-                    className={cn(
-                      "text-sm leading-5",
-                      n.type === "broadcast" ? "" : "",
-                    )}
-                  >
+                    aria-hidden
+                    className="absolute inset-y-0 left-0 w-1"
+                    style={{
+                      background:
+                        "linear-gradient(180deg,#e40303,#ff8c00,#ffed00,#008018,#0078d7,#732982)",
+                    }}
+                  />
+                )}
+                <div className="flex items-start justify-between gap-2">
+                  <div className={cn("text-sm leading-5")}>
                     <Link
                       href={linkFor(n)}
                       className={cn(
@@ -282,6 +316,11 @@ export function NotificationsPopover() {
                     >
                       {renderText(n)}
                     </Link>
+                    {n.type === "broadcast" && n.payload?.body && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {n.payload.body as string}
+                      </div>
+                    )}
                     {n.type === "broadcast" && n.payload?.body && (
                       <div className="text-xs text-muted-foreground mt-1">
                         {n.payload.body as string}

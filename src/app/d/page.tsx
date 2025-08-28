@@ -73,7 +73,11 @@ function DashboardContent() {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-8 space-y-6">
-          <PostComposer open={open} onOpenChange={setOpen} />
+          <PostComposer
+            open={open}
+            onOpenChange={setOpen}
+            onPosted={() => setReloadTick((t) => t + 1)}
+          />
           {selectedHashtag ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between">

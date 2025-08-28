@@ -171,7 +171,7 @@ export function GlobalSearch() {
       const tag = tags[0]
       out.push({
         key: `t:${tag}`,
-        href: `/d?tag=${encodeURIComponent(tag)}`,
+        href: `/d?hashtag=${encodeURIComponent(tag)}`,
         icon: <Hash className="size-4" aria-hidden />,
         title: `Szukaj tagu #${tag}`,
         subtitle: "Tag",

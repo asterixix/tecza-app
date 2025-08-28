@@ -9,7 +9,14 @@ const withPWAFn = withPWA({
   dest: "public",
   register: true,
   skipWaiting: true,
-  disable: process.env.NODE_ENV === "development",
+  // Enable in dev only when explicitly allowed
+  disable:
+    process.env.NODE_ENV === "development" &&
+    process.env.NEXT_PUBLIC_PWA_DEV !== "true",
+  // Ensure our custom push handlers are imported into the generated SW
+  // next-pwa forwards additional properties to Workbox GenerateSW
+  // https://github.com/shadowwalker/next-pwa
+  importScripts: ["/sw-custom.js"],
 })
 
 const nextConfig: NextConfig = {
