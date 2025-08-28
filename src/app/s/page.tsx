@@ -1120,6 +1120,11 @@ function PushControls() {
             if (!res.ok) {
               // rollback UI if failed
               setEnabled(false)
+              const reason = res.reason || "nieznany błąd"
+              try {
+                const { toast } = await import("sonner")
+                toast.error(`Nie udało się włączyć push: ${reason}`)
+              } catch {}
               return
             }
             setEnabled(true)
@@ -1157,13 +1162,18 @@ function PushControls() {
         <Button
           size="sm"
           variant="outline"
-          disabled={testing || permission !== "granted"}
+          disabled={testing || permission !== "granted" || !endpoint}
           onClick={async () => {
             setTesting(true)
             try {
+              const session = (await supabase?.auth.getSession())?.data.session
+              const token = session?.access_token
               const res = await fetch("/api/push", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                  "Content-Type": "application/json",
+                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({
                   payload: {
                     title: "Tęcza.app",

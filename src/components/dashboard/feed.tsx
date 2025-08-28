@@ -107,16 +107,6 @@ export function Feed({
         pullingRef.current = false
       }}
     >
-      <div className="flex justify-center">
-        <button
-          type="button"
-          className="text-xs text-muted-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded px-2 py-1"
-          aria-label="Odśwież feed"
-          onClick={() => load()}
-        >
-          Przeciągnij w dół aby odświeżyć • Kliknij aby odświeżyć
-        </button>
-      </div>
       {loading && (
         <div className="text-center">
           <div className="text-sm text-muted-foreground">
