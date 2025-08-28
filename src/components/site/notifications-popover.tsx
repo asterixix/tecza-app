@@ -280,9 +280,6 @@ export function NotificationsPopover() {
                   n.type === "broadcast"
                     ? "relative overflow-hidden rounded-md"
                     : "",
-                  n.type === "broadcast"
-                    ? "relative overflow-hidden rounded-md"
-                    : "",
                 )}
               >
                 {n.type === "broadcast" && (
