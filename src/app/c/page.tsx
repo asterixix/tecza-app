@@ -186,6 +186,11 @@ export default function CommunitiesPage() {
           status: mStatus,
           statusText: mStatusText,
         } = await supabase
+        const {
+          error: memberErr,
+          status: mStatus,
+          statusText: mStatusText,
+        } = await supabase
           .from("community_memberships")
           .upsert(
             { community_id: created!.id, user_id: me.id, role: "owner" },
@@ -215,6 +220,9 @@ export default function CommunitiesPage() {
       // Navigate to created community
       router.push(`/c/${created!.slug || created!.id}`)
     } catch (e: unknown) {
+      const msg =
+        e instanceof Error ? e.message : "Nie udało się utworzyć społeczności"
+      toast.error(msg)
       const msg =
         e instanceof Error ? e.message : "Nie udało się utworzyć społeczności"
       toast.error(msg)

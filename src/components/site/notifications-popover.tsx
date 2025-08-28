@@ -182,6 +182,10 @@ export function NotificationsPopover() {
         const title = n.payload?.title || "Powiadomienie globalne"
         return title as string
       }
+      case "broadcast": {
+        const title = n.payload?.title || "Powiadomienie globalne"
+        return title as string
+      }
       case "friend_request":
         return `${name} wysłał(a) prośbę o połączenie`
       case "friend_request_accepted":
@@ -198,6 +202,7 @@ export function NotificationsPopover() {
   }
 
   function linkFor(n: NotificationRow) {
+    if (n.type === "broadcast" && n.action_url) return n.action_url
     if (n.type === "broadcast" && n.action_url) return n.action_url
     if (n.action_url) return n.action_url
     const a = (n.actor_id && actors[n.actor_id]) || null
@@ -278,8 +283,21 @@ export function NotificationsPopover() {
                   n.type === "broadcast"
                     ? "relative overflow-hidden rounded-md"
                     : "",
+                  n.type === "broadcast"
+                    ? "relative overflow-hidden rounded-md"
+                    : "",
                 )}
               >
+                {n.type === "broadcast" && (
+                  <div
+                    aria-hidden
+                    className="absolute inset-y-0 left-0 w-1"
+                    style={{
+                      background:
+                        "linear-gradient(180deg,#e40303,#ff8c00,#ffed00,#008018,#0078d7,#732982)",
+                    }}
+                  />
+                )}
                 {n.type === "broadcast" && (
                   <div
                     aria-hidden
@@ -301,6 +319,11 @@ export function NotificationsPopover() {
                     >
                       {renderText(n)}
                     </Link>
+                    {n.type === "broadcast" && n.payload?.body && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {n.payload.body as string}
+                      </div>
+                    )}
                     {n.type === "broadcast" && n.payload?.body && (
                       <div className="text-xs text-muted-foreground mt-1">
                         {n.payload.body as string}

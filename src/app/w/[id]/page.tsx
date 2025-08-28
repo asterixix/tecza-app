@@ -322,9 +322,17 @@ export default function EventPage() {
         supabase.from("events").select("*").eq("slug", idOrSlug).maybeSingle(),
         15000,
       )
+      const bySlug = await withTimeout(
+        supabase.from("events").select("*").eq("slug", idOrSlug).maybeSingle(),
+        15000,
+      )
       if (bySlug.data) {
         found = bySlug.data as EventFull
       } else {
+        const byId = await withTimeout(
+          supabase.from("events").select("*").eq("id", idOrSlug).maybeSingle(),
+          15000,
+        )
         const byId = await withTimeout(
           supabase.from("events").select("*").eq("id", idOrSlug).maybeSingle(),
           15000,
@@ -359,6 +367,15 @@ export default function EventPage() {
       }
       const me = (await supabase.auth.getUser()).data.user
       if (me && found?.id) {
+        const { data: p } = await withTimeout(
+          supabase
+            .from("event_participations")
+            .select("status")
+            .eq("event_id", found.id)
+            .eq("user_id", me.id)
+            .maybeSingle(),
+          15000,
+        )
         const { data: p } = await withTimeout(
           supabase
             .from("event_participations")
