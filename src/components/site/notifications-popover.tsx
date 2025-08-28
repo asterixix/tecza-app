@@ -201,6 +201,7 @@ export function NotificationsPopover() {
     if (n.type === "broadcast" && n.action_url) return n.action_url
     if (n.type === "broadcast" && n.action_url) return n.action_url
     if (n.action_url) return n.action_url
+    if (n.post_id) return `/p/${encodeURIComponent(n.post_id)}`
     const a = (n.actor_id && actors[n.actor_id]) || null
     if (a?.username) return `/u/${encodeURIComponent(a.username)}`
     return "/d"
