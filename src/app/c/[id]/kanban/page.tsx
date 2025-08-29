@@ -5,8 +5,7 @@ import { CommunityKanban } from "@/components/dashboard/community-kanban"
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function Page(_props: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  params?: Promise<any>
+  params: Promise<{ id: string }>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   searchParams?: Promise<any>
 }) {
