@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import type { RealtimeChannel } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import {
@@ -25,6 +26,8 @@ type NotificationRow = {
     | "community_post"
     | "new_post_following"
     | "broadcast"
+    | "post_comment"
+    | "event_reminder"
   post_id: string | null
   friend_request_id: string | null
   community_id: string | null
@@ -46,70 +49,145 @@ export function NotificationsPopover() {
   const [loading, setLoading] = useState(true)
   const [items, setItems] = useState<NotificationRow[]>([])
   const [actors, setActors] = useState<Record<string, Actor>>({})
+  const lastFetchRef = useRef<number>(0)
+  const channelRef = useRef<RealtimeChannel | null>(null)
+
+  // Helper: is tab active
+  const isActiveTab = () => typeof document !== "undefined" && !document.hidden
+
+  // Fetch notifications (throttled to once per minute)
+  const fetchNotifications = useCallback(async () => {
+    if (!supabase) return
+    const now = Date.now()
+    if (now - lastFetchRef.current < 60_000) return
+    const me = (await supabase.auth.getUser()).data.user
+    if (!me) return
+    const { data } = await supabase
+      .from("notifications")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(20)
+    const rows = (data || []) as NotificationRow[]
+    setItems(rows)
+    const ids = Array.from(
+      new Set(rows.map((r) => r.actor_id).filter(Boolean)),
+    ) as string[]
+    if (ids.length) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id,username,display_name,avatar_url")
+        .in("id", ids)
+      const map: Record<string, Actor> = {}
+      for (const p of (profs || []) as unknown as Actor[]) map[p.id] = p
+      setActors(map)
+    }
+    lastFetchRef.current = now
+  }, [supabase])
 
   useEffect(() => {
     if (!supabase) return
     let cancelled = false
-    let channel: ReturnType<typeof supabase.channel> | null = null
-    async function load() {
+
+    const setup = async () => {
       try {
-        const me = (await supabase!.auth.getUser()).data.user
+        // Initial fetch (throttled)
+        await fetchNotifications()
+
+        // Subscribe only if tab is active
+        const me = (await supabase.auth.getUser()).data.user
         if (!me) return
-        const { data } = await supabase!
-          .from("notifications")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(20)
-        const rows = (data || []) as NotificationRow[]
-        if (cancelled) return
-        setItems(rows)
-        const ids = Array.from(
-          new Set(rows.map((r) => r.actor_id).filter(Boolean)),
-        ) as string[]
-        if (ids.length) {
-          const { data: profs } = await supabase!
-            .from("profiles")
-            .select("id,username,display_name,avatar_url")
-            .in("id", ids)
-          const map: Record<string, Actor> = {}
-          for (const p of (profs || []) as unknown as Actor[]) map[p.id] = p
-          if (!cancelled) setActors(map)
+        if (isActiveTab()) {
+          channelRef.current = supabase
+            .channel("notifications-popover")
+            .on(
+              "postgres_changes",
+              {
+                event: "INSERT",
+                schema: "public",
+                table: "notifications",
+                filter: `user_id=eq.${me.id}`,
+              },
+              async (payload) => {
+                const row = payload.new as NotificationRow
+                setItems((prev) => [row, ...prev].slice(0, 50))
+                if (row.actor_id && !actors[row.actor_id]) {
+                  const { data: p } = await supabase
+                    .from("profiles")
+                    .select("id,username,display_name,avatar_url")
+                    .eq("id", row.actor_id)
+                    .maybeSingle()
+                  if (p)
+                    setActors((m) => ({
+                      ...m,
+                      [(p as Actor).id]: p as Actor,
+                    }))
+                }
+              },
+            )
+            .subscribe()
         }
-        channel = supabase!
-          .channel("notifications-popover")
-          .on(
-            "postgres_changes",
-            {
-              event: "INSERT",
-              schema: "public",
-              table: "notifications",
-              filter: `user_id=eq.${me.id}`,
-            },
-            async (payload) => {
-              const row = payload.new as NotificationRow
-              setItems((prev) => [row, ...prev].slice(0, 50))
-              if (row.actor_id && !actors[row.actor_id]) {
-                const { data: p } = await supabase!
-                  .from("profiles")
-                  .select("id,username,display_name,avatar_url")
-                  .eq("id", row.actor_id)
-                  .maybeSingle()
-                if (p)
-                  setActors((m) => ({ ...m, [(p as Actor).id]: p as Actor }))
-              }
-            },
-          )
-          .subscribe()
+
+        // Poll every minute only when tab active
+        const interval = setInterval(() => {
+          if (isActiveTab()) fetchNotifications()
+        }, 60_000)
+
+        // Pause/resume realtime on visibility changes
+        const onVisibility = async () => {
+          if (!me) return
+          if (document.hidden) {
+            if (channelRef.current) {
+              supabase.removeChannel(channelRef.current)
+              channelRef.current = null
+            }
+          } else if (!channelRef.current) {
+            channelRef.current = supabase
+              .channel("notifications-popover")
+              .on(
+                "postgres_changes",
+                {
+                  event: "INSERT",
+                  schema: "public",
+                  table: "notifications",
+                  filter: `user_id=eq.${me.id}`,
+                },
+                async (payload) => {
+                  const row = payload.new as NotificationRow
+                  setItems((prev) => [row, ...prev].slice(0, 50))
+                  if (row.actor_id && !actors[row.actor_id]) {
+                    const { data: p } = await supabase
+                      .from("profiles")
+                      .select("id,username,display_name,avatar_url")
+                      .eq("id", row.actor_id)
+                      .maybeSingle()
+                    if (p)
+                      setActors((m) => ({
+                        ...m,
+                        [(p as Actor).id]: p as Actor,
+                      }))
+                  }
+                },
+              )
+              .subscribe()
+          }
+        }
+        document.addEventListener("visibilitychange", onVisibility)
+
+        return () => {
+          clearInterval(interval)
+          document.removeEventListener("visibilitychange", onVisibility)
+        }
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
-    load()
+
+    setup()
     return () => {
       cancelled = true
-      if (channel) supabase!.removeChannel(channel)
+      if (channelRef.current) supabase.removeChannel(channelRef.current)
     }
-  }, [supabase, actors])
+  }, [supabase, actors, fetchNotifications])
 
   const unreadCount = useMemo(
     () => items.filter((i) => !i.read_at).length,
@@ -182,6 +260,14 @@ export function NotificationsPopover() {
         const title = n.payload?.title || "Powiadomienie globalne"
         return title as string
       }
+      case "post_comment":
+        return `${name} skomentował(a) Twój post`
+      case "event_reminder": {
+        const when = (n.payload?.window as string) || "soon"
+        if (when === "24h") return `Przypomnienie: wydarzenie już w ciągu 24h`
+        if (when === "week") return `Przypomnienie: wydarzenie w tym tygodniu`
+        return "Przypomnienie o wydarzeniu"
+      }
       case "friend_request":
         return `${name} wysłał(a) prośbę o połączenie`
       case "friend_request_accepted":
@@ -199,6 +285,7 @@ export function NotificationsPopover() {
 
   function linkFor(n: NotificationRow) {
     if (n.type === "broadcast" && n.action_url) return n.action_url
+    if (n.type === "event_reminder" && n.action_url) return n.action_url
     if (n.action_url) return n.action_url
     if (n.post_id) return `/p/${encodeURIComponent(n.post_id)}`
     const a = (n.actor_id && actors[n.actor_id]) || null
@@ -295,6 +382,7 @@ export function NotificationsPopover() {
                   <div className={cn("text-sm leading-5")}>
                     <Link
                       href={linkFor(n)}
+                      onClick={() => markRead(n.id)}
                       className={cn(
                         "hover:underline",
                         n.type === "broadcast" ? "font-medium" : "",
@@ -302,6 +390,16 @@ export function NotificationsPopover() {
                     >
                       {renderText(n)}
                     </Link>
+                    {n.type === "post_comment" && n.payload?.snippet && (
+                      <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        {n.payload.snippet as string}
+                      </div>
+                    )}
+                    {n.type === "event_reminder" && n.payload?.title && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {n.payload.title as string}
+                      </div>
+                    )}
                     {n.type === "broadcast" && n.payload?.body && (
                       <div className="text-xs text-muted-foreground mt-1">
                         {n.payload.body as string}

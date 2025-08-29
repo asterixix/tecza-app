@@ -192,6 +192,35 @@ export default function AdminNotificationsPage() {
     }
   }
 
+  async function triggerEventReminders() {
+    if (!supabase) return
+    setSubmitting(true)
+    try {
+      const { data, error } = await supabase.rpc(
+        "admin_dispatch_event_reminders",
+      )
+      if (error) throw error
+      const count = (data as number) || 0
+      toast({
+        title: "Przypomnienia wysłane",
+        description: `Dodano ${count} przypomnień o wydarzeniach`,
+      })
+    } catch (e: unknown) {
+      toast({
+        title: "Błąd",
+        description:
+          e instanceof Error
+            ? e.message
+            : typeof e === "string"
+              ? e
+              : "Nie udało się uruchomić przypomnień",
+        variant: "destructive",
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   if (allowed === null) return null
   if (!allowed) return null
 
@@ -302,6 +331,13 @@ export default function AdminNotificationsPage() {
           </Button>
           <Button variant="outline" onClick={dispatchDue} disabled={submitting}>
             Wyślij zaległe teraz
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={triggerEventReminders}
+            disabled={submitting}
+          >
+            Wyślij przypomnienia o wydarzeniach
           </Button>
         </div>
       </div>

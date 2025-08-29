@@ -1,5 +1,6 @@
 "use client"
-import { useEffect, useMemo, useState, useRef } from "react"
+import { useEffect, useState, useRef } from "react"
+import dynamic from "next/dynamic"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -33,8 +34,31 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Image as ImageIcon, Video as VideoIcon, X, Smile } from "lucide-react"
+import {
+  Image as ImageIcon,
+  Video as VideoIcon,
+  X,
+  Smile,
+  Sparkles,
+} from "lucide-react"
 import { moderateContent } from "@/lib/moderation"
+import data from "@emoji-mart/data"
+
+// Define a type for EmojiPicker props to replace 'any' and ensure type safety
+interface EmojiPickerProps {
+  data: typeof data // Updated to use the correct type
+  onEmojiSelect: (emoji: { native?: string; shortcodes?: string }) => void
+  theme?: string
+  navPosition?: string
+  previewPosition?: string
+}
+
+// emoji-mart Picker only on client (v5)
+// Use the defined type instead of 'any' for better code safety
+const EmojiPicker = dynamic<EmojiPickerProps>(
+  () => import("@emoji-mart/react").then((m) => m.default),
+  { ssr: false },
+)
 
 const schema = z.object({
   content: z.string().min(1, "Wpis nie może być pusty").max(5000),
@@ -69,58 +93,26 @@ export function PostComposer({
     resolver: zodResolver(schema),
     defaultValues: { content: "", visibility: "public" },
   })
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [videoFile, setVideoFile] = useState<File | null>(null)
+  // Multiple attachments support
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [videoFiles, setVideoFiles] = useState<File[]>([])
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const imgInputRef = useRef<HTMLInputElement | null>(null)
   const vidInputRef = useRef<HTMLInputElement | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [videoPreview, setVideoPreview] = useState<string | null>(null)
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [videoPreviews, setVideoPreviews] = useState<string[]>([])
   const [localOpen, setLocalOpen] = useState(false)
   const isOpen = open ?? localOpen
   const setOpen = onOpenChange ?? setLocalOpen
   // Popover control to avoid accidental close while interacting
   const [emojiOpen, setEmojiOpen] = useState(false)
 
-  // Tenor GIF picker state
-  // No Tenor GIF support (removed)
+  // Community question (OpenRouter Gemini)
+  const [question, setQuestion] = useState<string>("")
+  const [questionLoading, setQuestionLoading] = useState(false)
+  const [attachQuestion, setAttachQuestion] = useState(true)
 
-  // Emoji picker (lightweight list)
-  const emojis = useMemo(
-    () => [
-      "😀",
-      "😁",
-      "😂",
-      "🤣",
-      "😊",
-      "😍",
-      "😎",
-      "😉",
-      "🥰",
-      "😇",
-      "🤔",
-      "😴",
-      "🤩",
-      "😢",
-      "😭",
-      "😡",
-      "🤗",
-      "🙌",
-      "👏",
-      "👍",
-      "🌈",
-      "🏳️‍🌈",
-      "🏳️‍⚧️",
-      "💖",
-      "✨",
-      "⭐",
-      "🔥",
-      "🎉",
-      "🥳",
-      "🍀",
-    ],
-    [],
-  )
+  // Emoji insertion helper
   const addEmoji = (e: string) => {
     const cur = form.getValues("content") || ""
     const ta = textareaRef.current
@@ -152,44 +144,37 @@ export function PostComposer({
       .filter((f): f is File => !!f)
 
     if (files.length) {
-      // Prefer the first image and the first video if present
-      const img = files.find((f) => f.type.startsWith("image/"))
-      const vid = files.find((f) => f.type.startsWith("video/"))
-      let attached = false
-      if (img) {
-        setImageFile(img)
-        attached = true
-        toast.info("Dodano obraz z schowka")
-      }
-      if (vid) {
-        setVideoFile(vid)
-        attached = true
-        toast.info("Dodano wideo z schowka")
-      }
-      if (attached) {
+      const newImages = files.filter((f) => f.type.startsWith("image/"))
+      const newVideos = files.filter((f) => f.type.startsWith("video/"))
+      if (newImages.length) setImageFiles((prev) => [...prev, ...newImages])
+      if (newVideos.length) setVideoFiles((prev) => [...prev, ...newVideos])
+      if (newImages.length || newVideos.length) {
+        toast.info(
+          `Dodano ${newImages.length} obraz(ów) i ${newVideos.length} wideo z schowka`,
+        )
         e.preventDefault()
       }
     }
   }
 
   // Previews for local files
+  // Build previews for images list
   useEffect(() => {
-    if (imageFile) {
-      const url = URL.createObjectURL(imageFile)
-      setImagePreview(url)
-      return () => URL.revokeObjectURL(url)
+    const urls = imageFiles.map((f) => URL.createObjectURL(f))
+    setImagePreviews(urls)
+    return () => {
+      urls.forEach((u) => URL.revokeObjectURL(u))
     }
-    setImagePreview(null)
-  }, [imageFile])
+  }, [imageFiles])
 
+  // Build previews for videos list
   useEffect(() => {
-    if (videoFile) {
-      const url = URL.createObjectURL(videoFile)
-      setVideoPreview(url)
-      return () => URL.revokeObjectURL(url)
+    const urls = videoFiles.map((f) => URL.createObjectURL(f))
+    setVideoPreviews(urls)
+    return () => {
+      urls.forEach((u) => URL.revokeObjectURL(u))
     }
-    setVideoPreview(null)
-  }, [videoFile])
+  }, [videoFiles])
 
   // Link embedding: detect first http(s) URL and allow attach with preview
   const [firstUrl, setFirstUrl] = useState("")
@@ -227,6 +212,23 @@ export function PostComposer({
     return pub.data.publicUrl
   }
 
+  async function fetchCommunityQuestion() {
+    try {
+      setQuestionLoading(true)
+      const res = await fetch("/api/community-question", { method: "POST" })
+      if (!res.ok) throw new Error("Nie udało się pobrać pytania")
+      const j = (await res.json()) as { question?: string }
+      setQuestion(j.question || "")
+      if (!j.question) toast.error("Brak treści pytania z API")
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "Nie udało się pobrać pytania"
+      toast.error(msg)
+    } finally {
+      setQuestionLoading(false)
+    }
+  }
+
   async function onSubmit(values: FormValues) {
     if (!supabase) return toast.error("Brak konfiguracji Supabase")
     try {
@@ -259,16 +261,16 @@ export function PostComposer({
       const user = (await supabase.auth.getUser()).data.user
       if (!user) throw new Error("Brak zalogowanego użytkownika")
       const mediaUrls: string[] = []
-      // Image upload -> WEBP (skip for GIF to preserve animation). If transcode fails, upload original
-      if (imageFile) {
-        let fileToUpload = imageFile
+      // Upload all images -> WEBP (keep GIF)
+      for (const img of imageFiles) {
+        let fileToUpload = img
         if (
           typeof window !== "undefined" &&
-          imageFile.type.startsWith("image/") &&
-          imageFile.type !== "image/gif"
+          img.type.startsWith("image/") &&
+          img.type !== "image/gif"
         ) {
           try {
-            const bmp = await createImageBitmap(imageFile)
+            const bmp = await createImageBitmap(img)
             const canvas = document.createElement("canvas")
             canvas.width = bmp.width
             canvas.height = bmp.height
@@ -279,10 +281,8 @@ export function PostComposer({
             )
             fileToUpload = new File(
               [blob],
-              imageFile.name.replace(/\.[^.]+$/, ".webp"),
-              {
-                type: "image/webp",
-              },
+              img.name.replace(/\.[^.]+$/, ".webp"),
+              { type: "image/webp" },
             )
           } catch {}
         }
@@ -290,12 +290,12 @@ export function PostComposer({
         const url = await uploadToStorage("posts", imgPath, fileToUpload)
         mediaUrls.push(url)
       }
-      // Video upload -> keep original format/extension
-      if (videoFile) {
-        const vidPath = `${user.id}/videos/${Date.now()}-${videoFile.name}`
-        const url = await uploadToStorage("posts", vidPath, videoFile)
+      // Upload all videos -> keep original
+      for (const vid of videoFiles) {
+        const vidPath = `${user.id}/videos/${Date.now()}-${vid.name}`
+        const url = await uploadToStorage("posts", vidPath, vid)
         mediaUrls.push(url)
-        // Try to transcode server-side via Edge Function (best-effort)
+        // Try server-side transcode (best-effort)
         try {
           const res = await fetch("/api/video-transcode", {
             method: "POST",
@@ -319,7 +319,13 @@ export function PostComposer({
         if (!mediaUrls.includes(firstUrl)) mediaUrls.push(firstUrl)
       }
 
-      const { hashtags, mentions } = extractTagsAndMentions(values.content)
+      // Build final content with optional community question on top
+      const composedContent =
+        attachQuestion && question
+          ? `${question}\n\n${values.content}`
+          : values.content
+
+      const { hashtags, mentions } = extractTagsAndMentions(composedContent)
 
       // Resolve mentions -> profile IDs
       let mentionIds: string[] | null = null
@@ -336,11 +342,11 @@ export function PostComposer({
 
       const { error } = await supabase.from("posts").insert({
         user_id: user.id,
-        content: values.content,
+        content: composedContent,
         type: mediaUrls.length
-          ? videoFile
+          ? videoFiles.length
             ? "video"
-            : imageFile
+            : imageFiles.length
               ? "image"
               : "text"
           : "text",
@@ -372,9 +378,11 @@ export function PostComposer({
       }
       toast.success("Opublikowano post")
       form.reset({ content: "", visibility: values.visibility })
-      setImageFile(null)
-      setVideoFile(null)
+      setImageFiles([])
+      setVideoFiles([])
       setAttachLink(true)
+      setAttachQuestion(true)
+      // keep the fetched question visible for next post attempt
       setOpen(false)
       onPosted?.()
     } catch (e) {
@@ -425,16 +433,17 @@ export function PostComposer({
               )}
             />
 
-            {/* Toolbar for attachments */}
+            {/* Toolbar for attachments and helpers */}
             <div className="flex items-center gap-2">
               <input
                 ref={imgInputRef}
                 type="file"
                 accept="image/*"
+                multiple
                 className="hidden"
                 onChange={(e) => {
-                  const f = e.target.files?.[0] || null
-                  setImageFile(f || null)
+                  const fl = Array.from(e.target.files || [])
+                  if (fl.length) setImageFiles((prev) => [...prev, ...fl])
                 }}
               />
               <Button
@@ -451,10 +460,11 @@ export function PostComposer({
                 ref={vidInputRef}
                 type="file"
                 accept="video/*"
+                multiple
                 className="hidden"
                 onChange={(e) => {
-                  const f = e.target.files?.[0] || null
-                  setVideoFile(f || null)
+                  const fl = Array.from(e.target.files || [])
+                  if (fl.length) setVideoFiles((prev) => [...prev, ...fl])
                 }}
               />
               <Button
@@ -482,64 +492,111 @@ export function PostComposer({
                   className="w-60"
                   onOpenAutoFocus={(e) => e.preventDefault()}
                 >
-                  <div className="grid grid-cols-8 gap-1">
-                    {emojis.map((e) => (
-                      <button
-                        key={e}
-                        type="button"
-                        className="rounded hover:bg-accent p-1 text-lg"
-                        onClick={() => {
-                          addEmoji(e)
-                          setEmojiOpen(false)
-                        }}
-                      >
-                        {e}
-                      </button>
-                    ))}
-                  </div>
+                  {/* Full emoji picker with categories/search */}
+                  <EmojiPicker
+                    data={data}
+                    onEmojiSelect={(emoji: {
+                      native?: string
+                      shortcodes?: string
+                    }) => {
+                      const native = emoji.native || emoji.shortcodes || ""
+                      if (native) addEmoji(native)
+                      setEmojiOpen(false)
+                    }}
+                    theme="auto"
+                    navPosition="bottom"
+                    previewPosition="none"
+                  />
                 </PopoverContent>
               </Popover>
 
+              {/* Random community question */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                title="Wylosuj pytanie dla społeczności"
+                onClick={fetchCommunityQuestion}
+                disabled={questionLoading}
+                className="ml-1"
+              >
+                <Sparkles className="size-4 mr-1" />{" "}
+                {questionLoading ? "Losuję…" : "Pytanie społeczności"}
+              </Button>
+
               {/* Selected attachments preview */}
               <div className="ml-auto flex items-center gap-3">
-                {imageFile && imagePreview && safeBlobUrl(imagePreview) && (
-                  <div className="relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={safeBlobUrl(imagePreview) ?? undefined}
-                      alt="Podgląd obrazu"
-                      className="h-20 w-auto max-w-[160px] rounded object-cover border"
-                    />
-                    <button
-                      type="button"
-                      aria-label="Usuń obraz"
-                      onClick={() => setImageFile(null)}
-                      className="absolute -right-2 -top-2 inline-flex items-center justify-center rounded-full bg-background border p-1 shadow"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </div>
-                )}
-                {videoFile && videoPreview && safeBlobUrl(videoPreview) && (
-                  <div className="relative">
-                    <video
-                      src={safeBlobUrl(videoPreview) ?? undefined}
-                      className="h-20 w-auto max-w-[200px] rounded border"
-                      controls
-                      muted
-                    />
-                    <button
-                      type="button"
-                      aria-label="Usuń wideo"
-                      onClick={() => setVideoFile(null)}
-                      className="absolute -right-2 -top-2 inline-flex items-center justify-center rounded-full bg-background border p-1 shadow"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </div>
-                )}
+                {imagePreviews.map((url, idx) => {
+                  const safe = safeBlobUrl(url)
+                  if (!safe) return null
+                  return (
+                    <div key={url} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={safe}
+                        alt={`Podgląd obrazu ${idx + 1}`}
+                        className="h-20 w-auto max-w-[160px] rounded object-cover border"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Usuń obraz"
+                        onClick={() =>
+                          setImageFiles((prev) =>
+                            prev.filter((_, i) => i !== idx),
+                          )
+                        }
+                        className="absolute -right-2 -top-2 inline-flex items-center justify-center rounded-full bg-background border p-1 shadow"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  )
+                })}
+                {videoPreviews.map((url, idx) => {
+                  const safe = safeBlobUrl(url)
+                  if (!safe) return null
+                  return (
+                    <div key={url} className="relative">
+                      <video
+                        src={safe}
+                        className="h-20 w-auto max-w-[200px] rounded border"
+                        controls
+                        muted
+                      />
+                      <button
+                        type="button"
+                        aria-label="Usuń wideo"
+                        onClick={() =>
+                          setVideoFiles((prev) =>
+                            prev.filter((_, i) => i !== idx),
+                          )
+                        }
+                        className="absolute -right-2 -top-2 inline-flex items-center justify-center rounded-full bg-background border p-1 shadow"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  )
+                })}
               </div>
             </div>
+
+            {/* Community question preview & toggle */}
+            {question && (
+              <div className="rounded-md border p-3 bg-muted/30 text-sm">
+                <div className="font-medium mb-1">Pytanie społeczności</div>
+                <div className="text-muted-foreground">{question}</div>
+                <label className="mt-2 inline-flex items-center gap-2 text-xs select-none">
+                  <input
+                    type="checkbox"
+                    className="size-4"
+                    checked={attachQuestion}
+                    onChange={(e) => setAttachQuestion(e.target.checked)}
+                  />
+                  Dołącz pytanie nad treścią posta
+                </label>
+              </div>
+            )}
 
             {/* Link preview attach toggle */}
             {firstUrl && (
