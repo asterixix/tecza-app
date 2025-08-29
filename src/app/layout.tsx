@@ -22,9 +22,9 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Tęcza.app — bezpieczna społeczność LGBTQ w Polsce",
+  title: "Tęcza.app — Razem tworzymy kolorową przyszłość! 🌈",
   description:
-    "Tęcza.app to nowoczesna, bezpieczna platforma społecznościowa dla polskiej społeczności LGBTQ: profil, znajomi, posty, wydarzenia i społeczności.",
+    "Twórz swobodnie swój profil, dołącz do lokalnych grup, poznawaj tęczowe wydarzenia, dziel się wsparciem i bądź sobą - bez oceniania i presji. Dołącz do nas i odkryj, jak różnorodna może być Twoja społeczność!",
   metadataBase: new URL("https://tecza.app"),
   applicationName: "Tęcza.app",
   keywords: [
@@ -36,9 +36,9 @@ export const metadata: Metadata = {
     "społeczności",
   ],
   openGraph: {
-    title: "Tęcza.app — bezpieczna społeczność LGBTQ w Polsce",
+    title: "Tęcza.app — Razem tworzymy kolorową przyszłość! 🌈",
     description:
-      "Połącz się, dziel się treścią i buduj wspólnotę w bezpiecznej przestrzeni.",
+      "Dołącz do nas i odkryj, jak różnorodna może być Twoja społeczność!",
     url: "/",
     siteName: "Tęcza.app",
     locale: "pl_PL",

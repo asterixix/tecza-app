@@ -13,9 +13,12 @@ export function Feed({
   const supabase = getSupabase()
   const [posts, setPosts] = useState<PostRecord[]>([])
   const [loading, setLoading] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const cursorRef = useRef<{ created_at: string; id: string } | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const pullingRef = useRef(false)
   const startYRef = useRef(0)
+  const loadingMoreRef = useRef(false)
 
   const load = useCallback(async () => {
     if (!supabase) return
@@ -45,10 +48,12 @@ export function Feed({
         )
         .is("hidden_at", null)
         .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
         .limit(20)
 
       // Filter by hashtag if provided
       if (hashtag) {
+        // Use array contains for hashtags, supported by GIN index if present
         query = query.contains("hashtags", [hashtag])
       }
 
@@ -65,7 +70,19 @@ export function Feed({
       }
 
       const { data, error } = await query
-      if (!error && data) setPosts(data as PostRecord[])
+      if (!error && data) {
+        const rows = data as PostRecord[]
+        setPosts(rows)
+        setHasMore((rows?.length || 0) >= 20)
+        if (rows && rows.length > 0) {
+          cursorRef.current = {
+            created_at: rows[rows.length - 1].created_at,
+            id: rows[rows.length - 1].id,
+          }
+        } else {
+          cursorRef.current = null
+        }
+      }
     } finally {
       setLoading(false)
     }
@@ -79,12 +96,81 @@ export function Feed({
     if (reloadSignal !== undefined) void load()
   }, [reloadSignal, load])
 
+  const loadMore = useCallback(async () => {
+    if (!supabase || loadingMoreRef.current || !cursorRef.current) return
+    loadingMoreRef.current = true
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      let memberCommunityIds: string[] = []
+      if (user) {
+        const { data: memberships } = await supabase
+          .from("community_memberships")
+          .select("community_id")
+          .eq("user_id", user.id)
+        memberCommunityIds = (
+          (memberships as { community_id: string }[]) || []
+        ).map((m) => m.community_id)
+      }
+
+      let query = supabase
+        .from("posts")
+        .select(
+          "id,user_id,content,visibility,created_at,media_urls,hashtags,community_id",
+        )
+        .is("hidden_at", null)
+        .lt("created_at", cursorRef.current.created_at)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(20)
+
+      if (hashtag) query = query.contains("hashtags", [hashtag])
+
+      if (memberCommunityIds.length > 0) {
+        query = query.or(
+          `community_id.is.null,community_id.in.(${memberCommunityIds
+            .map((id) => `${id}`)
+            .join(",")})`,
+        )
+      } else {
+        query = query.is("community_id", null)
+      }
+
+      const { data, error } = await query
+      if (!error && data) {
+        const rows = data as PostRecord[]
+        setPosts((prev) => [...prev, ...rows])
+        setHasMore((rows?.length || 0) >= 20)
+        if (rows && rows.length > 0) {
+          cursorRef.current = {
+            created_at: rows[rows.length - 1].created_at,
+            id: rows[rows.length - 1].id,
+          }
+        }
+      }
+    } finally {
+      loadingMoreRef.current = false
+    }
+  }, [supabase, hashtag])
+
   if (!supabase) return null
 
   return (
     <div
       ref={containerRef}
       className="space-y-3"
+      onScroll={(e) => {
+        const el = e.currentTarget
+        if (
+          el.scrollTop + el.clientHeight >= el.scrollHeight - 64 &&
+          hasMore &&
+          !loading
+        ) {
+          void loadMore()
+        }
+      }}
       onTouchStart={(e) => {
         const el = containerRef.current
         if (!el) return
@@ -117,6 +203,16 @@ export function Feed({
       {posts.map((p) => (
         <PostItem key={p.id} post={p} />
       ))}
+      {hasMore && (
+        <div className="text-center pt-2">
+          <button
+            className="text-sm text-muted-foreground underline"
+            onClick={() => void loadMore()}
+          >
+            Załaduj więcej
+          </button>
+        </div>
+      )}
       {posts.length === 0 && !loading && (
         <div className="text-center">
           <p className="text-sm text-muted-foreground">
@@ -134,3 +230,4 @@ export function Feed({
     </div>
   )
 }
+//

@@ -12,13 +12,13 @@ import {
   ArrowRight,
   Users,
   Shield,
-  EarthLock,
   Calendar,
   Heart,
   HandCoins,
   Github,
   SmilePlus,
   Lightbulb,
+  Smartphone,
 } from "lucide-react"
 
 export default function Home() {
@@ -35,21 +35,24 @@ export default function Home() {
       >
         <div>
           <Badge className="mb-3" aria-hidden>
-            Polska społeczność LGBTQ • Bezpieczna przestrzeń
+            Polska społeczność LGBTQ • Bezpieczna przestrzeń • Wsparcie i
+            akceptacja
           </Badge>
           <h1
             id="about-heading"
             className="text-3xl md:text-5xl font-bold tracking-tight"
           >
-            Bezpieczna, nowoczesna społeczność LGBTQ w Polsce 🌈
+            Razem tworzymy kolorową przyszłość! 🌈
           </h1>
           <p className="mt-4 text-muted-foreground text-base md:text-lg">
-            Platforma, która łączy ludzi, wydarzenia i społeczności. Prywatność,
-            dostępność i żywe, tęczowe doświadczenia — zawsze po Twojej stronie.
+            Twórz swobodnie swój profil, dołącz do lokalnych grup, poznawaj
+            tęczowe wydarzenia, dziel się wsparciem i bądź sobą - bez oceniania
+            i presji. Dołącz do nas i odkryj, jak różnorodna może być Twoja
+            społeczność!
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild>
-              <Link href="/r">
+              <Link href="/l">
                 Dołącz do nas!
                 <ArrowRight className="size-4" />
               </Link>
@@ -162,9 +165,9 @@ const features = [
     icon: <Shield className="size-4" aria-hidden />,
   },
   {
-    title: "Szyfrowane wiadomości",
-    desc: "Komunikacja szyfrowana end-to-end, brak zapisywania historii wiadomości.",
-    icon: <EarthLock className="size-4" aria-hidden />,
+    title: "Łatwy dostęp w telefonie",
+    desc: "Strona to także aplikacja na telefon, miej kontakty w zasięgu ręki.",
+    icon: <Smartphone className="size-4" aria-hidden />,
   },
   {
     title: "Non-profit",

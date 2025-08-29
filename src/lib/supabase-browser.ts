@@ -16,6 +16,18 @@ export function getSupabase() {
         detectSessionInUrl: true,
         storageKey: "tecza-app-auth",
       },
+      db: { schema: "public" },
+      global: {
+        headers: {
+          // Hint PostgREST to skip total count work unless asked explicitly
+          Prefer: "count=none",
+        },
+      },
+      realtime: {
+        params: {
+          eventsPerSecond: 5, // rate-limit to avoid spamming server
+        },
+      },
     })
   }
   return browserClient

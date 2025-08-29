@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { getSupabase } from "@/lib/supabase-browser"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,6 +12,20 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Send, MessageSquare } from "lucide-react"
 import { toast } from "sonner"
 import { withTimeout } from "@/lib/errors"
+
+type ProfileMin = {
+  username: string | null
+  display_name: string | null
+  avatar_url: string | null
+}
+
+type MessageRowFromDB = {
+  id: string
+  content: string
+  created_at: string
+  user_id: string
+  profiles?: ProfileMin | ProfileMin[]
+}
 
 interface Message {
   id: string
@@ -56,6 +71,7 @@ export function CommunityChat({
   const [loading, setLoading] = useState(true)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const channelRef = useRef<ReturnType<SupabaseClient["channel"]> | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -85,14 +101,17 @@ export function CommunityChat({
 
       if (error) throw error
 
-      setMessages(
-        (data || []).map((msg) => ({
-          ...msg,
-          profile: Array.isArray(msg.profiles)
-            ? msg.profiles[0]
-            : msg.profiles || undefined,
-        })),
-      )
+      const dataRows = (data as unknown as MessageRowFromDB[]) || []
+      const rows = dataRows.map((msg) => ({
+        id: msg.id,
+        content: msg.content,
+        created_at: msg.created_at,
+        user_id: msg.user_id,
+        profile: Array.isArray(msg.profiles)
+          ? msg.profiles[0]
+          : msg.profiles || undefined,
+      }))
+      setMessages(rows)
     } catch (error) {
       console.error("Failed to load messages:", error)
       toast.error("Nie udało się wczytać wiadomości")
@@ -138,56 +157,63 @@ export function CommunityChat({
   }, [loadMessages])
 
   useEffect(() => {
-    if (!supabase) return
-
-    // Subscribe to real-time updates
-    const channel = supabase
-      .channel(`community_chat_${communityId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "community_messages",
-          filter: `community_id=eq.${communityId}`,
-        },
-        (payload: RealtimePostgresChangesPayload<RealtimeMessageRow>) => {
-          const newMsg = payload.new as RealtimeMessageRow
-          // Load profile data for the new message
-          supabase
-            .from("profiles")
-            .select("username, display_name, avatar_url")
-            .eq("id", newMsg.user_id)
-            .single()
-            .then(({ data: profile }) => {
-              setMessages((prev) => [
+    if (!supabase || !communityId) return
+    if (!channelRef.current) {
+      const c = supabase
+        .channel(`community_chat_${communityId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "community_messages",
+            filter: `community_id=eq.${communityId}`,
+          },
+          async (
+            payload: RealtimePostgresChangesPayload<RealtimeMessageRow>,
+          ) => {
+            const newMsg = payload.new as RealtimeMessageRow
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("username, display_name, avatar_url")
+              .eq("id", newMsg.user_id)
+              .maybeSingle()
+            setMessages((prev) =>
+              [
                 ...prev,
                 {
-                  ...newMsg,
-                  profile: profile || undefined,
+                  id: newMsg.id,
+                  content: newMsg.content,
+                  created_at: newMsg.created_at,
+                  user_id: newMsg.user_id,
+                  profile: (profile as ProfileMin) || undefined,
                 },
-              ])
-              setTimeout(scrollToBottom, 100)
-            })
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "community_messages",
-          filter: `community_id=eq.${communityId}`,
-        },
-        (payload: RealtimePostgresChangesPayload<RealtimeDeleteRow>) => {
-          const oldRow = payload.old as RealtimeDeleteRow
-          setMessages((prev) => prev.filter((msg) => msg.id !== oldRow.id))
-        },
-      )
-      .subscribe()
-
+              ].slice(-200),
+            )
+            setTimeout(scrollToBottom, 80)
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "DELETE",
+            schema: "public",
+            table: "community_messages",
+            filter: `community_id=eq.${communityId}`,
+          },
+          (payload: RealtimePostgresChangesPayload<RealtimeDeleteRow>) => {
+            const oldRow = payload.old as RealtimeDeleteRow
+            setMessages((prev) => prev.filter((msg) => msg.id !== oldRow.id))
+          },
+        )
+        .subscribe()
+      channelRef.current = c
+    }
     return () => {
-      supabase.removeChannel(channel)
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
     }
   }, [supabase, communityId])
 
