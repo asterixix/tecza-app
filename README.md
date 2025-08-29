@@ -17,7 +17,6 @@
   </a>
 </p>
 
-
 ## Tęcza.app — Razem tworzymy kolorową przyszłość!
 
 Tęcza.app to Progressive Web App (PWA) zbudowana na Next.js 15 i Supabase, projektowana jako bezpieczna, kolorowa i włączająca przestrzeń dla polskiej społeczności LGBTQ.
