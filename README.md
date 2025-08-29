@@ -1,4 +1,24 @@
-## Tęcza.app — bezpieczna, nowoczesna społeczność LGBTQ w Polsce
+<div align="center">
+  <img src="./public/icons/tecza-icons-500x270/2.svg" alt="Tęcza.app Logo" width="300" />
+</div>
+<p align="center">
+  <a href="https://github.com/asterixix/tecza-app/stargazers">
+    <img src="https://img.shields.io/github/stars/asterixix/tecza-app" alt="Stars" />
+  </a>
+  <a href="https://github.com/asterixix/tecza-app/network/members">
+    <img src="https://img.shields.io/github/forks/asterixix/tecza-app" alt="Forks" />
+  </a>
+  <a href="https://deepscan.io/dashboard#view=project&tid=26785&pid=29370&bid=943878"><img src="https://deepscan.io/api/teams/26785/projects/29370/branches/943878/badge/grade.svg" alt="DeepScan grade"></a>
+  <a href="https://github.com/asterixix/tecza-app/issues">
+    <img src="https://img.shields.io/github/issues/asterixix/tecza-app" alt="Issues" />
+  </a>
+  <a href="./LICENSE.md">
+    <img src="https://img.shields.io/github/license/asterixix/tecza-app" alt="License" />
+  </a>
+</p>
+
+
+## Tęcza.app — Razem tworzymy kolorową przyszłość!
 
 Tęcza.app to Progressive Web App (PWA) zbudowana na Next.js 15 i Supabase, projektowana jako bezpieczna, kolorowa i włączająca przestrzeń dla polskiej społeczności LGBTQ.
 
