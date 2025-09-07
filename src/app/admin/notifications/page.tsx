@@ -88,15 +88,35 @@ export default function AdminNotificationsPage() {
 
   const loadRecent = useCallback(async () => {
     if (!supabase) return
-    const { data } = await supabase
-      .from("notification_broadcasts")
-      .select(
-        "id,audience,target_role,title,send_at,status,dispatched_at,created_at",
-      )
-      .order("created_at", { ascending: false })
-      .limit(10)
-    setRecent(data || [])
-  }, [supabase])
+    try {
+      const { data, error } = await supabase
+        .from("notification_broadcasts")
+        .select(
+          "id,audience,target_role,title,send_at,status,dispatched_at,created_at",
+        )
+        .order("created_at", { ascending: false })
+        .limit(10)
+
+      if (error) {
+        console.error("Error loading recent broadcasts:", error)
+        toast({
+          title: "Błąd",
+          description: "Nie udało się załadować historii powiadomień",
+          variant: "destructive",
+        })
+        return
+      }
+
+      setRecent(data || [])
+    } catch (error) {
+      console.error("Error in loadRecent:", error)
+      toast({
+        title: "Błąd",
+        description: "Nie udało się załadować historii powiadomień",
+        variant: "destructive",
+      })
+    }
+  }, [supabase, toast])
 
   useEffect(() => {
     loadRecent()
@@ -146,6 +166,9 @@ export default function AdminNotificationsPage() {
       setRole("")
       setSendAt("")
       await loadRecent()
+
+      // Trigger a refresh of the notification system for all users
+      // This will be handled by the database triggers and realtime subscriptions
     } catch (e: unknown) {
       const message =
         e instanceof Error
@@ -171,11 +194,23 @@ export default function AdminNotificationsPage() {
         "admin_dispatch_due_broadcasts",
       )
       if (error) throw error
+
+      const recipientCount = (data as number) || 0
       toast({
         title: "Wysłano",
-        description: `Wysłano do ${data as number} odbiorców`,
+        description: `Wysłano do ${recipientCount} odbiorców`,
       })
+
       await loadRecent()
+
+      // If notifications were sent, inform users to refresh their notification popover
+      if (recipientCount > 0) {
+        toast({
+          title: "Powiadomienia wysłane",
+          description:
+            "Użytkownicy otrzymają powiadomienia w czasie rzeczywistym",
+        })
+      }
     } catch (e: unknown) {
       toast({
         title: "Błąd",
@@ -325,7 +360,7 @@ export default function AdminNotificationsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button onClick={onSubmit} disabled={submitting || !title || !body}>
             Zapisz
           </Button>
@@ -338,6 +373,14 @@ export default function AdminNotificationsPage() {
             disabled={submitting}
           >
             Wyślij przypomnienia o wydarzeniach
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={loadRecent}
+            disabled={submitting}
+            size="sm"
+          >
+            Odśwież historię
           </Button>
         </div>
       </div>

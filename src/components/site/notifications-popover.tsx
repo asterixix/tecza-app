@@ -62,26 +62,44 @@ export function NotificationsPopover() {
     if (now - lastFetchRef.current < 60_000) return
     const me = (await supabase.auth.getUser()).data.user
     if (!me) return
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(20)
-    const rows = (data || []) as NotificationRow[]
-    setItems(rows)
-    const ids = Array.from(
-      new Set(rows.map((r) => r.actor_id).filter(Boolean)),
-    ) as string[]
-    if (ids.length) {
-      const { data: profs } = await supabase
-        .from("profiles")
-        .select("id,username,display_name,avatar_url")
-        .in("id", ids)
-      const map: Record<string, Actor> = {}
-      for (const p of (profs || []) as unknown as Actor[]) map[p.id] = p
-      setActors(map)
+
+    try {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(20)
+
+      if (error) {
+        console.error("Error fetching notifications:", error)
+        return
+      }
+
+      const rows = (data || []) as NotificationRow[]
+      setItems(rows)
+
+      // Fetch actor profiles for non-broadcast notifications
+      const ids = Array.from(
+        new Set(rows.map((r) => r.actor_id).filter(Boolean)),
+      ) as string[]
+
+      if (ids.length) {
+        const { data: profs, error: profError } = await supabase
+          .from("profiles")
+          .select("id,username,display_name,avatar_url")
+          .in("id", ids)
+
+        if (!profError && profs) {
+          const map: Record<string, Actor> = {}
+          for (const p of profs as unknown as Actor[]) map[p.id] = p
+          setActors(map)
+        }
+      }
+
+      lastFetchRef.current = now
+    } catch (error) {
+      console.error("Error in fetchNotifications:", error)
     }
-    lastFetchRef.current = now
   }, [supabase])
 
   useEffect(() => {
@@ -220,11 +238,18 @@ export function NotificationsPopover() {
     if (!supabase) return
     const me = (await supabase.auth.getUser()).data.user
     if (!me) return
+
+    // Clear all notifications for the current user
     const { error } = await supabase
       .from("notifications")
       .delete()
       .eq("user_id", me.id)
-    if (!error) setItems([])
+
+    if (!error) {
+      setItems([])
+      // Also clear any cached notification data
+      lastFetchRef.current = 0
+    }
   }
 
   async function handleFriendRequest(
@@ -258,28 +283,30 @@ export function NotificationsPopover() {
     switch (n.type) {
       case "broadcast": {
         const title = n.payload?.title || "Powiadomienie globalne"
-        return title as string
+        return `📢 ${title as string}`
       }
       case "post_comment":
         return `${name} skomentował(a) Twój post`
       case "event_reminder": {
         const when = (n.payload?.window as string) || "soon"
-        if (when === "24h") return `Przypomnienie: wydarzenie już w ciągu 24h`
-        if (when === "week") return `Przypomnienie: wydarzenie w tym tygodniu`
-        return "Przypomnienie o wydarzeniu"
+        if (when === "24h")
+          return `⏰ Przypomnienie: wydarzenie już w ciągu 24h`
+        if (when === "week")
+          return `⏰ Przypomnienie: wydarzenie w tym tygodniu`
+        return "⏰ Przypomnienie o wydarzeniu"
       }
       case "friend_request":
-        return `${name} wysłał(a) prośbę o połączenie`
+        return `👥 ${name} wysłał(a) prośbę o połączenie`
       case "friend_request_accepted":
-        return `${name} zaakceptował(a) Twoją prośbę`
+        return `✅ ${name} zaakceptował(a) Twoją prośbę`
       case "mention":
-        return `${name} wspomniał(a) o Tobie w poście`
+        return `💬 ${name} wspomniał(a) o Tobie w poście`
       case "community_post":
-        return `${name} dodał(a) post w społeczności`
+        return `🏘️ ${name} dodał(a) post w społeczności`
       case "new_post_following":
-        return `${name} dodał(a) nowy post`
+        return `📝 ${name} dodał(a) nowy post`
       default:
-        return "Powiadomienie"
+        return "🔔 Powiadomienie"
     }
   }
 
@@ -327,6 +354,18 @@ export function NotificationsPopover() {
         <div className="p-3 flex items-center justify-between gap-2">
           <div className="font-medium">Powiadomienia</div>
           <div className="flex items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => {
+                lastFetchRef.current = 0
+                fetchNotifications()
+              }}
+              aria-label="Odśwież powiadomienia"
+              title="Odśwież"
+            >
+              <Loader2 className="h-4 w-4" />
+            </Button>
             {items.length > 0 && (
               <Button
                 size="icon"

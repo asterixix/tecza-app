@@ -1,7 +1,17 @@
 "use client"
 
-import { useState } from "react"
-import { MessageCircle, Reply, Heart, MoreHorizontal } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import {
+  MessageCircle,
+  Reply,
+  Heart,
+  MoreHorizontal,
+  Edit2,
+  Trash2,
+  SortAsc,
+  Clock,
+  TrendingUp,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -10,14 +20,18 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { useToast } from "@/hooks/use-toast"
+import { SkeletonComment } from "@/components/ui/skeleton"
 
 interface Comment {
   id: string
   content: string
   created_at: string
+  updated_at?: string
   user: {
     id: string
     username: string
@@ -30,7 +44,10 @@ interface Comment {
   is_liked: boolean
   parent_id?: string
   replies?: Comment[]
+  is_edited?: boolean
 }
+
+type SortOption = "newest" | "oldest" | "most_liked"
 
 interface CommentSectionProps {
   comments: Comment[]
@@ -39,8 +56,11 @@ interface CommentSectionProps {
   onLikeComment: (commentId: string) => Promise<void>
   onUnlikeComment: (commentId: string) => Promise<void>
   onDeleteComment?: (commentId: string) => Promise<void>
+  onEditComment?: (commentId: string, content: string) => Promise<void>
   currentUserId?: string
   className?: string
+  maxLength?: number
+  enableSorting?: boolean
 }
 
 function CommentItem({
@@ -49,21 +69,29 @@ function CommentItem({
   onLike,
   onUnlike,
   onDelete,
+  onEdit,
   currentUserId,
   isReply = false,
+  maxLength = 1000,
 }: {
   comment: Comment
   onReply: (parentId: string, content: string) => Promise<void>
   onLike: (commentId: string) => Promise<void>
   onUnlike: (commentId: string) => Promise<void>
   onDelete?: (commentId: string) => Promise<void>
+  onEdit?: (commentId: string, content: string) => Promise<void>
   currentUserId?: string
   isReply?: boolean
+  maxLength?: number
 }) {
   const [showReplyForm, setShowReplyForm] = useState(false)
   const [replyContent, setReplyContent] = useState("")
   const [isSubmittingReply, setIsSubmittingReply] = useState(false)
   const [showReplies, setShowReplies] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editContent, setEditContent] = useState(comment.content)
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false)
+  const { toast } = useToast()
 
   const handleSubmitReply = async () => {
     if (!replyContent.trim()) return
@@ -74,10 +102,42 @@ function CommentItem({
       setReplyContent("")
       setShowReplyForm(false)
       setShowReplies(true)
+      toast({
+        title: "Odpowiedź dodana",
+        description: "Twoja odpowiedź została opublikowana",
+      })
     } catch (error) {
       console.error("Error submitting reply:", error)
+      toast({
+        title: "Błąd",
+        description: "Nie udało się dodać odpowiedzi",
+        variant: "destructive",
+      })
     } finally {
       setIsSubmittingReply(false)
+    }
+  }
+
+  const handleEdit = async () => {
+    if (!editContent.trim() || editContent === comment.content) return
+
+    setIsSubmittingEdit(true)
+    try {
+      await onEdit?.(comment.id, editContent)
+      setIsEditing(false)
+      toast({
+        title: "Komentarz zaktualizowany",
+        description: "Zmiany zostały zapisane",
+      })
+    } catch (error) {
+      console.error("Error editing comment:", error)
+      toast({
+        title: "Błąd",
+        description: "Nie udało się zaktualizować komentarza",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmittingEdit(false)
     }
   }
 
@@ -90,6 +150,30 @@ function CommentItem({
       }
     } catch (error) {
       console.error("Error toggling like:", error)
+      toast({
+        title: "Błąd",
+        description: "Nie udało się zaktualizować polubienia",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!onDelete) return
+
+    try {
+      await onDelete(comment.id)
+      toast({
+        title: "Komentarz usunięty",
+        description: "Komentarz został usunięty",
+      })
+    } catch (error) {
+      console.error("Error deleting comment:", error)
+      toast({
+        title: "Błąd",
+        description: "Nie udało się usunąć komentarza",
+        variant: "destructive",
+      })
     }
   }
 
@@ -126,10 +210,55 @@ function CommentItem({
                 {comment.user.pronouns}
               </Badge>
             )}
+            {comment.is_edited && (
+              <Badge variant="outline" className="text-xs px-1.5 py-0.5">
+                edytowany
+              </Badge>
+            )}
           </div>
-          <p className="text-sm leading-relaxed break-words">
-            {comment.content}
-          </p>
+
+          {isEditing ? (
+            <div className="space-y-2">
+              <Textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="min-h-[60px] resize-none text-sm"
+                maxLength={maxLength}
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">
+                  {editContent.length}/{maxLength}
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleEdit}
+                    disabled={
+                      !editContent.trim() ||
+                      isSubmittingEdit ||
+                      editContent === comment.content
+                    }
+                  >
+                    {isSubmittingEdit ? "Zapisywanie..." : "Zapisz"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsEditing(false)
+                      setEditContent(comment.content)
+                    }}
+                  >
+                    Anuluj
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm leading-relaxed break-words">
+              {comment.content}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
@@ -174,7 +303,7 @@ function CommentItem({
             </Button>
           )}
 
-          {(currentUserId === comment.user.id || onDelete) && (
+          {(currentUserId === comment.user.id || onDelete || onEdit) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-auto p-0">
@@ -182,13 +311,26 @@ function CommentItem({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {currentUserId === comment.user.id && onDelete && (
+                {currentUserId === comment.user.id && onEdit && (
                   <DropdownMenuItem
-                    onClick={() => onDelete(comment.id)}
-                    className="text-destructive"
+                    onClick={() => setIsEditing(true)}
+                    className="flex items-center gap-2"
                   >
-                    Usuń komentarz
+                    <Edit2 className="h-3 w-3" />
+                    Edytuj komentarz
                   </DropdownMenuItem>
+                )}
+                {currentUserId === comment.user.id && onDelete && (
+                  <>
+                    {onEdit && <DropdownMenuSeparator />}
+                    <DropdownMenuItem
+                      onClick={handleDelete}
+                      className="text-destructive flex items-center gap-2"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Usuń komentarz
+                    </DropdownMenuItem>
+                  </>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -202,25 +344,31 @@ function CommentItem({
               value={replyContent}
               onChange={(e) => setReplyContent(e.target.value)}
               className="min-h-[60px] resize-none text-sm"
+              maxLength={maxLength}
             />
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={handleSubmitReply}
-                disabled={!replyContent.trim() || isSubmittingReply}
-              >
-                {isSubmittingReply ? "Wysyłanie..." : "Odpowiedz"}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowReplyForm(false)
-                  setReplyContent("")
-                }}
-              >
-                Anuluj
-              </Button>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                {replyContent.length}/{maxLength}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleSubmitReply}
+                  disabled={!replyContent.trim() || isSubmittingReply}
+                >
+                  {isSubmittingReply ? "Wysyłanie..." : "Odpowiedz"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowReplyForm(false)
+                    setReplyContent("")
+                  }}
+                >
+                  Anuluj
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -235,8 +383,10 @@ function CommentItem({
                 onLike={onLike}
                 onUnlike={onUnlike}
                 onDelete={onDelete}
+                onEdit={onEdit}
                 currentUserId={currentUserId}
                 isReply={true}
+                maxLength={maxLength}
               />
             ))}
           </div>
@@ -253,12 +403,32 @@ export function CommentSection({
   onLikeComment,
   onUnlikeComment,
   onDeleteComment,
+  onEditComment,
   currentUserId,
   className,
+  maxLength = 1000,
+  enableSorting = true,
 }: CommentSectionProps) {
   const [newComment, setNewComment] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showAllComments, setShowAllComments] = useState(false)
+  const [sortOption, setSortOption] = useState<SortOption>("newest")
+  const [draftComment, setDraftComment] = useState("")
+  const { toast } = useToast()
+
+  // Auto-save draft
+  useEffect(() => {
+    const savedDraft = localStorage.getItem(`comment-draft-${currentUserId}`)
+    if (savedDraft && !newComment) {
+      setDraftComment(savedDraft)
+    }
+  }, [currentUserId, newComment])
+
+  useEffect(() => {
+    if (newComment !== draftComment) {
+      localStorage.setItem(`comment-draft-${currentUserId}`, newComment)
+    }
+  }, [newComment, draftComment, currentUserId])
 
   const handleSubmitComment = async () => {
     if (!newComment.trim()) return
@@ -267,8 +437,18 @@ export function CommentSection({
     try {
       await onAddComment(newComment)
       setNewComment("")
+      localStorage.removeItem(`comment-draft-${currentUserId}`)
+      toast({
+        title: "Komentarz dodany",
+        description: "Twój komentarz został opublikowany",
+      })
     } catch (error) {
       console.error("Error submitting comment:", error)
+      toast({
+        title: "Błąd",
+        description: "Nie udało się dodać komentarza",
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -278,8 +458,35 @@ export function CommentSection({
     await onAddComment(content, parentId)
   }
 
+  // Sort comments based on selected option
+  const sortComments = useCallback(
+    (comments: Comment[]) => {
+      switch (sortOption) {
+        case "newest":
+          return [...comments].sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime(),
+          )
+        case "oldest":
+          return [...comments].sort(
+            (a, b) =>
+              new Date(a.created_at).getTime() -
+              new Date(b.created_at).getTime(),
+          )
+        case "most_liked":
+          return [...comments].sort((a, b) => b.likes_count - a.likes_count)
+        default:
+          return comments
+      }
+    },
+    [sortOption],
+  )
+
   // Show only top-level comments initially, with option to show all
-  const topLevelComments = comments.filter((comment) => !comment.parent_id)
+  const topLevelComments = sortComments(
+    comments.filter((comment) => !comment.parent_id),
+  )
   const displayedComments = showAllComments
     ? topLevelComments
     : topLevelComments.slice(0, 3)
@@ -287,9 +494,14 @@ export function CommentSection({
   if (isLoading) {
     return (
       <div className={cn("space-y-4", className)}>
-        <div className="flex items-center gap-2 text-muted-foreground">
+        <div className="flex items-center gap-2 text-muted-foreground mb-4">
           <MessageCircle className="h-4 w-4" />
           <span className="text-sm">Ładowanie komentarzy...</span>
+        </div>
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonComment key={i} />
+          ))}
         </div>
       </div>
     )
@@ -299,30 +511,108 @@ export function CommentSection({
     <div className={cn("space-y-4", className)}>
       {/* Comments Header */}
       {comments.length > 0 && (
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <MessageCircle className="h-4 w-4" />
-          <span className="text-sm font-medium">
-            {comments.length}{" "}
-            {comments.length === 1 ? "komentarz" : "komentarzy"}
-          </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <MessageCircle className="h-4 w-4" />
+            <span className="text-sm font-medium">
+              {comments.length}{" "}
+              {comments.length === 1 ? "komentarz" : "komentarzy"}
+            </span>
+          </div>
+
+          {enableSorting && comments.length > 1 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto p-1 text-xs"
+                >
+                  {sortOption === "newest" && (
+                    <Clock className="h-3 w-3 mr-1" />
+                  )}
+                  {sortOption === "oldest" && (
+                    <SortAsc className="h-3 w-3 mr-1" />
+                  )}
+                  {sortOption === "most_liked" && (
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                  )}
+                  {sortOption === "newest" && "Najnowsze"}
+                  {sortOption === "oldest" && "Najstarsze"}
+                  {sortOption === "most_liked" && "Najpopularniejsze"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setSortOption("newest")}>
+                  <Clock className="h-3 w-3 mr-2" />
+                  Najnowsze
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortOption("oldest")}>
+                  <SortAsc className="h-3 w-3 mr-2" />
+                  Najstarsze
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortOption("most_liked")}>
+                  <TrendingUp className="h-3 w-3 mr-2" />
+                  Najpopularniejsze
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       )}
 
       {/* Add Comment Form */}
       <div className="space-y-3">
-        <Textarea
-          placeholder="Dodaj komentarz..."
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          className="min-h-[80px] resize-none"
-        />
-        <Button
-          onClick={handleSubmitComment}
-          disabled={!newComment.trim() || isSubmitting}
-          className="w-full sm:w-auto"
-        >
-          {isSubmitting ? "Wysyłanie..." : "Dodaj komentarz"}
-        </Button>
+        <div className="relative">
+          <Textarea
+            placeholder="Dodaj komentarz..."
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            className="min-h-[80px] resize-none pr-16"
+            maxLength={maxLength}
+          />
+          <div className="absolute bottom-2 right-2 text-xs text-muted-foreground bg-background px-1 rounded">
+            {newComment.length}/{maxLength}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {newComment.length > maxLength * 0.8 && (
+              <span className="text-orange-500">
+                {Math.round((newComment.length / maxLength) * 100)}%
+                wykorzystane
+              </span>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              onClick={handleSubmitComment}
+              disabled={
+                !newComment.trim() ||
+                isSubmitting ||
+                newComment.length > maxLength
+              }
+              className="w-full sm:w-auto"
+            >
+              {isSubmitting ? "Wysyłanie..." : "Dodaj komentarz"}
+            </Button>
+
+            {newComment.trim() && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setNewComment("")
+                  localStorage.removeItem(`comment-draft-${currentUserId}`)
+                }}
+              >
+                Wyczyść
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Comments List */}
@@ -336,7 +626,9 @@ export function CommentSection({
               onLike={onLikeComment}
               onUnlike={onUnlikeComment}
               onDelete={onDeleteComment}
+              onEdit={onEditComment}
               currentUserId={currentUserId}
+              maxLength={maxLength}
             />
           ))}
 

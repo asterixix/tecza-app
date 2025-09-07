@@ -16,7 +16,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card"
 import { getSupabase } from "@/lib/supabase-browser"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,19 +44,6 @@ export type PostRecord = {
   media_urls?: string[] | null
   hashtags?: string[] | null
   community_id?: string | null
-}
-
-function visibilityLabel(v: PostRecord["visibility"]) {
-  switch (v) {
-    case "public":
-      return "Publiczny"
-    case "friends":
-      return "Tylko znajomi"
-    case "private":
-      return "Prywatny"
-    case "unlisted":
-      return "Nielistowany"
-  }
 }
 
 export function PostItem({
@@ -90,6 +77,23 @@ export function PostItem({
     pronouns: string | null
   }
   const [author, setAuthor] = useState<Author | null>(null)
+
+  // Memoize expensive computations
+  const mediaUrls = useMemo(() => post.media_urls || [], [post.media_urls])
+  const visibilityLabel = useMemo(() => {
+    switch (post.visibility) {
+      case "public":
+        return "Publiczny"
+      case "friends":
+        return "Tylko znajomi"
+      case "private":
+        return "Prywatny"
+      case "unlisted":
+        return "Nielistowany"
+      default:
+        return "Nieznany"
+    }
+  }, [post.visibility])
   const [community, setCommunity] = useState<{
     id: string
     slug: string | null
@@ -475,6 +479,36 @@ export function PostItem({
         .eq("user_id", currentUserId)
     } catch {}
   }
+
+  const handleEditComment = async (commentId: string, content: string) => {
+    if (!supabase || !currentUserId) return
+    // Optimistic UI
+    setComments((prev) =>
+      updateCommentInTree(prev, commentId, (c) => ({
+        ...c,
+        content,
+        updated_at: new Date().toISOString(),
+        is_edited: true,
+      })),
+    )
+    try {
+      await supabase
+        .from("post_comments")
+        .update({ content, updated_at: new Date().toISOString() })
+        .eq("id", commentId)
+        .eq("user_id", currentUserId)
+    } catch (error) {
+      // Revert optimistic update on error
+      setComments((prev) =>
+        updateCommentInTree(prev, commentId, (c) => ({
+          ...c,
+          content: c.content, // Keep original content
+          is_edited: false,
+        })),
+      )
+      throw error
+    }
+  }
   // Reshare functionality temporarily removed
   function renderContent(text: string) {
     // linkify hashtags and mentions
@@ -567,11 +601,16 @@ export function PostItem({
     })
   }
   // Classify media: gallery (images/videos) vs external links (OG/Tenor)
-  const media = post.media_urls || []
-  const isImage = (u: string) => /\.(webp|png|jpe?g|gif|avif|bmp)$/i.test(u)
-  const isVideo = (u: string) => /\.(webm|mp4|mov|avi|mkv|m4v)$/i.test(u)
-  const galleryMedia = media.filter((u) => isImage(u) || isVideo(u))
-  const linkMedia = media.filter((u) => !(isImage(u) || isVideo(u)))
+  // Memoize media processing for better performance
+  const { galleryMedia, linkMedia } = useMemo(() => {
+    const media = mediaUrls
+    const isImage = (u: string) => /\.(webp|png|jpe?g|gif|avif|bmp)$/i.test(u)
+    const isVideo = (u: string) => /\.(webm|mp4|mov|avi|mkv|m4v)$/i.test(u)
+    return {
+      galleryMedia: media.filter((u) => isImage(u) || isVideo(u)),
+      linkMedia: media.filter((u) => !(isImage(u) || isVideo(u))),
+    }
+  }, [mediaUrls])
 
   // Safe host check for Tenor embeds. Avoid substring checks; parse and whitelist.
   function isTenorHost(raw: string) {
@@ -585,12 +624,12 @@ export function PostItem({
     }
   }
 
-  // Update helpers
-  function extractHashtags(text: string) {
+  // Update helpers - memoized for performance
+  const extractHashtags = useCallback((text: string) => {
     return Array.from(text.matchAll(/#[\p{L}0-9_]{2,30}/giu)).map((m) =>
       m[0].slice(1).toLowerCase(),
     )
-  }
+  }, [])
   async function saveEdit() {
     if (!supabase) return
     try {
@@ -686,9 +725,7 @@ export function PostItem({
               </Link>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline">
-                {visibilityLabel(post.visibility)}
-              </Badge>
+              <Badge variant="outline">{visibilityLabel}</Badge>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" aria-label="Akcje posta">
@@ -826,7 +863,10 @@ export function PostItem({
                 onLikeComment={handleLikeComment}
                 onUnlikeComment={handleUnlikeComment}
                 onDeleteComment={handleDeleteComment}
+                onEditComment={handleEditComment}
                 currentUserId={currentUserId}
+                maxLength={1000}
+                enableSorting={true}
               />
             </div>
           )}

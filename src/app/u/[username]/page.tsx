@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { getSupabase } from "@/lib/supabase-browser"
@@ -42,6 +42,15 @@ import {
   Loader2,
   Camera,
   Trash2,
+  Bookmark,
+  Share2,
+  Eye,
+  MessageCircle,
+  Users,
+  Zap,
+  UserPlus,
+  UserMinus,
+  Clock,
 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -215,6 +224,17 @@ type Profile = {
       )[]
     | null
   badges?: string[] | null
+  // Enhanced fields
+  is_following?: boolean
+  is_followed_by?: boolean
+  followers_count?: number
+  following_count?: number
+  posts_count?: number
+  engagement_score?: number
+  last_active?: string
+  is_bookmarked?: boolean
+  mutual_friends_count?: number
+  created_at?: string
 }
 
 type PostRecord = FeedPost
@@ -303,6 +323,14 @@ export default function PublicUserPage() {
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isBookmarked, setIsBookmarked] = useState(false)
+  const [profileStats] = useState({
+    posts_count: 0,
+    followers_count: 0,
+    following_count: 0,
+    engagement_score: 0,
+    last_active: null as string | null,
+  })
 
   // Hidden file inputs for avatar/banner selection
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
@@ -489,6 +517,130 @@ export default function PublicUserPage() {
     }
     load()
   }, [supabase, username, isFriend])
+
+  // Enhanced profile actions
+  const handleFollow = useCallback(async () => {
+    if (!supabase || !profile || isOwner) return
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error("Musisz być zalogowany, aby obserwować użytkownika")
+        return
+      }
+
+      if (following) {
+        // Unfollow
+        const { error } = await supabase
+          .from("follows")
+          .delete()
+          .eq("follower_id", user.id)
+          .eq("following_id", profile.id)
+
+        if (error) {
+          console.error("Error unfollowing user:", error)
+          toast.error("Nie udało się przestać obserwować")
+          return
+        }
+
+        setFollowing(false)
+        setFollowersCount((prev) => Math.max(0, prev - 1))
+        toast.success("Przestałeś obserwować użytkownika")
+      } else {
+        // Follow
+        const { error } = await supabase.from("follows").insert({
+          follower_id: user.id,
+          following_id: profile.id,
+        })
+
+        if (error) {
+          console.error("Error following user:", error)
+          toast.error("Nie udało się obserwować użytkownika")
+          return
+        }
+
+        setFollowing(true)
+        setFollowersCount((prev) => prev + 1)
+        toast.success("Zacząłeś obserwować użytkownika")
+      }
+    } catch (err) {
+      console.error("Unexpected error following user:", err)
+      toast.error("Wystąpił nieoczekiwany błąd")
+    }
+  }, [supabase, profile, following, isOwner])
+
+  const handleBookmark = useCallback(async () => {
+    if (!supabase || !profile || isOwner) return
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error("Musisz być zalogowany, aby zapisać profil")
+        return
+      }
+
+      if (isBookmarked) {
+        // Remove bookmark
+        const { error } = await supabase
+          .from("profile_bookmarks")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("bookmarked_user_id", profile.id)
+
+        if (error) {
+          console.error("Error removing bookmark:", error)
+          toast.error("Nie udało się usunąć zakładki")
+          return
+        }
+
+        setIsBookmarked(false)
+        toast.success("Usunięto zakładkę")
+      } else {
+        // Add bookmark
+        const { error } = await supabase.from("profile_bookmarks").insert({
+          user_id: user.id,
+          bookmarked_user_id: profile.id,
+        })
+
+        if (error) {
+          console.error("Error adding bookmark:", error)
+          toast.error("Nie udało się dodać zakładki")
+          return
+        }
+
+        setIsBookmarked(true)
+        toast.success("Dodano zakładkę")
+      }
+    } catch (err) {
+      console.error("Unexpected error bookmarking profile:", err)
+      toast.error("Wystąpił nieoczekiwany błąd")
+    }
+  }, [supabase, profile, isBookmarked, isOwner])
+
+  const handleShare = useCallback(async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `${profile?.display_name || profile?.username || username} - Profil`,
+          text: profile?.bio || "",
+          url: `${window.location.origin}/u/${username}`,
+        })
+      } else {
+        // Fallback to clipboard
+        await navigator.clipboard.writeText(
+          `${window.location.origin}/u/${username}`,
+        )
+        toast.success("Link skopiowany do schowka")
+      }
+    } catch (err) {
+      console.error("Error sharing profile:", err)
+      toast.error("Nie udało się udostępnić profilu")
+    }
+  }, [profile, username])
 
   const name = profile?.display_name || profile?.username || username
   const showLocation =
@@ -1266,69 +1418,102 @@ export default function PublicUserPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-3 sm:px-4 md:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-      <div className="relative h-40 sm:h-40 w-full overflow-hidden rounded-lg border bg-muted">
-        {!!profile?.cover_image_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={profile.cover_image_url}
-            alt="Okładka"
-            className="h-full w-full object-cover"
-          />
-        )}
-        {/* Inline banner crop overlay */}
-        {bannerSrc && (
-          <div className="absolute inset-0 z-20 bg-black/30">
-            <div className="absolute inset-2 md:inset-3 flex flex-col gap-2">
-              <div
-                ref={bannerAreaRef}
-                className="relative w-full flex-1 min-h-0 grid place-items-center"
-              >
+    <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      {/* Enhanced Profile Header */}
+      <div className="relative">
+        {/* Cover Image */}
+        <div className="relative h-48 sm:h-56 w-full overflow-hidden rounded-xl border bg-muted">
+          {!!profile?.cover_image_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profile.cover_image_url}
+              alt="Okładka"
+              className="h-full w-full object-cover"
+            />
+          )}
+          {/* Inline banner crop overlay */}
+          {bannerSrc && (
+            <div className="absolute inset-0 z-20 bg-black/30">
+              <div className="absolute inset-2 md:inset-3 flex flex-col gap-2">
                 <div
-                  className="mx-auto"
-                  style={{
-                    width: `${bannerFrameW}px`,
-                    height: `${bannerFrameH}px`,
-                  }}
+                  ref={bannerAreaRef}
+                  className="relative w-full flex-1 min-h-0 grid place-items-center"
                 >
-                  <CropRect
-                    src={bannerSrc}
-                    natSize={bannerNatSize}
-                    frameW={bannerFrameW}
-                    frameH={bannerFrameH}
-                    scale={bannerScale}
-                    minScale={bannerMinScale}
-                    offset={bannerOffset}
-                    dragging={bannerDragging}
-                    onPointerStart={(x: number, y: number) => {
-                      setBannerDragging(true)
-                      setBannerLastPt({ x, y })
+                  <div
+                    className="mx-auto"
+                    style={{
+                      width: `${bannerFrameW}px`,
+                      height: `${bannerFrameH}px`,
                     }}
-                    onPointerMove={(x: number, y: number) => {
-                      if (!bannerDragging || !bannerNatSize) return
-                      if (!bannerLastPt) {
+                  >
+                    <CropRect
+                      src={bannerSrc}
+                      natSize={bannerNatSize}
+                      frameW={bannerFrameW}
+                      frameH={bannerFrameH}
+                      scale={bannerScale}
+                      minScale={bannerMinScale}
+                      offset={bannerOffset}
+                      dragging={bannerDragging}
+                      onPointerStart={(x: number, y: number) => {
+                        setBannerDragging(true)
                         setBannerLastPt({ x, y })
-                        return
-                      }
-                      const dx = x - bannerLastPt.x
-                      const dy = y - bannerLastPt.y
-                      const next = clampOffsets(
-                        bannerNatSize.w,
-                        bannerNatSize.h,
-                        bannerScale,
-                        bannerFrameW,
-                        bannerFrameH,
-                        bannerOffset.x + dx,
-                        bannerOffset.y + dy,
-                      )
-                      setBannerOffset(next)
-                      setBannerLastPt({ x, y })
-                    }}
-                    onPointerEnd={() => {
-                      setBannerDragging(false)
-                      setBannerLastPt(null)
-                    }}
-                    onZoom={(v: number) => {
+                      }}
+                      onPointerMove={(x: number, y: number) => {
+                        if (!bannerDragging || !bannerNatSize) return
+                        if (!bannerLastPt) {
+                          setBannerLastPt({ x, y })
+                          return
+                        }
+                        const dx = x - bannerLastPt.x
+                        const dy = y - bannerLastPt.y
+                        const next = clampOffsets(
+                          bannerNatSize.w,
+                          bannerNatSize.h,
+                          bannerScale,
+                          bannerFrameW,
+                          bannerFrameH,
+                          bannerOffset.x + dx,
+                          bannerOffset.y + dy,
+                        )
+                        setBannerOffset(next)
+                        setBannerLastPt({ x, y })
+                      }}
+                      onPointerEnd={() => {
+                        setBannerDragging(false)
+                        setBannerLastPt(null)
+                      }}
+                      onZoom={(v: number) => {
+                        if (!bannerNatSize) return
+                        const s = Math.max(
+                          bannerMinScale,
+                          Math.min(bannerMinScale * 3, v),
+                        )
+                        setBannerScale(s)
+                        setBannerOffset((prev) =>
+                          clampOffsets(
+                            bannerNatSize.w,
+                            bannerNatSize.h,
+                            s,
+                            bannerFrameW,
+                            bannerFrameH,
+                            prev.x,
+                            prev.y,
+                          ),
+                        )
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 bg-background/90 rounded-md p-2 shadow-sm">
+                  <input
+                    type="range"
+                    min={bannerMinScale}
+                    max={bannerMinScale * 3}
+                    step={0.01}
+                    value={bannerScale}
+                    onChange={(e) => {
+                      const v = Number(e.target.value)
                       if (!bannerNatSize) return
                       const s = Math.max(
                         bannerMinScale,
@@ -1348,106 +1533,77 @@ export default function PublicUserPage() {
                       )
                     }}
                   />
+                  <div className="ml-auto flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={cancelBannerCrop}
+                    >
+                      Anuluj
+                    </Button>
+                    <Button size="sm" onClick={saveBannerFromCrop}>
+                      Zapisz
+                    </Button>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 bg-background/90 rounded-md p-2 shadow-sm">
-                <input
-                  type="range"
-                  min={bannerMinScale}
-                  max={bannerMinScale * 3}
-                  step={0.01}
-                  value={bannerScale}
-                  onChange={(e) => {
-                    const v = Number(e.target.value)
-                    if (!bannerNatSize) return
-                    const s = Math.max(
-                      bannerMinScale,
-                      Math.min(bannerMinScale * 3, v),
-                    )
-                    setBannerScale(s)
-                    setBannerOffset((prev) =>
-                      clampOffsets(
-                        bannerNatSize.w,
-                        bannerNatSize.h,
-                        s,
-                        bannerFrameW,
-                        bannerFrameH,
-                        prev.x,
-                        prev.y,
-                      ),
-                    )
+            </div>
+          )}
+          {isOwner && (
+            <div className="absolute bottom-2 right-2 flex items-center gap-2">
+              {/* Mobile: icon-only */}
+              <div className="flex sm:hidden items-center gap-2">
+                <button
+                  type="button"
+                  title="Usuń tło"
+                  aria-label="Usuń tło"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background/80 backdrop-blur border shadow"
+                  onClick={removeCover}
+                >
+                  <Trash2 className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  title="Zmień tło"
+                  aria-label="Zmień tło"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background/80 backdrop-blur border shadow"
+                  onClick={() => {
+                    bannerInputRef.current?.click()
                   }}
-                />
-                <div className="ml-auto flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={cancelBannerCrop}
-                  >
-                    Anuluj
-                  </Button>
-                  <Button size="sm" onClick={saveBannerFromCrop}>
-                    Zapisz
-                  </Button>
-                </div>
+                >
+                  <Camera className="size-4" />
+                </button>
+              </div>
+              {/* Desktop/tablet: with labels */}
+              <div className="hidden sm:flex items-center gap-2">
+                <button
+                  type="button"
+                  title="Usuń tło"
+                  aria-label="Usuń tło"
+                  className="inline-flex items-center gap-1 rounded-md bg-background/80 backdrop-blur px-2 py-1 text-xs border shadow"
+                  onClick={removeCover}
+                >
+                  <Trash2 className="size-4" />
+                  <span className="hidden sm:inline">Usuń tło</span>
+                  <span className="sm:hidden">Usuń</span>
+                </button>
+                <button
+                  type="button"
+                  title="Zmień tło"
+                  aria-label="Zmień tło"
+                  className="inline-flex items-center gap-1 rounded-md bg-background/80 backdrop-blur px-2 py-1 text-xs border shadow"
+                  onClick={() => {
+                    bannerInputRef.current?.click()
+                  }}
+                >
+                  <Camera className="size-4" />
+                  <span className="hidden sm:inline">Edytuj tło</span>
+                  <span className="sm:hidden">Edytuj</span>
+                </button>
               </div>
             </div>
-          </div>
-        )}
-        {isOwner && (
-          <div className="absolute bottom-2 right-2 flex items-center gap-2">
-            {/* Mobile: icon-only */}
-            <div className="flex sm:hidden items-center gap-2">
-              <button
-                type="button"
-                title="Usuń tło"
-                aria-label="Usuń tło"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background/80 backdrop-blur border shadow"
-                onClick={removeCover}
-              >
-                <Trash2 className="size-4" />
-              </button>
-              <button
-                type="button"
-                title="Zmień tło"
-                aria-label="Zmień tło"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background/80 backdrop-blur border shadow"
-                onClick={() => {
-                  bannerInputRef.current?.click()
-                }}
-              >
-                <Camera className="size-4" />
-              </button>
-            </div>
-            {/* Desktop/tablet: with labels */}
-            <div className="hidden sm:flex items-center gap-2">
-              <button
-                type="button"
-                title="Usuń tło"
-                aria-label="Usuń tło"
-                className="inline-flex items-center gap-1 rounded-md bg-background/80 backdrop-blur px-2 py-1 text-xs border shadow"
-                onClick={removeCover}
-              >
-                <Trash2 className="size-4" />
-                <span className="hidden sm:inline">Usuń tło</span>
-                <span className="sm:hidden">Usuń</span>
-              </button>
-              <button
-                type="button"
-                title="Zmień tło"
-                aria-label="Zmień tło"
-                className="inline-flex items-center gap-1 rounded-md bg-background/80 backdrop-blur px-2 py-1 text-xs border shadow"
-                onClick={() => {
-                  bannerInputRef.current?.click()
-                }}
-              >
-                <Camera className="size-4" />
-                <span className="hidden sm:inline">Edytuj tło</span>
-                <span className="sm:hidden">Edytuj</span>
-              </button>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
@@ -1469,30 +1625,98 @@ export default function PublicUserPage() {
                 {/* Avatar auto-saves on pick; moved trigger button outside the frame */}
               </div>
               <div className="flex-1 min-w-0">
-                <h1 className="text-lg sm:text-xl font-bold tracking-tight flex flex-wrap items-center gap-2">
-                  {loading ? "Ładowanie…" : name}
-                  {profile?.pronouns ? (
-                    <Badge variant="outline" title="Zaimki">
-                      {profile.pronouns}
-                    </Badge>
-                  ) : null}
-                  {profile?.badges && profile.badges.length > 0 ? (
-                    <div className="flex items-center flex-wrap gap-1.5">
-                      {profile.badges.map((b, i) => {
-                        const info = badgeMeta[b]
-                        if (!info)
-                          return (
-                            <Badge key={`b-${i}`} variant="secondary">
-                              {b}
-                            </Badge>
-                          )
+                <div className="flex items-center justify-between mb-2">
+                  <h1 className="text-lg sm:text-xl font-bold tracking-tight flex flex-wrap items-center gap-2">
+                    {loading ? "Ładowanie…" : name}
+                    {profile?.pronouns ? (
+                      <Badge variant="outline" title="Zaimki">
+                        {profile.pronouns}
+                      </Badge>
+                    ) : null}
+                    {isBookmarked && (
+                      <Bookmark className="h-4 w-4 text-yellow-500 fill-current" />
+                    )}
+                    {following && (
+                      <Badge variant="secondary" className="text-xs">
+                        Obserwujesz
+                      </Badge>
+                    )}
+                    {profile?.engagement_score &&
+                      profile.engagement_score > 70 && (
+                        <div className="flex items-center gap-1">
+                          <Zap className="h-3 w-3 text-yellow-500" />
+                          <span className="text-xs text-yellow-600">
+                            Aktywny
+                          </span>
+                        </div>
+                      )}
+                  </h1>
+
+                  {/* Enhanced Action Buttons */}
+                  {!isOwner && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleBookmark}
+                        className="flex items-center gap-1"
+                      >
+                        <Bookmark className="h-4 w-4" />
+                        {isBookmarked ? "Zapisane" : "Zapisz"}
+                      </Button>
+
+                      <Button
+                        variant={following ? "default" : "outline"}
+                        size="sm"
+                        onClick={handleFollow}
+                        className="flex items-center gap-1"
+                      >
+                        {following ? (
+                          <UserMinus className="h-4 w-4" />
+                        ) : (
+                          <UserPlus className="h-4 w-4" />
+                        )}
+                        {following ? "Obserwujesz" : "Obserwuj"}
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleShare}
+                        className="flex items-center gap-1"
+                      >
+                        <Share2 className="h-4 w-4" />
+                        Udostępnij
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                {profile?.badges && profile.badges.length > 0 ? (
+                  <div className="flex items-center flex-wrap gap-1.5">
+                    {profile.badges.map((b, i) => {
+                      const info = badgeMeta[b]
+                      if (!info)
                         return (
-                          <Popover key={`b-${i}`}>
-                            <PopoverTrigger asChild>
-                              <button
-                                className={`inline-flex items-center justify-center h-6 w-6 rounded-full ring-1 ${info.color}`}
-                                title={info.label}
-                                aria-label={info.label}
+                          <Badge key={`b-${i}`} variant="secondary">
+                            {b}
+                          </Badge>
+                        )
+                      return (
+                        <Popover key={`b-${i}`}>
+                          <PopoverTrigger asChild>
+                            <button
+                              className={`inline-flex items-center justify-center h-6 w-6 rounded-full ring-1 ${info.color}`}
+                              title={info.label}
+                              aria-label={info.label}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={info.icon} alt="" className="h-4 w-4" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 ring-1 ${info.color}`}
                               >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
@@ -1500,34 +1724,47 @@ export default function PublicUserPage() {
                                   alt=""
                                   className="h-4 w-4"
                                 />
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-2">
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 ring-1 ${info.color}`}
-                                >
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={info.icon}
-                                    alt=""
-                                    className="h-4 w-4"
-                                  />
+                                <span className="text-xs font-medium">
                                   {info.label}
                                 </span>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                        )
-                      })}
-                    </div>
-                  ) : null}
-                </h1>
+                              </span>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      )
+                    })}
+                  </div>
+                ) : null}
                 {profile?.username && (
                   <p className="text-sm text-muted-foreground truncate">
                     @{profile.username}
                   </p>
                 )}
+
+                {/* Profile Stats */}
+                <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Users className="h-4 w-4" />
+                    <span>{profileStats.followers_count} obserwujących</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Eye className="h-4 w-4" />
+                    <span>{profileStats.following_count} obserwuje</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <MessageCircle className="h-4 w-4" />
+                    <span>{profileStats.posts_count} postów</span>
+                  </div>
+                  {profile?.last_active && (
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      <span>
+                        Aktywny{" "}
+                        {new Date(profile.last_active).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {orients?.map((o, i) => (
                     <Badge key={`o-${i}`} variant="secondary">

@@ -1,7 +1,19 @@
 "use client"
-import { useEffect, useState, useCallback, useRef } from "react"
+import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { getSupabase } from "@/lib/supabase-browser"
 import { PostItem, type PostRecord } from "./post-item"
+import { SkeletonPost } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import {
+  RefreshCw,
+  Filter,
+  Clock,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 type MinimalProfile = {
   id: string
@@ -10,9 +22,17 @@ type MinimalProfile = {
   avatar_url: string | null
 }
 
+type ExtendedPostRecord = PostRecord & {
+  likes_count?: number
+  comments_count?: number
+}
+
 type PostLikeRow = { post_id: string }
 type FollowRow = { following_id: string }
 type LikedPost = { id: string; user_id: string; hashtags: string[] | null }
+
+type FeedSortOption = "newest" | "oldest" | "popular" | "trending"
+type FeedFilterOption = "all" | "following" | "communities" | "liked"
 
 export function Feed({
   reloadSignal,
@@ -25,12 +45,19 @@ export function Feed({
   const [posts, setPosts] = useState<PostRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
+  const [sortOption, setSortOption] = useState<FeedSortOption>("newest")
+  const [filterOption, setFilterOption] = useState<FeedFilterOption>("all")
+  const [showFilters, setShowFilters] = useState(false)
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+  const [newPostsCount, setNewPostsCount] = useState(0)
+  const [error, setError] = useState<string | null>(null)
   const cursorRef = useRef<{ created_at: string; id: string } | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const pullingRef = useRef(false)
   const startYRef = useRef(0)
   const loadingMoreRef = useRef(false)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Cache community memberships during the component lifecycle
   const memberCommunitiesRef = useRef<string[] | null>(null)
@@ -61,9 +88,82 @@ export function Feed({
     return ids
   }, [supabase])
 
+  // Sort posts based on selected option
+  const sortPosts = useCallback(
+    (posts: PostRecord[]) => {
+      switch (sortOption) {
+        case "newest":
+          return [...posts].sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime(),
+          )
+        case "oldest":
+          return [...posts].sort(
+            (a, b) =>
+              new Date(a.created_at).getTime() -
+              new Date(b.created_at).getTime(),
+          )
+        case "popular":
+          // Sort by likes count (fallback to 0 if not present)
+          return [...posts].sort(
+            (a, b) =>
+              ((b as ExtendedPostRecord).likes_count || 0) -
+              ((a as ExtendedPostRecord).likes_count || 0),
+          )
+        case "trending":
+          // Sort by engagement (likes + comments + recency)
+          return [...posts].sort((a, b) => {
+            const aLikes = (a as ExtendedPostRecord).likes_count ?? 0
+            const bLikes = (b as ExtendedPostRecord).likes_count ?? 0
+            const aComments = (a as ExtendedPostRecord).comments_count ?? 0
+            const bComments = (b as ExtendedPostRecord).comments_count ?? 0
+            const aEngagement = aLikes + aComments
+            const bEngagement = bLikes + bComments
+            const aRecency = new Date(a.created_at).getTime()
+            const bRecency = new Date(b.created_at).getTime()
+            const aScore = aEngagement + aRecency / 1000000 // Weight recent posts
+            const bScore = bEngagement + bRecency / 1000000
+            return bScore - aScore
+          })
+        default:
+          return posts
+      }
+    },
+    [sortOption],
+  )
+
+  // Filter posts based on selected option
+  const filterPosts = useCallback(
+    (posts: PostRecord[]) => {
+      switch (filterOption) {
+        case "all":
+          return posts
+        case "following":
+          // Would need to fetch following data
+          return posts
+        case "communities":
+          return posts.filter((post) => post.community_id !== null)
+        case "liked":
+          // Would need to fetch liked posts
+          return posts
+        default:
+          return posts
+      }
+    },
+    [filterOption],
+  )
+
+  // Memoized sorted and filtered posts
+  const processedPosts = useMemo(() => {
+    const filtered = filterPosts(posts)
+    return sortPosts(filtered)
+  }, [posts, filterPosts, sortPosts])
+
   const load = useCallback(async () => {
     if (!supabase) return
     setLoading(true)
+    setError(null)
     try {
       const memberCommunityIds = await ensureMemberships()
 
@@ -71,7 +171,7 @@ export function Feed({
       let query = supabase
         .from("posts")
         .select(
-          "id,user_id,content,visibility,created_at,media_urls,hashtags,community_id",
+          "id,user_id,content,visibility,created_at,media_urls,hashtags,community_id,likes_count,comments_count",
         )
         .is("hidden_at", null)
         .order("created_at", { ascending: false })
@@ -97,10 +197,18 @@ export function Feed({
       }
 
       const { data, error } = await query
-      if (!error && data) {
+      if (error) {
+        console.error("Error loading posts:", error)
+        setError("Nie udało się załadować postów")
+        toast.error("Błąd podczas ładowania postów")
+        return
+      }
+
+      if (data) {
         const rows = data as PostRecord[]
         setPosts(rows)
         setHasMore(rows.length >= 20)
+        setLastRefresh(new Date())
         if (rows.length > 0) {
           cursorRef.current = {
             created_at: rows[rows.length - 1].created_at,
@@ -110,6 +218,10 @@ export function Feed({
           cursorRef.current = null
         }
       }
+    } catch (err) {
+      console.error("Unexpected error loading posts:", err)
+      setError("Nieoczekiwany błąd podczas ładowania postów")
+      toast.error("Wystąpił nieoczekiwany błąd")
     } finally {
       setLoading(false)
     }
@@ -261,138 +373,319 @@ export function Feed({
     void computeSuggestions()
   }, [computeSuggestions, reloadSignal])
 
+  // Auto-refresh functionality
+  useEffect(() => {
+    if (!supabase) return
+
+    // Set up auto-refresh every 30 seconds
+    refreshIntervalRef.current = setInterval(async () => {
+      if (!loading && !loadingMoreRef.current) {
+        try {
+          const memberCommunityIds = await ensureMemberships()
+          let query = supabase
+            .from("posts")
+            .select("id,created_at")
+            .is("hidden_at", null)
+            .order("created_at", { ascending: false })
+            .limit(1)
+
+          if (hashtag) {
+            query = query.contains("hashtags", [hashtag])
+          }
+
+          if (memberCommunityIds.length > 0) {
+            query = query.or(
+              `community_id.is.null,community_id.in.(${memberCommunityIds
+                .map((id) => `${id}`)
+                .join(",")})`,
+            )
+          } else {
+            query = query.is("community_id", null)
+          }
+
+          const { data } = await query
+          if (data && data.length > 0) {
+            const latestPost = data[0]
+            const hasNewPosts =
+              posts.length === 0 ||
+              new Date(latestPost.created_at) > new Date(posts[0].created_at)
+
+            if (hasNewPosts) {
+              setNewPostsCount((prev) => prev + 1)
+            }
+          }
+        } catch (error) {
+          console.error("Error checking for new posts:", error)
+        }
+      }
+    }, 30000) // Check every 30 seconds
+
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current)
+      }
+    }
+  }, [supabase, posts, hashtag, loading, ensureMemberships])
+
+  // Manual refresh function
+  const handleRefresh = useCallback(async () => {
+    setNewPostsCount(0)
+    await load()
+    toast.success("Feed odświeżony")
+  }, [load])
+
   if (!supabase) return null
 
   return (
-    <div
-      ref={containerRef}
-      className="space-y-3"
-      onScroll={(e) => {
-        const el = e.currentTarget
-        if (
-          el.scrollTop + el.clientHeight >= el.scrollHeight - 64 &&
-          hasMore &&
-          !loading
-        ) {
-          void loadMore()
-        }
-      }}
-      onTouchStart={(e) => {
-        const el = containerRef.current
-        if (!el) return
-        const atTop = (document.scrollingElement?.scrollTop || 0) <= 0
-        if (atTop) {
-          pullingRef.current = true
-          startYRef.current = e.touches[0].clientY
-        }
-      }}
-      onTouchMove={(e) => {
-        if (!pullingRef.current) return
-        const dy = e.touches[0].clientY - startYRef.current
-        // Trigger reload when pulling down more than 60px
-        if (dy > 60 && !loading) {
+    <div className="space-y-4">
+      {/* Feed Controls */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            Filtry
+          </Button>
+
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSortOption("newest")}
+              className={cn(
+                "flex items-center gap-1",
+                sortOption === "newest" && "bg-primary text-primary-foreground",
+              )}
+            >
+              <Clock className="h-4 w-4" />
+              Najnowsze
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSortOption("trending")}
+              className={cn(
+                "flex items-center gap-1",
+                sortOption === "trending" &&
+                  "bg-primary text-primary-foreground",
+              )}
+            >
+              <TrendingUp className="h-4 w-4" />
+              Popularne
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {newPostsCount > 0 && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleRefresh}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              {newPostsCount} nowych
+            </Button>
+          )}
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+            Odśwież
+          </Button>
+        </div>
+      </div>
+
+      {/* Filter Options */}
+      {showFilters && (
+        <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/50">
+          <span className="text-sm font-medium">Filtruj:</span>
+          <div className="flex items-center gap-2">
+            {(
+              ["all", "following", "communities", "liked"] as FeedFilterOption[]
+            ).map((option) => (
+              <Button
+                key={option}
+                variant={filterOption === option ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterOption(option)}
+                className="text-xs"
+              >
+                {option === "all" && "Wszystkie"}
+                {option === "following" && "Obserwowani"}
+                {option === "communities" && "Społeczności"}
+                {option === "liked" && "Polubione"}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="flex items-center gap-2 p-3 border border-destructive/20 rounded-lg bg-destructive/10">
+          <AlertCircle className="h-4 w-4 text-destructive" />
+          <span className="text-sm text-destructive">{error}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            className="ml-auto"
+          >
+            Spróbuj ponownie
+          </Button>
+        </div>
+      )}
+
+      {/* Last Refresh Info */}
+      {lastRefresh && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <CheckCircle className="h-3 w-3" />
+          Ostatnio odświeżono: {lastRefresh.toLocaleTimeString()}
+        </div>
+      )}
+
+      {/* Feed Content */}
+      <div
+        ref={containerRef}
+        className="space-y-3"
+        onScroll={(e) => {
+          const el = e.currentTarget
+          if (
+            el.scrollTop + el.clientHeight >= el.scrollHeight - 64 &&
+            hasMore &&
+            !loading
+          ) {
+            void loadMore()
+          }
+        }}
+        onTouchStart={(e) => {
+          const el = containerRef.current
+          if (!el) return
+          const atTop = (document.scrollingElement?.scrollTop || 0) <= 0
+          if (atTop) {
+            pullingRef.current = true
+            startYRef.current = e.touches[0].clientY
+          }
+        }}
+        onTouchMove={(e) => {
+          if (!pullingRef.current) return
+          const dy = e.touches[0].clientY - startYRef.current
+          // Trigger reload when pulling down more than 60px
+          if (dy > 60 && !loading) {
+            pullingRef.current = false
+            void load()
+          }
+        }}
+        onTouchEnd={() => {
           pullingRef.current = false
-          void load()
-        }
-      }}
-      onTouchEnd={() => {
-        pullingRef.current = false
-      }}
-    >
-      {!hashtag &&
-        (suggestedTags.length > 0 || authorSuggestions.length > 0) && (
-          <div className="rounded-lg border bg-card p-3 text-sm">
-            <div className="mb-2 font-medium">Proponowane do obserwowania</div>
-            {suggestedTags.length > 0 && (
-              <div className="mb-2 flex flex-wrap gap-2">
-                {suggestedTags.map((tag) => (
-                  <a
-                    key={tag}
-                    href={`/d?hashtag=${encodeURIComponent(tag)}`}
-                    className="inline-flex items-center rounded-full border px-2 py-1 text-xs hover:bg-accent hover:text-accent-foreground"
-                  >
-                    #{tag}
-                  </a>
-                ))}
+        }}
+      >
+        {!hashtag &&
+          (suggestedTags.length > 0 || authorSuggestions.length > 0) && (
+            <div className="rounded-lg border bg-card p-3 text-sm">
+              <div className="mb-2 font-medium">
+                Proponowane do obserwowania
               </div>
-            )}
-            {authorSuggestions.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {authorSuggestions.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center gap-2 rounded-full border px-2 py-1 text-xs"
-                  >
+              {suggestedTags.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {suggestedTags.map((tag) => (
                     <a
-                      href={`/u/${encodeURIComponent(p.username)}`}
-                      className="hover:underline"
+                      key={tag}
+                      href={`/d?hashtag=${encodeURIComponent(tag)}`}
+                      className="inline-flex items-center rounded-full border px-2 py-1 text-xs hover:bg-accent hover:text-accent-foreground"
                     >
-                      {p.display_name || p.username}
+                      #{tag}
                     </a>
-                    {!followingMap[p.id] && (
-                      <button
-                        className="rounded-full bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20"
-                        onClick={async () => {
-                          const {
-                            data: { user },
-                          } = await supabase.auth.getUser()
-                          if (!user) return
-                          const { error } = await supabase
-                            .from("follows")
-                            .insert({
-                              follower_id: user.id,
-                              following_id: p.id,
-                            })
-                          if (!error)
-                            setFollowingMap((m) => ({ ...m, [p.id]: true }))
-                        }}
+                  ))}
+                </div>
+              )}
+              {authorSuggestions.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {authorSuggestions.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center gap-2 rounded-full border px-2 py-1 text-xs"
+                    >
+                      <a
+                        href={`/u/${encodeURIComponent(p.username)}`}
+                        className="hover:underline"
                       >
-                        Obserwuj
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
+                        {p.display_name || p.username}
+                      </a>
+                      {!followingMap[p.id] && (
+                        <button
+                          className="rounded-full bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20"
+                          onClick={async () => {
+                            const {
+                              data: { user },
+                            } = await supabase.auth.getUser()
+                            if (!user) return
+                            const { error } = await supabase
+                              .from("follows")
+                              .insert({
+                                follower_id: user.id,
+                                following_id: p.id,
+                              })
+                            if (!error)
+                              setFollowingMap((m) => ({ ...m, [p.id]: true }))
+                          }}
+                        >
+                          Obserwuj
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        {loading && (
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <SkeletonPost key={i} />
+            ))}
+          </div>
+        )}
+        {processedPosts.map((p) => (
+          <PostItem key={p.id} post={p} />
+        ))}
+        {hasMore && (
+          <div className="text-center pt-2">
+            <button
+              className="text-sm text-muted-foreground underline"
+              onClick={() => void loadMore()}
+            >
+              Załaduj więcej
+            </button>
+          </div>
+        )}
+        {/* Sentinel used by IntersectionObserver */}
+        <div ref={sentinelRef} aria-hidden="true" />
+        {posts.length === 0 && !loading && (
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">
+              {hashtag
+                ? `Brak postów z tagiem #${hashtag}`
+                : "Brak postów do wyświetlenia."}
+            </p>
+            {hashtag && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Spróbuj poszukać innego tagu lub sprawdź trendy.
+              </p>
             )}
           </div>
         )}
-      {loading && (
-        <div className="text-center">
-          <div className="text-sm text-muted-foreground">
-            Ładowanie postów...
-          </div>
-        </div>
-      )}
-      {posts.map((p) => (
-        <PostItem key={p.id} post={p} />
-      ))}
-      {hasMore && (
-        <div className="text-center pt-2">
-          <button
-            className="text-sm text-muted-foreground underline"
-            onClick={() => void loadMore()}
-          >
-            Załaduj więcej
-          </button>
-        </div>
-      )}
-      {/* Sentinel used by IntersectionObserver */}
-      <div ref={sentinelRef} aria-hidden="true" />
-      {posts.length === 0 && !loading && (
-        <div className="text-center">
-          <p className="text-sm text-muted-foreground">
-            {hashtag
-              ? `Brak postów z tagiem #${hashtag}`
-              : "Brak postów do wyświetlenia."}
-          </p>
-          {hashtag && (
-            <p className="text-xs text-muted-foreground mt-2">
-              Spróbuj poszukać innego tagu lub sprawdź trendy.
-            </p>
-          )}
-        </div>
-      )}
+      </div>
     </div>
   )
 }
-//
