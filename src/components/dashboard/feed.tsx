@@ -4,16 +4,8 @@ import { getSupabase } from "@/lib/supabase-browser"
 import { PostItem, type PostRecord } from "./post-item"
 import { SkeletonPost } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
-import {
-  RefreshCw,
-  Clock,
-  TrendingUp,
-  AlertCircle,
-  CheckCircle,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
+import { RefreshCw, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
-
 type MinimalProfile = {
   id: string
   username: string
@@ -35,16 +27,17 @@ type FeedSortOption = "newest" | "trending"
 export function Feed({
   reloadSignal,
   hashtag,
+  sortOption: externalSortOption,
 }: {
   reloadSignal?: number
   hashtag?: string
+  sortOption?: FeedSortOption
 }) {
   const supabase = getSupabase()
   const [posts, setPosts] = useState<PostRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
-  const [sortOption, setSortOption] = useState<FeedSortOption>("newest")
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+  const sortOption = externalSortOption || "newest"
   const [newPostsCount, setNewPostsCount] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const cursorRef = useRef<{ created_at: string; id: string } | null>(null)
@@ -169,7 +162,6 @@ export function Feed({
         const rows = data as PostRecord[]
         setPosts(rows)
         setHasMore(rows.length >= 20)
-        setLastRefresh(new Date())
         if (rows.length > 0) {
           cursorRef.current = {
             created_at: rows[rows.length - 1].created_at,
@@ -399,55 +391,20 @@ export function Feed({
 
   return (
     <div className="space-y-6">
-      {/* Streamlined Feed Controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1">
-            <Button
-              variant={sortOption === "newest" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSortOption("newest")}
-              className="flex items-center gap-2"
-            >
-              <Clock className="h-4 w-4" />
-              Najnowsze
-            </Button>
-            <Button
-              variant={sortOption === "trending" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSortOption("trending")}
-              className="flex items-center gap-2"
-            >
-              <TrendingUp className="h-4 w-4" />
-              Popularne
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {newPostsCount > 0 && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleRefresh}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              {newPostsCount} nowych
-            </Button>
-          )}
-
+      {/* New Posts Indicator */}
+      {newPostsCount > 0 && (
+        <div className="flex justify-end">
           <Button
-            variant="ghost"
+            variant="default"
             size="sm"
             onClick={handleRefresh}
             className="flex items-center gap-2"
           >
-            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-            Odśwież
+            <RefreshCw className="h-4 w-4" />
+            {newPostsCount} nowych
           </Button>
         </div>
-      </div>
+      )}
 
       {/* Error State */}
       {error && (
@@ -457,14 +414,6 @@ export function Feed({
           <Button variant="outline" size="sm" onClick={handleRefresh}>
             Spróbuj ponownie
           </Button>
-        </div>
-      )}
-
-      {/* Last Refresh Info */}
-      {lastRefresh && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <CheckCircle className="h-4 w-4" />
-          Ostatnio odświeżono: {lastRefresh.toLocaleTimeString()}
         </div>
       )}
 

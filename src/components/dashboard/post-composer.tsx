@@ -48,17 +48,13 @@ import {
   CheckCircle,
   Bold,
   Italic,
-  Underline,
   Link as LinkIcon,
-  Quote,
   Code,
   Eye,
   EyeOff,
   Calendar,
   Send,
   FileText,
-  Mic,
-  MicOff,
   Maximize2,
   Minimize2,
   Trash2,
@@ -124,13 +120,10 @@ export function PostComposer({
   const [draftSaved, setDraftSaved] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [showPreview, setShowPreview] = useState(false)
-  const [isRecording, setIsRecording] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
   const [showScheduling, setShowScheduling] = useState(false)
   const [scheduledDate, setScheduledDate] = useState<Date | null>(null)
-  const [wordCount, setWordCount] = useState(0)
-  const [readingTime, setReadingTime] = useState(0)
   const [characterCount, setCharacterCount] = useState(0)
   const supabase = getSupabase()
   type FormValues = z.infer<typeof schema>
@@ -155,26 +148,6 @@ export function PostComposer({
   const draftKey = `post-draft-${communityId || "global"}`
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const recordingRef = useRef<MediaRecorder | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
-
-  // Enhanced utility functions
-  const calculateWordCount = useCallback((text: string) => {
-    const words = text
-      .trim()
-      .split(/\s+/)
-      .filter((word) => word.length > 0)
-    return words.length
-  }, [])
-
-  const calculateReadingTime = useCallback(
-    (text: string) => {
-      const words = calculateWordCount(text)
-      const wordsPerMinute = 200 // Average reading speed
-      return Math.ceil(words / wordsPerMinute)
-    },
-    [calculateWordCount],
-  )
 
   const extractHashtagsAndMentions = useCallback((text: string) => {
     const hashtags = text.match(/#\w+/g) || []
@@ -261,41 +234,6 @@ export function PostComposer({
     },
     [form],
   )
-
-  const startRecording = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream)
-      recordingRef.current = mediaRecorder
-      audioChunksRef.current = []
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data)
-        }
-      }
-
-      mediaRecorder.onstop = () => {
-        // Convert audio to text (would need speech-to-text API)
-        toast.success("Nagranie zakończone")
-        stream.getTracks().forEach((track) => track.stop())
-      }
-
-      mediaRecorder.start()
-      setIsRecording(true)
-      toast.success("Rozpoczęto nagrywanie")
-    } catch (error) {
-      console.error("Error starting recording:", error)
-      toast.error("Nie udało się rozpocząć nagrywania")
-    }
-  }, [])
-
-  const stopRecording = useCallback(() => {
-    if (recordingRef.current && isRecording) {
-      recordingRef.current.stop()
-      setIsRecording(false)
-    }
-  }, [isRecording])
 
   const toggleFullscreen = useCallback(() => {
     setIsFullscreen(!isFullscreen)
@@ -425,21 +363,16 @@ export function PostComposer({
     }
   }, [form, saveDraft])
 
-  // Enhanced content analysis
+  // Character count tracking
   useEffect(() => {
     const subscription = form.watch((values) => {
       if (values.content) {
-        const wordCount = calculateWordCount(values.content)
-        const readingTime = calculateReadingTime(values.content)
-        const characterCount = values.content.length
-        setWordCount(wordCount)
-        setReadingTime(readingTime)
-        setCharacterCount(characterCount)
+        setCharacterCount(values.content.length)
       }
     })
 
     return () => subscription.unsubscribe()
-  }, [form, calculateWordCount, calculateReadingTime])
+  }, [form])
 
   const onSubmit = useCallback(
     async (values: FormValues) => {
@@ -890,7 +823,10 @@ export function PostComposer({
   return (
     <Dialog open={isOpen} onOpenChange={setOpen}>
       <DialogContent
-        className={cn("sm:max-w-lg", isFullscreen && "max-w-4xl h-[90vh]")}
+        className={cn(
+          "sm:max-w-lg max-h-[90vh] overflow-y-auto",
+          isFullscreen && "max-w-4xl h-[90vh]",
+        )}
       >
         <DialogHeader>
           <div className="flex items-center justify-between">
@@ -990,11 +926,11 @@ export function PostComposer({
               }}
             />
 
-            {/* Enhanced Toolbar */}
+            {/* Streamlined Toolbar */}
             <div className="space-y-3">
               {/* Main Toolbar */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1">
                   {/* Media Upload */}
                   <input
                     ref={imgInputRef}
@@ -1070,18 +1006,6 @@ export function PostComposer({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      title="Podkreślenie (Ctrl+U)"
-                      onClick={() =>
-                        formatText(form.getValues("content"), "underline")
-                      }
-                      className="h-8 w-8 p-0"
-                    >
-                      <Underline className="size-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
                       title="Kod"
                       onClick={() =>
                         formatText(form.getValues("content"), "code")
@@ -1089,18 +1013,6 @@ export function PostComposer({
                       className="h-8 w-8 p-0"
                     >
                       <Code className="size-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      title="Cytat"
-                      onClick={() =>
-                        formatText(form.getValues("content"), "quote")
-                      }
-                      className="h-8 w-8 p-0"
-                    >
-                      <Quote className="size-4" />
                     </Button>
                     <Button
                       type="button"
@@ -1135,31 +1047,6 @@ export function PostComposer({
                       className="h-8 w-8 p-0"
                     >
                       <AtSign className="size-4" />
-                    </Button>
-                  </div>
-
-                  {/* Voice Recording */}
-                  <div className="flex items-center gap-1 border-l pl-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      title={
-                        isRecording
-                          ? "Zatrzymaj nagrywanie"
-                          : "Rozpocznij nagrywanie"
-                      }
-                      onClick={isRecording ? stopRecording : startRecording}
-                      className={cn(
-                        "h-8 w-8 p-0",
-                        isRecording && "text-red-500",
-                      )}
-                    >
-                      {isRecording ? (
-                        <MicOff className="size-4" />
-                      ) : (
-                        <Mic className="size-4" />
-                      )}
                     </Button>
                   </div>
                 </div>
@@ -1206,10 +1093,8 @@ export function PostComposer({
               </div>
 
               {/* Content Stats */}
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <div className="flex items-center gap-4">
-                  <span>{wordCount} słów</span>
-                  <span>{readingTime} min czytania</span>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-4">
                   {form.getValues("content") && (
                     <div className="flex items-center gap-2">
                       {extractHashtagsAndMentions(form.getValues("content"))
@@ -1254,122 +1139,126 @@ export function PostComposer({
               </div>
             </div>
 
-            <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  title="Wstaw emoji"
+            {/* Emoji and Community Question */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    title="Wstaw emoji"
+                    className="flex items-center gap-1"
+                  >
+                    <Smile className="size-4" />
+                    Emoji
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-60"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
                 >
-                  <Smile className="size-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-60"
-                onOpenAutoFocus={(e) => e.preventDefault()}
+                  <EmojiPicker
+                    data={data}
+                    onEmojiSelect={(emoji: {
+                      native?: string
+                      shortcodes?: string
+                    }) => {
+                      const native = emoji.native || emoji.shortcodes || ""
+                      if (native) addEmoji(native)
+                      setEmojiOpen(false)
+                    }}
+                    theme="auto"
+                    navPosition="bottom"
+                    previewPosition="none"
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                title="Wylosuj pytanie dla społeczności"
+                onClick={fetchCommunityQuestion}
+                disabled={questionLoading}
+                className="flex items-center gap-1"
               >
-                {/* Full emoji picker with categories/search */}
-                <EmojiPicker
-                  data={data}
-                  onEmojiSelect={(emoji: {
-                    native?: string
-                    shortcodes?: string
-                  }) => {
-                    const native = emoji.native || emoji.shortcodes || ""
-                    if (native) addEmoji(native)
-                    setEmojiOpen(false)
-                  }}
-                  theme="auto"
-                  navPosition="bottom"
-                  previewPosition="none"
-                />
-              </PopoverContent>
-            </Popover>
+                <Sparkles className="size-4" />
+                {questionLoading ? "Losuję…" : "Pytanie"}
+              </Button>
 
-            {/* Random community question */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              title="Wylosuj pytanie dla społeczności"
-              onClick={fetchCommunityQuestion}
-              disabled={questionLoading}
-              className="ml-1"
-            >
-              <Sparkles className="size-4 mr-1" />{" "}
-              {questionLoading ? "Losuję…" : "Pytanie społeczności"}
-            </Button>
-
-            {/* Manual save draft button */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              title="Zapisz szkic"
-              onClick={saveDraft}
-              className="ml-1"
-            >
-              <Save className="size-4 mr-1" />
-              Zapisz szkic
-            </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                title="Zapisz szkic"
+                onClick={saveDraft}
+                className="flex items-center gap-1"
+              >
+                <Save className="size-4" />
+                Zapisz szkic
+              </Button>
+            </div>
 
             {/* Selected attachments preview */}
-            <div className="ml-auto flex items-center gap-3">
-              {imagePreviews.map((url, idx) => {
-                const safe = safeBlobUrl(url)
-                if (!safe) return null
-                return (
-                  <div key={url} className="relative">
-                    <Image
-                      src={safe}
-                      alt={`Podgląd obrazu ${idx + 1}`}
-                      width={160}
-                      height={80}
-                      className="h-20 w-auto max-w-[160px] rounded object-cover border"
-                    />
-                    <button
-                      type="button"
-                      aria-label="Usuń obraz"
-                      onClick={() =>
-                        setImageFiles((prev) =>
-                          prev.filter((_, i) => i !== idx),
-                        )
-                      }
-                      className="absolute -right-2 -top-2 inline-flex items-center justify-center rounded-full bg-background border p-1 shadow"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </div>
-                )
-              })}
-              {videoPreviews.map((url, idx) => {
-                const safe = safeBlobUrl(url)
-                if (!safe) return null
-                return (
-                  <div key={url} className="relative">
-                    <video
-                      src={safe}
-                      className="h-20 w-auto max-w-[200px] rounded border"
-                      controls
-                      muted
-                    />
-                    <button
-                      type="button"
-                      aria-label="Usuń wideo"
-                      onClick={() =>
-                        setVideoFiles((prev) =>
-                          prev.filter((_, i) => i !== idx),
-                        )
-                      }
-                      className="absolute -right-2 -top-2 inline-flex items-center justify-center rounded-full bg-background border p-1 shadow"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
+            {(imagePreviews.length > 0 || videoPreviews.length > 0) && (
+              <div className="flex flex-wrap items-center gap-3">
+                {imagePreviews.map((url, idx) => {
+                  const safe = safeBlobUrl(url)
+                  if (!safe) return null
+                  return (
+                    <div key={url} className="relative">
+                      <Image
+                        src={safe}
+                        alt={`Podgląd obrazu ${idx + 1}`}
+                        width={160}
+                        height={80}
+                        className="h-20 w-auto max-w-[160px] rounded object-cover border"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Usuń obraz"
+                        onClick={() =>
+                          setImageFiles((prev) =>
+                            prev.filter((_, i) => i !== idx),
+                          )
+                        }
+                        className="absolute -right-2 -top-2 inline-flex items-center justify-center rounded-full bg-background border p-1 shadow"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  )
+                })}
+                {videoPreviews.map((url, idx) => {
+                  const safe = safeBlobUrl(url)
+                  if (!safe) return null
+                  return (
+                    <div key={url} className="relative">
+                      <video
+                        src={safe}
+                        className="h-20 w-auto max-w-[200px] rounded border"
+                        controls
+                        muted
+                      />
+                      <button
+                        type="button"
+                        aria-label="Usuń wideo"
+                        onClick={() =>
+                          setVideoFiles((prev) =>
+                            prev.filter((_, i) => i !== idx),
+                          )
+                        }
+                        className="absolute -right-2 -top-2 inline-flex items-center justify-center rounded-full bg-background border p-1 shadow"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
 
             {/* Community question preview & toggle */}
             {question && (
@@ -1678,13 +1567,13 @@ export function PostComposer({
               </div>
             )}
 
-            <div className="flex items-center gap-2 justify-between">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 <FormField
                   control={form.control}
                   name="visibility"
                   render={({ field }) => (
-                    <FormItem className="w-40">
+                    <FormItem className="w-full sm:w-40">
                       <FormLabel className="sr-only">Widoczność</FormLabel>
                       <Select
                         value={field.value}
@@ -1722,13 +1611,14 @@ export function PostComposer({
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={clearDraft}
                   disabled={!form.getValues("content").trim()}
                   className="flex items-center gap-1"
+                  size="sm"
                 >
                   <Trash2 className="h-4 w-4" />
                   Wyczyść
@@ -1740,6 +1630,7 @@ export function PostComposer({
                     variant="outline"
                     onClick={cancelSchedule}
                     className="flex items-center gap-1"
+                    size="sm"
                   >
                     <X className="h-4 w-4" />
                     Anuluj planowanie
@@ -1750,6 +1641,7 @@ export function PostComposer({
                     variant="outline"
                     onClick={() => setShowScheduling(true)}
                     className="flex items-center gap-1"
+                    size="sm"
                   >
                     <Calendar className="h-4 w-4" />
                     Zaplanuj
@@ -1761,6 +1653,7 @@ export function PostComposer({
                   variant="outline"
                   onClick={() => setShowPreview(!showPreview)}
                   className="flex items-center gap-1"
+                  size="sm"
                 >
                   {showPreview ? (
                     <EyeOff className="h-4 w-4" />
@@ -1773,7 +1666,7 @@ export function PostComposer({
                 <Button
                   type="submit"
                   disabled={loading || characterCount > MAX_CHARACTERS}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 flex-1 sm:flex-none"
                 >
                   {loading ? (
                     <>

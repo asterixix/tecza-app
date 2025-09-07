@@ -8,7 +8,7 @@ import { SuggestedProfiles } from "@/components/dashboard/suggested"
 import { FeedAnalytics } from "@/components/dashboard/feed-analytics"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect, Suspense } from "react"
-import { RotateCw, X } from "lucide-react"
+import { RotateCw, X, Clock, TrendingUp } from "lucide-react"
 import { useSearchParams, useRouter } from "next/navigation"
 import {
   Skeleton,
@@ -24,6 +24,7 @@ function DashboardContent() {
   const [open, setOpen] = useState(false)
   const [reloadTick, setReloadTick] = useState(0)
   const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null)
+  const [sortOption, setSortOption] = useState<"newest" | "trending">("newest")
 
   // Handle hashtag from URL parameters
   useEffect(() => {
@@ -75,29 +76,46 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* Status Bar */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Badge variant="secondary" className="text-sm">
-              Twój pulpit
-            </Badge>
-            {selectedHashtag && (
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="gap-2 text-sm">
-                  #{selectedHashtag}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-4 w-4 p-0 hover:bg-transparent"
-                    onClick={clearHashtagFilter}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
-              </div>
-            )}
-          </div>
+        {/* Sorting Controls */}
+        <div className="flex items-center gap-1 mb-6">
+          <Button
+            variant={sortOption === "newest" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSortOption("newest")}
+            className="flex items-center gap-2"
+          >
+            <Clock className="h-4 w-4" />
+            Najnowsze
+          </Button>
+          <Button
+            variant={sortOption === "trending" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSortOption("trending")}
+            className="flex items-center gap-2"
+          >
+            <TrendingUp className="h-4 w-4" />
+            Popularne
+          </Button>
         </div>
+
+        {/* Status Bar */}
+        {selectedHashtag && (
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="gap-2 text-sm">
+                #{selectedHashtag}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-4 w-4 p-0 hover:bg-transparent"
+                  onClick={clearHashtagFilter}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            </div>
+          </div>
+        )}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Main Content */}
@@ -122,18 +140,14 @@ function DashboardContent() {
                   Pokaż wszystkie posty
                 </Button>
               </div>
-              <Feed reloadSignal={reloadTick} hashtag={selectedHashtag} />
+              <Feed
+                reloadSignal={reloadTick}
+                hashtag={selectedHashtag}
+                sortOption={sortOption}
+              />
             </div>
           ) : (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold">Twój feed</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Najnowsze posty od osób, które obserwujesz
-                </p>
-              </div>
-              <Feed reloadSignal={reloadTick} />
-            </div>
+            <Feed reloadSignal={reloadTick} sortOption={sortOption} />
           )}
         </div>
 

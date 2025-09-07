@@ -67,6 +67,7 @@ export function NotificationsPopover() {
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
+        .eq("user_id", me.id)
         .order("created_at", { ascending: false })
         .limit(30)
 
@@ -76,6 +77,7 @@ export function NotificationsPopover() {
       }
 
       const rows = (data || []) as NotificationRow[]
+      console.log(`Fetched ${rows.length} notifications`)
       setItems(rows)
 
       // Fetch actor profiles for non-broadcast notifications
@@ -215,18 +217,30 @@ export function NotificationsPopover() {
   async function markRead(id: string) {
     if (!supabase) return
     try {
-      const { error } = await supabase.rpc("mark_notification_read", {
+      // Try RPC function first, fallback to direct update
+      const { error: rpcError } = await supabase.rpc("mark_notification_read", {
         p_id: id,
       })
-      if (!error) {
-        setItems((prev) =>
-          prev.map((x) =>
-            x.id === id ? { ...x, read_at: new Date().toISOString() } : x,
-          ),
-        )
-      } else {
-        console.error("Error marking notification as read:", error)
+
+      if (rpcError) {
+        console.warn("RPC function failed, trying direct update:", rpcError)
+        // Fallback to direct update
+        const { error: updateError } = await supabase
+          .from("notifications")
+          .update({ read_at: new Date().toISOString() })
+          .eq("id", id)
+
+        if (updateError) {
+          console.error("Error marking notification as read:", updateError)
+          return
+        }
       }
+
+      setItems((prev) =>
+        prev.map((x) =>
+          x.id === id ? { ...x, read_at: new Date().toISOString() } : x,
+        ),
+      )
     } catch (error) {
       console.error("Unexpected error marking notification as read:", error)
     }
@@ -235,15 +249,33 @@ export function NotificationsPopover() {
   async function markAllRead() {
     if (!supabase) return
     try {
-      const { error } = await supabase.rpc("mark_all_notifications_read")
-      if (!error) {
-        const now = new Date().toISOString()
-        setItems((prev) =>
-          prev.map((x) => (x.read_at ? x : { ...x, read_at: now })),
-        )
-      } else {
-        console.error("Error marking all notifications as read:", error)
+      const me = (await supabase.auth.getUser()).data.user
+      if (!me) return
+
+      // Try RPC function first, fallback to direct update
+      const { error: rpcError } = await supabase.rpc(
+        "mark_all_notifications_read",
+      )
+
+      if (rpcError) {
+        console.warn("RPC function failed, trying direct update:", rpcError)
+        // Fallback to direct update
+        const { error: updateError } = await supabase
+          .from("notifications")
+          .update({ read_at: new Date().toISOString() })
+          .eq("user_id", me.id)
+          .is("read_at", null)
+
+        if (updateError) {
+          console.error("Error marking all notifications as read:", updateError)
+          return
+        }
       }
+
+      const now = new Date().toISOString()
+      setItems((prev) =>
+        prev.map((x) => (x.read_at ? x : { ...x, read_at: now })),
+      )
     } catch (error) {
       console.error(
         "Unexpected error marking all notifications as read:",
@@ -259,21 +291,40 @@ export function NotificationsPopover() {
 
     try {
       // Clear all notifications for the current user
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from("notifications")
-        .delete()
+        .delete({ count: "exact" })
         .eq("user_id", me.id)
 
       if (!error) {
+        console.log(`Cleared ${count || 0} notifications`)
         setItems([])
         setActors({})
         // Reset fetch timestamp to allow immediate refetch if needed
         lastFetchRef.current = 0
+
+        // Also clear any cached notification data in localStorage if it exists
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.removeItem("notifications_cache")
+            localStorage.removeItem("notifications_last_fetch")
+          } catch {
+            // Ignore localStorage errors
+          }
+        }
       } else {
         console.error("Error clearing notifications:", error)
+        // Still clear local state even if database operation fails
+        setItems([])
+        setActors({})
+        lastFetchRef.current = 0
       }
     } catch (error) {
       console.error("Unexpected error clearing notifications:", error)
+      // Still clear local state even if operation fails
+      setItems([])
+      setActors({})
+      lastFetchRef.current = 0
     }
   }
 
