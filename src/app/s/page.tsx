@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { getSupabase } from "@/lib/supabase-browser"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Form,
   FormControl,
@@ -13,6 +13,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import {
@@ -26,6 +27,25 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import {
+  Search,
+  Shield,
+  Bell,
+  Eye,
+  Palette,
+  Trash2,
+  Save,
+  CheckCircle,
+  AlertCircle,
+  Settings,
+  User,
+  Lock,
+  Smartphone,
+  Globe,
+  Heart,
+  Mail,
+} from "lucide-react"
 // E2EE messaging removed; crypto key manager not used
 
 const schema = z.object({
@@ -65,6 +85,10 @@ type FormValues = z.infer<typeof schema>
 export default function SettingsPage() {
   const supabase = getSupabase()
   const [loading, setLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [activeTab, setActiveTab] = useState("privacy")
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+
   // Security state
   // E2EE vault removed as part of messaging system removal
   const [password, setPassword] = useState("")
@@ -120,7 +144,94 @@ export default function SettingsPage() {
       show_contacts: true,
       show_socials: true,
     },
+    mode: "onChange",
   })
+
+  // Search functionality
+  const settingsSections = useMemo(() => {
+    const sections = [
+      {
+        id: "privacy",
+        title: "Prywatność",
+        icon: Eye,
+        description: "Kontroluj widoczność swojego profilu",
+        keywords: [
+          "prywatność",
+          "widoczność",
+          "profil",
+          "publiczny",
+          "prywatny",
+          "znajomi",
+          "lokalizacja",
+          "orientacja",
+          "kontakt",
+          "social media",
+        ],
+      },
+      {
+        id: "notifications",
+        title: "Powiadomienia",
+        icon: Bell,
+        description: "Zarządzaj powiadomieniami push",
+        keywords: [
+          "powiadomienia",
+          "push",
+          "dźwięk",
+          "alert",
+          "prośby",
+          "wzmianki",
+          "posty",
+        ],
+      },
+      {
+        id: "security",
+        title: "Bezpieczeństwo",
+        icon: Shield,
+        description: "2FA, hasło i połączenia OAuth",
+        keywords: [
+          "bezpieczeństwo",
+          "2fa",
+          "hasło",
+          "oauth",
+          "google",
+          "discord",
+          "email",
+          "konto",
+        ],
+      },
+      {
+        id: "accessibility",
+        title: "Dostępność",
+        icon: Palette,
+        description: "Preferencje wyświetlania",
+        keywords: [
+          "dostępność",
+          "animacje",
+          "czcionka",
+          "skala",
+          "ruch",
+          "tekst",
+        ],
+      },
+      {
+        id: "danger",
+        title: "Strefa ryzyka",
+        icon: Trash2,
+        description: "Usuwanie konta",
+        keywords: ["usuwanie", "konto", "ryzyko", "nieodwracalne", "dane"],
+      },
+    ]
+
+    if (!searchQuery.trim()) return sections
+
+    const query = searchQuery.toLowerCase()
+    return sections.filter(
+      (section) =>
+        section.title.toLowerCase().includes(query) ||
+        section.description.toLowerCase().includes(query) ||
+        section.keywords.some((keyword) => keyword.includes(query)),
+    )
+  }, [searchQuery])
 
   useEffect(() => {
     async function load() {
@@ -249,313 +360,643 @@ export default function SettingsPage() {
         })
         .eq("id", user.id)
       if (error) throw error
-      toast.success("Zapisano profil")
+
+      setHasUnsavedChanges(false)
+      toast.success("Ustawienia prywatności zostały zapisane", {
+        description: "Twoje zmiany zostały pomyślnie zastosowane",
+        icon: <CheckCircle className="h-4 w-4" />,
+      })
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Nie udało się zapisać"
-      toast.error(msg)
+      toast.error("Błąd podczas zapisywania", {
+        description: msg,
+        icon: <AlertCircle className="h-4 w-4" />,
+      })
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 md:px-6 py-6">
-      <h1 className="text-2xl font-bold tracking-tight mb-4">Ustawienia</h1>
-      <Tabs defaultValue="privacy">
-        <TabsList className="mb-4 flex flex-wrap gap-2">
-          <TabsTrigger value="privacy">Prywatność</TabsTrigger>
-          <TabsTrigger value="security">Bezpieczeństwo</TabsTrigger>
-          <TabsTrigger value="accessibility">Dostępność</TabsTrigger>
-          <TabsTrigger value="danger">Strefa ryzyka</TabsTrigger>
-          <TabsTrigger value="notifications">Powiadomienia</TabsTrigger>
+    <div className="mx-auto max-w-6xl px-4 md:px-6 py-6">
+      {/* Header Section */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <Settings className="h-8 w-8 text-primary" />
+          <h1 className="text-3xl font-bold tracking-tight">Ustawienia</h1>
+        </div>
+        <p className="text-muted-foreground text-lg">
+          Zarządzaj swoim kontem, prywatnością i preferencjami
+        </p>
+      </div>
+
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Szukaj ustawień..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Konto aktywne</p>
+              <p className="text-xs text-muted-foreground">
+                Wszystko w porządku
+              </p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Shield className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Bezpieczeństwo</p>
+              <p className="text-xs text-muted-foreground">
+                {mfaEnrolled ? "2FA włączone" : "2FA wyłączone"}
+              </p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Bell className="h-5 w-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Powiadomienia</p>
+              <p className="text-xs text-muted-foreground">Push włączone</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Eye className="h-5 w-5 text-orange-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Prywatność</p>
+              <p className="text-xs text-muted-foreground">Profil publiczny</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Settings Navigation */}
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-6"
+      >
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 gap-1 p-1 bg-muted">
+          {settingsSections.map((section) => {
+            const Icon = section.icon
+            return (
+              <TabsTrigger
+                key={section.id}
+                value={section.id}
+                className="flex items-center gap-2 data-[state=active]:bg-background"
+              >
+                <Icon className="h-4 w-4" />
+                <span className="hidden sm:inline">{section.title}</span>
+              </TabsTrigger>
+            )
+          })}
         </TabsList>
 
-        <TabsContent value="privacy">
-          <Card>
-            <CardContent className="p-4 grid gap-4">
-              <Form {...form}>
-                <p className="text-sm text-muted-foreground">
-                  Ustaw widoczność profilu i elementów widocznych publicznie.
-                </p>
-                {/* Reuse existing privacy toggles by rendering the same fields here for quick access */}
-                <div className="grid md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="profile_visibility"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Widoczność profilu</FormLabel>
-                        <Select
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Publiczny" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="public">Publiczny</SelectItem>
-                            <SelectItem value="friends">
-                              Tylko znajomi
-                            </SelectItem>
-                            <SelectItem value="private">Prywatny</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="show_location"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-md border p-3">
-                        <FormLabel className="m-0">
-                          Pokazuj lokalizację
-                        </FormLabel>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="show_orientation"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-md border p-3">
-                        <FormLabel className="m-0">
-                          Pokazuj orientację/tożsamość
-                        </FormLabel>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="show_friends"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-md border p-3">
-                        <FormLabel className="m-0">
-                          Pokazuj listę znajomych
-                        </FormLabel>
-                        <FormControl>
-                          <Switch
-                            checked={!!field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="show_contacts"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-md border p-3">
-                        <FormLabel className="m-0">
-                          Pokazuj dane kontaktowe (WhatsApp/Telegram/Signal)
-                        </FormLabel>
-                        <FormControl>
-                          <Switch
-                            checked={!!field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="show_socials"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-md border p-3">
-                        <FormLabel className="m-0">
-                          Pokazuj profile społecznościowe
-                        </FormLabel>
-                        <FormControl>
-                          <Switch
-                            checked={!!field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="contact_whatsapp"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>WhatsApp (numer telefonu)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="tel"
-                            placeholder="np. +48 600 000 000"
-                            {...field}
-                            value={field.value ?? ""}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contact_telegram"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Telegram (nazwa użytkownika)</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="np. username"
-                            {...field}
-                            value={field.value ?? ""}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contact_signal"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Signal (numer telefonu)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="tel"
-                            placeholder="np. +48 600 000 000"
-                            {...field}
-                            value={field.value ?? ""}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="instagram_username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Instagram (username)</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="np. tecza"
-                            {...field}
-                            value={field.value ?? ""}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="twitter_username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Twitter/X (username)</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="np. tecza"
-                            {...field}
-                            value={field.value ?? ""}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="tiktok_username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>TikTok (username)</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="np. tecza"
-                            {...field}
-                            value={field.value ?? ""}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div>
-                  <Button
-                    onClick={form.handleSubmit(onSubmit)}
-                    disabled={loading}
-                  >
-                    {loading ? "Zapisywanie…" : "Zapisz prywatność"}
-                  </Button>
-                </div>
-              </Form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="notifications">
-          <Card>
-            <CardContent className="p-4 grid gap-4 max-w-2xl">
-              <h2 className="text-lg font-semibold">Ustawienia powiadomień</h2>
-              <div className="grid md:grid-cols-2 gap-3">
-                {/* Category toggles loaded/saved from notification_settings */}
-                <ToggleSetting
-                  field="enable_friend_requests"
-                  label="Prośby o połączenie"
-                />
-                <ToggleSetting field="enable_mentions" label="Wzmianki (@)" />
-                <ToggleSetting
-                  field="enable_community_posts"
-                  label="Posty w społecznościach"
-                />
-                <ToggleSetting
-                  field="enable_following_posts"
-                  label="Nowe posty obserwowanych"
-                />
-              </div>
-              <PushControls />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="security">
-          <div className="grid gap-4">
+        <TabsContent value="privacy" className="space-y-6">
+          <div className="grid gap-6">
+            {/* Profile Visibility Section */}
             <Card>
-              <CardContent className="p-4 grid gap-3">
-                <h2 className="text-lg font-semibold">2FA (TOTP)</h2>
-                {!mfaSupported ? (
-                  <p className="text-sm text-muted-foreground">
-                    2FA nie jest dostępne w tej instancji. Upewnij się, że MFA
-                    jest włączone w Supabase.
-                  </p>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="h-5 w-5" />
+                  Widoczność profilu
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Kontroluj, kto może zobaczyć Twój profil i jego zawartość
+                </p>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <div className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="profile_visibility"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-base">
+                            Poziom widoczności profilu
+                          </FormLabel>
+                          <FormDescription>
+                            Wybierz, kto może przeglądać Twój profil
+                          </FormDescription>
+                          <Select
+                            value={field.value}
+                            onValueChange={(value) => {
+                              field.onChange(value)
+                              setHasUnsavedChanges(true)
+                            }}
+                          >
+                            <SelectTrigger className="w-full md:w-80">
+                              <SelectValue placeholder="Wybierz poziom widoczności" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="public">
+                                <div className="flex items-center gap-2">
+                                  <Globe className="h-4 w-4" />
+                                  <div>
+                                    <div className="font-medium">Publiczny</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      Wszyscy mogą zobaczyć Twój profil
+                                    </div>
+                                  </div>
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="friends">
+                                <div className="flex items-center gap-2">
+                                  <Heart className="h-4 w-4" />
+                                  <div>
+                                    <div className="font-medium">
+                                      Tylko znajomi
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      Tylko Twoi znajomi mogą zobaczyć profil
+                                    </div>
+                                  </div>
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="private">
+                                <div className="flex items-center gap-2">
+                                  <Lock className="h-4 w-4" />
+                                  <div>
+                                    <div className="font-medium">Prywatny</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      Profil widoczny tylko dla Ciebie
+                                    </div>
+                                  </div>
+                                </div>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </Form>
+              </CardContent>
+            </Card>
+
+            {/* Content Visibility Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Widoczność zawartości
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Kontroluj, które elementy Twojego profilu są widoczne dla
+                  innych
+                </p>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <div className="space-y-4">
+                    <div className="grid gap-4">
+                      <FormField
+                        control={form.control}
+                        name="show_location"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                            <div className="space-y-1">
+                              <FormLabel className="text-base font-medium">
+                                Pokazuj lokalizację
+                              </FormLabel>
+                              <FormDescription className="text-sm">
+                                Wyświetlaj miasto i kraj w swoim profilu
+                              </FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={(checked) => {
+                                  field.onChange(checked)
+                                  setHasUnsavedChanges(true)
+                                }}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="show_orientation"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                            <div className="space-y-1">
+                              <FormLabel className="text-base font-medium">
+                                Pokazuj orientację/tożsamość
+                              </FormLabel>
+                              <FormDescription className="text-sm">
+                                Wyświetlaj informacje o orientacji seksualnej i
+                                tożsamości płciowej
+                              </FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={(checked) => {
+                                  field.onChange(checked)
+                                  setHasUnsavedChanges(true)
+                                }}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="show_friends"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                            <div className="space-y-1">
+                              <FormLabel className="text-base font-medium">
+                                Pokazuj listę znajomych
+                              </FormLabel>
+                              <FormDescription className="text-sm">
+                                Pozwól innym zobaczyć Twoją listę znajomych
+                              </FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={!!field.value}
+                                onCheckedChange={(checked) => {
+                                  field.onChange(checked)
+                                  setHasUnsavedChanges(true)
+                                }}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="show_contacts"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                            <div className="space-y-1">
+                              <FormLabel className="text-base font-medium">
+                                Pokazuj dane kontaktowe
+                              </FormLabel>
+                              <FormDescription className="text-sm">
+                                Wyświetlaj WhatsApp, Telegram i Signal w profilu
+                              </FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={!!field.value}
+                                onCheckedChange={(checked) => {
+                                  field.onChange(checked)
+                                  setHasUnsavedChanges(true)
+                                }}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="show_socials"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                            <div className="space-y-1">
+                              <FormLabel className="text-base font-medium">
+                                Pokazuj profile społecznościowe
+                              </FormLabel>
+                              <FormDescription className="text-sm">
+                                Wyświetlaj Instagram, Twitter i TikTok w profilu
+                              </FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={!!field.value}
+                                onCheckedChange={(checked) => {
+                                  field.onChange(checked)
+                                  setHasUnsavedChanges(true)
+                                }}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                </Form>
+              </CardContent>
+            </Card>
+
+            {/* Contact Information Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5" />
+                  Informacje kontaktowe
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Dodaj swoje dane kontaktowe i profile społecznościowe
+                </p>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <div className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="contact_whatsapp"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>WhatsApp (numer telefonu)</FormLabel>
+                            <FormDescription className="text-sm">
+                              Dodaj numer telefonu do kontaktu przez WhatsApp
+                            </FormDescription>
+                            <FormControl>
+                              <Input
+                                type="tel"
+                                placeholder="np. +48 600 000 000"
+                                {...field}
+                                value={field.value ?? ""}
+                                onChange={(e) => {
+                                  field.onChange(e)
+                                  setHasUnsavedChanges(true)
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="contact_telegram"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Telegram (nazwa użytkownika)</FormLabel>
+                            <FormDescription className="text-sm">
+                              Dodaj nazwę użytkownika Telegram
+                            </FormDescription>
+                            <FormControl>
+                              <Input
+                                placeholder="np. username"
+                                {...field}
+                                value={field.value ?? ""}
+                                onChange={(e) => {
+                                  field.onChange(e)
+                                  setHasUnsavedChanges(true)
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="contact_signal"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Signal (numer telefonu)</FormLabel>
+                            <FormDescription className="text-sm">
+                              Dodaj numer telefonu do kontaktu przez Signal
+                            </FormDescription>
+                            <FormControl>
+                              <Input
+                                type="tel"
+                                placeholder="np. +48 600 000 000"
+                                {...field}
+                                value={field.value ?? ""}
+                                onChange={(e) => {
+                                  field.onChange(e)
+                                  setHasUnsavedChanges(true)
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="instagram_username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Instagram (username)</FormLabel>
+                            <FormDescription className="text-sm">
+                              Dodaj nazwę użytkownika Instagram
+                            </FormDescription>
+                            <FormControl>
+                              <Input
+                                placeholder="np. tecza"
+                                {...field}
+                                value={field.value ?? ""}
+                                onChange={(e) => {
+                                  field.onChange(e)
+                                  setHasUnsavedChanges(true)
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="twitter_username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Twitter/X (username)</FormLabel>
+                            <FormDescription className="text-sm">
+                              Dodaj nazwę użytkownika Twitter/X
+                            </FormDescription>
+                            <FormControl>
+                              <Input
+                                placeholder="np. tecza"
+                                {...field}
+                                value={field.value ?? ""}
+                                onChange={(e) => {
+                                  field.onChange(e)
+                                  setHasUnsavedChanges(true)
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="tiktok_username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>TikTok (username)</FormLabel>
+                            <FormDescription className="text-sm">
+                              Dodaj nazwę użytkownika TikTok
+                            </FormDescription>
+                            <FormControl>
+                              <Input
+                                placeholder="np. tecza"
+                                {...field}
+                                value={field.value ?? ""}
+                                onChange={(e) => {
+                                  field.onChange(e)
+                                  setHasUnsavedChanges(true)
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                </Form>
+              </CardContent>
+            </Card>
+
+            {/* Save Button */}
+            <div className="flex justify-end">
+              <Button
+                onClick={form.handleSubmit(onSubmit)}
+                disabled={loading || !hasUnsavedChanges}
+                className="min-w-[140px]"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Zapisywanie...
+                  </>
                 ) : (
-                  <div className="grid gap-3">
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Zapisz zmiany
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-6">
+          <div className="grid gap-6">
+            {/* Notification Categories */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  Kategorie powiadomień
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Wybierz, o jakich zdarzeniach chcesz otrzymywać powiadomienia
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4">
+                  <ToggleSetting
+                    field="enable_friend_requests"
+                    label="Prośby o połączenie"
+                    description="Powiadomienia o nowych prośbach o dodanie do znajomych"
+                  />
+                  <ToggleSetting
+                    field="enable_mentions"
+                    label="Wzmianki (@)"
+                    description="Powiadomienia gdy ktoś Cię wspomni w poście lub komentarzu"
+                  />
+                  <ToggleSetting
+                    field="enable_community_posts"
+                    label="Posty w społecznościach"
+                    description="Powiadomienia o nowych postach w społecznościach, do których należysz"
+                  />
+                  <ToggleSetting
+                    field="enable_following_posts"
+                    label="Nowe posty obserwowanych"
+                    description="Powiadomienia o nowych postach od osób, które obserwujesz"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Push Notifications */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5" />
+                  Powiadomienia push
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Zarządzaj powiadomieniami push w przeglądarce
+                </p>
+              </CardHeader>
+              <CardContent>
+                <PushControls />
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-6">
+          <div className="grid gap-6">
+            {/* Two-Factor Authentication */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Dwuskładnikowe uwierzytelnianie (2FA)
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Dodaj dodatkową warstwę bezpieczeństwa do swojego konta
+                </p>
+              </CardHeader>
+              <CardContent>
+                {!mfaSupported ? (
+                  <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
+                    <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">2FA niedostępne</p>
+                      <p className="text-xs text-muted-foreground">
+                        2FA nie jest dostępne w tej instancji. Upewnij się, że
+                        MFA jest włączone w Supabase.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
                     {mfaEnrolled ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">2FA jest włączone.</span>
+                      <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <div>
+                            <p className="text-sm font-medium text-green-800">
+                              2FA jest włączone
+                            </p>
+                            <p className="text-xs text-green-600">
+                              Twoje konto jest chronione dwuskładnikowym
+                              uwierzytelnianiem
+                            </p>
+                          </div>
+                        </div>
                         <Button
                           variant="outline"
                           size="sm"
@@ -577,103 +1018,138 @@ export default function SettingsPage() {
                             }
                           }}
                         >
-                          Wyłącz
+                          Wyłącz 2FA
                         </Button>
                       </div>
                     ) : (
-                      <div className="grid gap-2">
-                        <Button
-                          size="sm"
-                          onClick={async () => {
-                            try {
-                              if (!supabase) {
-                                toast.error("Brak konfiguracji Supabase")
-                                return
-                              }
-                              const { data, error } =
-                                await supabase.auth.mfa.enroll({
-                                  factorType: "totp",
-                                })
-                              if (error) throw error
-                              const { id, totp } = data || {}
-                              setMfaFactorId(id || null)
-                              setMfaQR(totp?.qr_code || "")
-                              setMfaSecret(totp?.secret || "")
-                              toast.message(
-                                "Zeskanuj kod i wpisz kod z aplikacji.",
-                              )
-                            } catch {
-                              toast.error(
-                                "Nie udało się rozpocząć rejestracji 2FA",
-                              )
-                            }
-                          }}
-                        >
-                          Włącz 2FA
-                        </Button>
-                        {(mfaQR || mfaSecret) && (
-                          <div className="grid gap-2">
-                            {mfaQR && (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={mfaQR}
-                                alt="Kod QR 2FA"
-                                className="h-40 w-40"
-                              />
-                            )}
-                            {mfaSecret && (
-                              <p className="text-xs text-muted-foreground">
-                                Sekret: {mfaSecret}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <AlertCircle className="h-5 w-5 text-yellow-600" />
+                            <div>
+                              <p className="text-sm font-medium text-yellow-800">
+                                2FA wyłączone
                               </p>
-                            )}
-                            <div className="flex items-center gap-2">
-                              <Input
-                                placeholder="Kod z aplikacji"
-                                value={otpCode}
-                                onChange={(e) => setOtpCode(e.target.value)}
-                                className="max-w-[160px]"
-                              />
-                              <Button
-                                size="sm"
-                                onClick={async () => {
-                                  try {
-                                    if (!supabase) {
-                                      toast.error("Brak konfiguracji Supabase")
-                                      return
-                                    }
-                                    if (!mfaFactorId || !otpCode) return
-                                    const ch =
-                                      await supabase.auth.mfa.challenge({
-                                        factorId: mfaFactorId,
-                                      })
-                                    const challengeId = (
-                                      ch?.data as { id?: string } | undefined
-                                    )?.id
-                                    if (!challengeId)
-                                      throw new Error(
-                                        "Brak identyfikatora wyzwania 2FA",
+                              <p className="text-xs text-yellow-600">
+                                Twoje konto nie jest chronione dwuskładnikowym
+                                uwierzytelnianiem
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                if (!supabase) {
+                                  toast.error("Brak konfiguracji Supabase")
+                                  return
+                                }
+                                const { data, error } =
+                                  await supabase.auth.mfa.enroll({
+                                    factorType: "totp",
+                                  })
+                                if (error) throw error
+                                const { id, totp } = data || {}
+                                setMfaFactorId(id || null)
+                                setMfaQR(totp?.qr_code || "")
+                                setMfaSecret(totp?.secret || "")
+                                toast.message(
+                                  "Zeskanuj kod QR i wpisz kod z aplikacji uwierzytelniającej.",
+                                )
+                              } catch {
+                                toast.error(
+                                  "Nie udało się rozpocząć rejestracji 2FA",
+                                )
+                              }
+                            }}
+                          >
+                            Włącz 2FA
+                          </Button>
+                        </div>
+
+                        {(mfaQR || mfaSecret) && (
+                          <div className="space-y-4 p-4 bg-muted rounded-lg">
+                            <h4 className="text-sm font-medium">
+                              Konfiguracja 2FA
+                            </h4>
+                            <div className="space-y-3">
+                              {mfaQR && (
+                                <div className="flex flex-col items-center gap-2">
+                                  <p className="text-sm text-muted-foreground">
+                                    Zeskanuj kod QR w aplikacji
+                                    uwierzytelniającej:
+                                  </p>
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={mfaQR}
+                                    alt="Kod QR 2FA"
+                                    className="h-32 w-32 border rounded"
+                                  />
+                                </div>
+                              )}
+                              {mfaSecret && (
+                                <div className="p-3 bg-background border rounded">
+                                  <p className="text-xs text-muted-foreground mb-1">
+                                    Lub wprowadź ten klucz ręcznie:
+                                  </p>
+                                  <code className="text-xs font-mono break-all">
+                                    {mfaSecret}
+                                  </code>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  placeholder="Kod z aplikacji"
+                                  value={otpCode}
+                                  onChange={(e) => setOtpCode(e.target.value)}
+                                  className="max-w-[200px]"
+                                />
+                                <Button
+                                  size="sm"
+                                  onClick={async () => {
+                                    try {
+                                      if (!supabase) {
+                                        toast.error(
+                                          "Brak konfiguracji Supabase",
+                                        )
+                                        return
+                                      }
+                                      if (!mfaFactorId || !otpCode) return
+                                      const ch =
+                                        await supabase.auth.mfa.challenge({
+                                          factorId: mfaFactorId,
+                                        })
+                                      const challengeId = (
+                                        ch?.data as { id?: string } | undefined
+                                      )?.id
+                                      if (!challengeId)
+                                        throw new Error(
+                                          "Brak identyfikatora wyzwania 2FA",
+                                        )
+                                      const { error: verr } =
+                                        await supabase.auth.mfa.verify({
+                                          factorId: mfaFactorId,
+                                          code: otpCode,
+                                          challengeId,
+                                        })
+                                      if (verr) throw verr
+                                      setMfaEnrolled(true)
+                                      setMfaQR("")
+                                      setMfaSecret("")
+                                      setOtpCode("")
+                                      toast.success(
+                                        "2FA zostało pomyślnie włączone!",
                                       )
-                                    const { error: verr } =
-                                      await supabase.auth.mfa.verify({
-                                        factorId: mfaFactorId,
-                                        code: otpCode,
-                                        challengeId,
-                                      })
-                                    if (verr) throw verr
-                                    setMfaEnrolled(true)
-                                    setMfaQR("")
-                                    setMfaSecret("")
-                                    setOtpCode("")
-                                    toast.success("2FA włączone")
-                                  } catch {
-                                    toast.error(
-                                      "Nie udało się zweryfikować kodu 2FA",
-                                    )
-                                  }
-                                }}
-                              >
-                                Zatwierdź
-                              </Button>
+                                    } catch {
+                                      toast.error(
+                                        "Nie udało się zweryfikować kodu 2FA",
+                                      )
+                                    }
+                                  }}
+                                >
+                                  Zatwierdź
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         )}
@@ -684,26 +1160,36 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
+            {/* Password Change */}
             <Card>
-              <CardContent className="p-4 grid gap-3">
-                <h2 className="text-lg font-semibold">Zmiana hasła</h2>
-                <div className="grid md:grid-cols-2 gap-2 max-w-lg">
-                  <Input
-                    type="password"
-                    placeholder="Nowe hasło"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <Input
-                    type="password"
-                    placeholder="Powtórz hasło"
-                    value={password2}
-                    onChange={(e) => setPassword2(e.target.value)}
-                  />
-                </div>
-                <div>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-5 w-5" />
+                  Zmiana hasła
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Zaktualizuj hasło do swojego konta
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4 max-w-md">
+                  <div className="space-y-2">
+                    <Input
+                      type="password"
+                      placeholder="Nowe hasło"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <Input
+                      type="password"
+                      placeholder="Powtórz hasło"
+                      value={password2}
+                      onChange={(e) => setPassword2(e.target.value)}
+                    />
+                  </div>
                   <Button
                     size="sm"
+                    disabled={!password || !password2 || password !== password2}
                     onClick={async () => {
                       try {
                         if (!supabase) {
@@ -720,24 +1206,36 @@ export default function SettingsPage() {
                         if (error) throw error
                         setPassword("")
                         setPassword2("")
-                        toast.success("Hasło zmienione")
+                        toast.success("Hasło zostało pomyślnie zmienione", {
+                          description:
+                            "Możesz teraz używać nowego hasła do logowania",
+                          icon: <CheckCircle className="h-4 w-4" />,
+                        })
                       } catch {
                         toast.error("Nie udało się zmienić hasła")
                       }
                     }}
                   >
-                    Zapisz hasło
+                    Zmień hasło
                   </Button>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Account Email */}
             <Card>
-              <CardContent className="p-4 grid gap-3">
-                <h2 className="text-lg font-semibold">
-                  Email konta (prywatny)
-                </h2>
-                <div className="grid md:grid-cols-2 gap-2 max-w-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  Email konta
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Ten email służy do logowania i odzyskiwania konta. Nie jest
+                  wyświetlany publicznie.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4 max-w-md">
                   <Input
                     type="email"
                     placeholder="you@example.com"
@@ -747,6 +1245,7 @@ export default function SettingsPage() {
                   <Button
                     size="sm"
                     variant="outline"
+                    disabled={!accountEmail}
                     onClick={async () => {
                       try {
                         if (!supabase) {
@@ -757,9 +1256,11 @@ export default function SettingsPage() {
                           email: accountEmail,
                         })
                         if (error) throw error
-                        toast.success(
-                          "Zaktualizowano email. Sprawdź skrzynkę, aby potwierdzić.",
-                        )
+                        toast.success("Email został zaktualizowany", {
+                          description:
+                            "Sprawdź skrzynkę pocztową, aby potwierdzić nowy adres",
+                          icon: <CheckCircle className="h-4 w-4" />,
+                        })
                       } catch {
                         toast.error("Nie udało się zaktualizować emaila")
                       }
@@ -768,197 +1269,263 @@ export default function SettingsPage() {
                     Zapisz email
                   </Button>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Ten email służy do logowania i odzyskiwania konta. Nie jest
-                  wyświetlany publicznie.
-                </p>
               </CardContent>
             </Card>
 
+            {/* OAuth Connections */}
             <Card>
-              <CardContent className="p-4 grid gap-3">
-                <h2 className="text-lg font-semibold">Połączenia OAuth</h2>
-                <div className="text-sm text-muted-foreground">
-                  Połącz dodatkowe logowanie przez Google lub Discord.
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        if (!supabase) {
-                          toast.error("Brak konfiguracji Supabase")
-                          return
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="h-5 w-5" />
+                  Połączenia OAuth
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Połącz dodatkowe metody logowania przez Google lub Discord
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          if (!supabase) {
+                            toast.error("Brak konfiguracji Supabase")
+                            return
+                          }
+                          const { data, error } =
+                            await supabase.auth.linkIdentity({
+                              provider: "google",
+                              options: {
+                                redirectTo: `${window.location.origin}/settings`,
+                              },
+                            })
+                          if (error) throw error
+                          if (data?.url) window.location.href = data.url
+                        } catch {
+                          toast.error(
+                            "Nie udało się zainicjować połączenia Google",
+                          )
                         }
-                        const { data, error } =
-                          await supabase.auth.linkIdentity({
-                            provider: "google",
-                            options: {
-                              redirectTo: `${window.location.origin}/settings`,
-                            },
-                          })
-                        if (error) throw error
-                        if (data?.url) window.location.href = data.url
-                      } catch {
-                        toast.error(
-                          "Nie udało się zainicjować połączenia Google",
-                        )
-                      }
-                    }}
-                  >
-                    Połącz Google
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        if (!supabase) {
-                          toast.error("Brak konfiguracji Supabase")
-                          return
+                      }}
+                    >
+                      Połącz Google
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          if (!supabase) {
+                            toast.error("Brak konfiguracji Supabase")
+                            return
+                          }
+                          const { data, error } =
+                            await supabase.auth.linkIdentity({
+                              provider: "discord",
+                              options: {
+                                redirectTo: `${window.location.origin}/settings`,
+                              },
+                            })
+                          if (error) throw error
+                          if (data?.url) window.location.href = data.url
+                        } catch {
+                          toast.error(
+                            "Nie udało się zainicjować połączenia Discord",
+                          )
                         }
-                        const { data, error } =
-                          await supabase.auth.linkIdentity({
-                            provider: "discord",
-                            options: {
-                              redirectTo: `${window.location.origin}/settings`,
-                            },
-                          })
-                        if (error) throw error
-                        if (data?.url) window.location.href = data.url
-                      } catch {
-                        toast.error(
-                          "Nie udało się zainicjować połączenia Discord",
-                        )
-                      }
-                    }}
-                  >
-                    Połącz Discord
-                  </Button>
-                </div>
-                <div className="text-sm">
-                  Połączone:{" "}
-                  {identities.length
-                    ? identities.map((i) => i.provider).join(", ")
-                    : "brak"}
+                      }}
+                    >
+                      Połącz Discord
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">Połączone:</span>
+                    {identities.length ? (
+                      <div className="flex gap-1">
+                        {identities.map((i, index) => (
+                          <Badge key={index} variant="secondary">
+                            {i.provider}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">brak</span>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
-
-            {/* Removed E2EE keys section */}
           </div>
         </TabsContent>
 
-        <TabsContent value="accessibility">
-          <Card>
-            <CardContent className="p-4 grid gap-3 max-w-xl">
-              <p className="text-sm text-muted-foreground">
-                Preferencje wyświetlania zapisywane lokalnie w przeglądarce.
-              </p>
-              <div className="flex items-center justify-between rounded-md border p-3">
-                <div>
-                  <div className="font-medium">Ogranicz animacje</div>
-                  <div className="text-sm text-muted-foreground">
-                    Zmniejsza ruchome animacje i przejścia.
+        <TabsContent value="accessibility" className="space-y-6">
+          <div className="grid gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5" />
+                  Preferencje wyświetlania
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Preferencje wyświetlania zapisywane lokalnie w przeglądarce
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6 max-w-xl">
+                  <div className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                    <div className="space-y-1">
+                      <div className="font-medium">Ogranicz animacje</div>
+                      <div className="text-sm text-muted-foreground">
+                        Zmniejsza ruchome animacje i przejścia dla lepszej
+                        dostępności
+                      </div>
+                    </div>
+                    <Switch
+                      checked={reduceMotion}
+                      onCheckedChange={(v) => {
+                        setReduceMotion(v)
+                        try {
+                          localStorage.setItem(
+                            "pref-reduce-motion",
+                            v ? "1" : "0",
+                          )
+                        } catch {}
+                        document.documentElement.classList.toggle(
+                          "reduce-motion",
+                          v,
+                        )
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                    <div className="space-y-1">
+                      <div className="font-medium">Skala czcionki</div>
+                      <div className="text-sm text-muted-foreground">
+                        Powiększ lub zmniejsz bazowy rozmiar tekstu
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="range"
+                        min={90}
+                        max={130}
+                        step={5}
+                        value={fontScale}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          setFontScale(v)
+                          try {
+                            localStorage.setItem("pref-font-scale", v)
+                          } catch {}
+                          document.documentElement.style.setProperty(
+                            "--app-font-scale",
+                            `${v}%`,
+                          )
+                        }}
+                        className="w-24"
+                      />
+                      <div className="w-12 text-right text-sm font-medium">
+                        {fontScale}%
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <Switch
-                  checked={reduceMotion}
-                  onCheckedChange={(v) => {
-                    setReduceMotion(v)
-                    try {
-                      localStorage.setItem("pref-reduce-motion", v ? "1" : "0")
-                    } catch {}
-                    document.documentElement.classList.toggle(
-                      "reduce-motion",
-                      v,
-                    )
-                  }}
-                />
-              </div>
-              <div className="flex items-center justify-between rounded-md border p-3 gap-3">
-                <div>
-                  <div className="font-medium">Skala czcionki</div>
-                  <div className="text-sm text-muted-foreground">
-                    Powiększ lub zmniejsz bazowy rozmiar tekstu.
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="range"
-                    min={90}
-                    max={130}
-                    step={5}
-                    value={fontScale}
-                    onChange={(e) => {
-                      const v = e.target.value
-                      setFontScale(v)
-                      try {
-                        localStorage.setItem("pref-font-scale", v)
-                      } catch {}
-                      document.documentElement.style.setProperty(
-                        "--app-font-scale",
-                        `${v}%`,
-                      )
-                    }}
-                  />
-                  <div className="w-14 text-right text-sm text-muted-foreground">
-                    {fontScale}%
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
-        <TabsContent value="danger">
-          <Card>
-            <CardContent className="p-4 grid gap-3">
-              <h2 className="text-lg font-semibold text-red-600">Usuń konto</h2>
-              <p className="text-sm text-muted-foreground">
-                To usunie Twoje posty, interakcje i połączenia. Tej operacji nie
-                można cofnąć.
-              </p>
-              <Button
-                variant="destructive"
-                onClick={async () => {
-                  try {
-                    if (!supabase) {
-                      toast.error("Brak konfiguracji Supabase")
-                      return
-                    }
-                    const me = (await supabase.auth.getUser()).data.user
-                    if (!me) throw new Error("Brak użytkownika")
-                    // Best effort client-side cleanup under RLS
-                    await supabase
-                      .from("post_interactions")
-                      .delete()
-                      .eq("user_id", me.id)
-                    await supabase.from("posts").delete().eq("user_id", me.id)
-                    await supabase
-                      .from("friend_requests")
-                      .delete()
-                      .or(`sender_id.eq.${me.id},receiver_id.eq.${me.id}`)
-                    await supabase
-                      .from("friendships")
-                      .delete()
-                      .or(`user1_id.eq.${me.id},user2_id.eq.${me.id}`)
-                    await supabase.from("profiles").delete().eq("id", me.id)
-                    // Sign out after cleanup
-                    await supabase.auth.signOut()
-                    window.location.href = "/"
-                  } catch {
-                    toast.error(
-                      "Nie udało się usunąć konta. Skontaktuj się ze wsparciem.",
-                    )
-                  }
-                }}
-              >
-                Usuń moje konto
-              </Button>
-            </CardContent>
-          </Card>
+        <TabsContent value="danger" className="space-y-6">
+          <div className="grid gap-6">
+            <Card className="border-red-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-red-600">
+                  <Trash2 className="h-5 w-5" />
+                  Usuń konto
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Ta operacja jest nieodwracalna i usunie wszystkie Twoje dane
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-red-800">
+                          Ostrzeżenie: Ta operacja jest nieodwracalna
+                        </p>
+                        <ul className="text-xs text-red-700 space-y-1">
+                          <li>• Wszystkie Twoje posty zostaną usunięte</li>
+                          <li>• Wszystkie interakcje zostaną usunięte</li>
+                          <li>
+                            • Wszystkie połączenia znajomych zostaną usunięte
+                          </li>
+                          <li>• Twój profil zostanie całkowicie usunięty</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    onClick={async () => {
+                      if (
+                        !confirm(
+                          "Czy na pewno chcesz usunąć swoje konto? Ta operacja jest nieodwracalna.",
+                        )
+                      ) {
+                        return
+                      }
+
+                      try {
+                        if (!supabase) {
+                          toast.error("Brak konfiguracji Supabase")
+                          return
+                        }
+                        const me = (await supabase.auth.getUser()).data.user
+                        if (!me) throw new Error("Brak użytkownika")
+
+                        // Best effort client-side cleanup under RLS
+                        await supabase
+                          .from("post_interactions")
+                          .delete()
+                          .eq("user_id", me.id)
+                        await supabase
+                          .from("posts")
+                          .delete()
+                          .eq("user_id", me.id)
+                        await supabase
+                          .from("friend_requests")
+                          .delete()
+                          .or(`sender_id.eq.${me.id},receiver_id.eq.${me.id}`)
+                        await supabase
+                          .from("friendships")
+                          .delete()
+                          .or(`user1_id.eq.${me.id},user2_id.eq.${me.id}`)
+                        await supabase.from("profiles").delete().eq("id", me.id)
+
+                        // Sign out after cleanup
+                        await supabase.auth.signOut()
+                        window.location.href = "/"
+                      } catch {
+                        toast.error(
+                          "Nie udało się usunąć konta. Skontaktuj się ze wsparciem.",
+                        )
+                      }
+                    }}
+                    className="w-full md:w-auto"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Usuń moje konto
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
@@ -968,6 +1535,7 @@ export default function SettingsPage() {
 function ToggleSetting({
   field,
   label,
+  description,
 }: {
   field:
     | "enable_friend_requests"
@@ -975,6 +1543,7 @@ function ToggleSetting({
     | "enable_community_posts"
     | "enable_following_posts"
   label: string
+  description?: string
 }) {
   const supabase = getSupabase()
   const [checked, setChecked] = useState<boolean>(true)
@@ -1007,9 +1576,12 @@ function ToggleSetting({
   }, [supabase, field])
 
   return (
-    <div className="flex items-center justify-between rounded-md border p-3">
-      <div>
+    <div className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+      <div className="space-y-1">
         <div className="font-medium">{label}</div>
+        {description && (
+          <div className="text-sm text-muted-foreground">{description}</div>
+        )}
       </div>
       <Switch
         checked={checked}

@@ -8,7 +8,7 @@ import { SuggestedProfiles } from "@/components/dashboard/suggested"
 import { FeedAnalytics } from "@/components/dashboard/feed-analytics"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect, Suspense } from "react"
-import { RotateCw, X, Settings, Bell, Search } from "lucide-react"
+import { RotateCw, X } from "lucide-react"
 import { useSearchParams, useRouter } from "next/navigation"
 import {
   Skeleton,
@@ -16,7 +16,6 @@ import {
   SkeletonText,
   SkeletonPost,
 } from "@/components/ui/skeleton"
-import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 
 function DashboardContent() {
@@ -25,7 +24,6 @@ function DashboardContent() {
   const [open, setOpen] = useState(false)
   const [reloadTick, setReloadTick] = useState(0)
   const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
 
   // Handle hashtag from URL parameters
   useEffect(() => {
@@ -49,46 +47,43 @@ function DashboardContent() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 md:px-6 py-6">
-      {/* Enhanced Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
+    <div className="mx-auto max-w-7xl px-4 md:px-6 py-8">
+      {/* Streamlined Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground text-lg mt-1">
               {selectedHashtag
                 ? `Posty z tagiem #${selectedHashtag}`
                 : "Twój osobisty feed"}
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Szukaj postów..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-64"
-              />
-            </div>
-
-            <Button variant="outline" size="sm">
-              <Bell className="h-4 w-4" />
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Odśwież"
+              onClick={() => setReloadTick((t) => t + 1)}
+            >
+              <RotateCw className="size-4" />
             </Button>
-
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4" />
+            <Button onClick={() => setOpen(true)} size="lg">
+              Utwórz nowy post
             </Button>
           </div>
         </div>
 
+        {/* Status Bar */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Badge variant="secondary">Twój pulpit</Badge>
+            <Badge variant="secondary" className="text-sm">
+              Twój pulpit
+            </Badge>
             {selectedHashtag && (
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="gap-2">
+                <Badge variant="outline" className="gap-2 text-sm">
                   #{selectedHashtag}
                   <Button
                     variant="ghost"
@@ -102,33 +97,27 @@ function DashboardContent() {
               </div>
             )}
           </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Odśwież"
-              onClick={() => setReloadTick((t) => t + 1)}
-            >
-              <RotateCw className="size-4" />
-            </Button>
-            <Button onClick={() => setOpen(true)}>Utwórz nowy post</Button>
-          </div>
         </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-8 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Main Content */}
+        <div className="lg:col-span-8 space-y-8">
           <PostComposer
             open={open}
             onOpenChange={setOpen}
             onPosted={() => setReloadTick((t) => t + 1)}
           />
           {selectedHashtag ? (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">
-                  Posty z tagiem #{selectedHashtag}
-                </h2>
+                <div>
+                  <h2 className="text-xl font-semibold">
+                    Posty z tagiem #{selectedHashtag}
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Filtrowane posty dla tego hashtaga
+                  </p>
+                </div>
                 <Button variant="ghost" size="sm" onClick={clearHashtagFilter}>
                   Pokaż wszystkie posty
                 </Button>
@@ -136,11 +125,21 @@ function DashboardContent() {
               <Feed reloadSignal={reloadTick} hashtag={selectedHashtag} />
             </div>
           ) : (
-            <Feed reloadSignal={reloadTick} />
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-semibold">Twój feed</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Najnowsze posty od osób, które obserwujesz
+                </p>
+              </div>
+              <Feed reloadSignal={reloadTick} />
+            </div>
           )}
         </div>
-        <aside className="lg:col-span-4 space-y-6">
-          <div className="sticky top-6 space-y-6">
+
+        {/* Sidebar */}
+        <aside className="lg:col-span-4">
+          <div className="sticky top-8 space-y-8">
             <FeedAnalytics />
             <Separator />
             <TrendingHashtags
@@ -166,12 +165,29 @@ export default function DashboardPage() {
 
 function DashboardSkeleton() {
   return (
-    <div className="mx-auto max-w-6xl px-4 md:px-6 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="mx-auto max-w-7xl px-4 md:px-6 py-8">
+      {/* Header skeleton */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-5 w-64" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-10" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-6 w-24" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-8 space-y-8">
           {/* Post composer skeleton */}
-          <div className="border rounded-lg p-4 space-y-4">
+          <div className="border rounded-lg p-6 space-y-4">
             <div className="flex items-center space-x-3">
               <SkeletonAvatar size="md" />
               <div className="space-y-2 flex-1">
@@ -190,8 +206,14 @@ function DashboardSkeleton() {
             </div>
           </div>
 
+          {/* Feed header skeleton */}
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+
           {/* Posts skeleton */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             {Array.from({ length: 3 }).map((_, i) => (
               <SkeletonPost key={i} />
             ))}
@@ -199,37 +221,52 @@ function DashboardSkeleton() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Suggested profiles */}
-          <div className="border rounded-lg p-4 space-y-4">
-            <Skeleton className="h-5 w-32" />
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex items-center space-x-3">
-                  <SkeletonAvatar size="sm" />
-                  <div className="space-y-2 flex-1">
+        <aside className="lg:col-span-4">
+          <div className="space-y-8">
+            {/* Analytics skeleton */}
+            <div className="border rounded-lg p-6 space-y-4">
+              <Skeleton className="h-5 w-32" />
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between">
                     <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-4 w-8" />
                   </div>
-                  <Skeleton className="h-6 w-12" />
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Trending hashtags */}
-          <div className="border rounded-lg p-4 space-y-4">
-            <Skeleton className="h-5 w-28" />
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-3 w-8" />
-                </div>
-              ))}
+            {/* Trending hashtags skeleton */}
+            <div className="border rounded-lg p-6 space-y-4">
+              <Skeleton className="h-5 w-28" />
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-3 w-8" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Suggested profiles skeleton */}
+            <div className="border rounded-lg p-6 space-y-4">
+              <Skeleton className="h-5 w-32" />
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center space-x-3">
+                    <SkeletonAvatar size="sm" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                    <Skeleton className="h-6 w-12" />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   )

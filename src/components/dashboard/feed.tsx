@@ -6,7 +6,6 @@ import { SkeletonPost } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import {
   RefreshCw,
-  Filter,
   Clock,
   TrendingUp,
   AlertCircle,
@@ -31,8 +30,7 @@ type PostLikeRow = { post_id: string }
 type FollowRow = { following_id: string }
 type LikedPost = { id: string; user_id: string; hashtags: string[] | null }
 
-type FeedSortOption = "newest" | "oldest" | "popular" | "trending"
-type FeedFilterOption = "all" | "following" | "communities" | "liked"
+type FeedSortOption = "newest" | "trending"
 
 export function Feed({
   reloadSignal,
@@ -46,8 +44,6 @@ export function Feed({
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [sortOption, setSortOption] = useState<FeedSortOption>("newest")
-  const [filterOption, setFilterOption] = useState<FeedFilterOption>("all")
-  const [showFilters, setShowFilters] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
   const [newPostsCount, setNewPostsCount] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -98,19 +94,6 @@ export function Feed({
               new Date(b.created_at).getTime() -
               new Date(a.created_at).getTime(),
           )
-        case "oldest":
-          return [...posts].sort(
-            (a, b) =>
-              new Date(a.created_at).getTime() -
-              new Date(b.created_at).getTime(),
-          )
-        case "popular":
-          // Sort by likes count (fallback to 0 if not present)
-          return [...posts].sort(
-            (a, b) =>
-              ((b as ExtendedPostRecord).likes_count || 0) -
-              ((a as ExtendedPostRecord).likes_count || 0),
-          )
         case "trending":
           // Sort by engagement (likes + comments + recency)
           return [...posts].sort((a, b) => {
@@ -133,32 +116,10 @@ export function Feed({
     [sortOption],
   )
 
-  // Filter posts based on selected option
-  const filterPosts = useCallback(
-    (posts: PostRecord[]) => {
-      switch (filterOption) {
-        case "all":
-          return posts
-        case "following":
-          // Would need to fetch following data
-          return posts
-        case "communities":
-          return posts.filter((post) => post.community_id !== null)
-        case "liked":
-          // Would need to fetch liked posts
-          return posts
-        default:
-          return posts
-      }
-    },
-    [filterOption],
-  )
-
-  // Memoized sorted and filtered posts
+  // Memoized sorted posts
   const processedPosts = useMemo(() => {
-    const filtered = filterPosts(posts)
-    return sortPosts(filtered)
-  }, [posts, filterPosts, sortPosts])
+    return sortPosts(posts)
+  }, [posts, sortPosts])
 
   const load = useCallback(async () => {
     if (!supabase) return
@@ -437,42 +398,25 @@ export function Feed({
   if (!supabase) return null
 
   return (
-    <div className="space-y-4">
-      {/* Feed Controls */}
+    <div className="space-y-6">
+      {/* Streamlined Feed Controls */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Filtry
-          </Button>
-
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-1">
             <Button
-              variant="outline"
+              variant={sortOption === "newest" ? "default" : "outline"}
               size="sm"
               onClick={() => setSortOption("newest")}
-              className={cn(
-                "flex items-center gap-1",
-                sortOption === "newest" && "bg-primary text-primary-foreground",
-              )}
+              className="flex items-center gap-2"
             >
               <Clock className="h-4 w-4" />
               Najnowsze
             </Button>
             <Button
-              variant="outline"
+              variant={sortOption === "trending" ? "default" : "outline"}
               size="sm"
               onClick={() => setSortOption("trending")}
-              className={cn(
-                "flex items-center gap-1",
-                sortOption === "trending" &&
-                  "bg-primary text-primary-foreground",
-              )}
+              className="flex items-center gap-2"
             >
               <TrendingUp className="h-4 w-4" />
               Popularne
@@ -505,42 +449,12 @@ export function Feed({
         </div>
       </div>
 
-      {/* Filter Options */}
-      {showFilters && (
-        <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/50">
-          <span className="text-sm font-medium">Filtruj:</span>
-          <div className="flex items-center gap-2">
-            {(
-              ["all", "following", "communities", "liked"] as FeedFilterOption[]
-            ).map((option) => (
-              <Button
-                key={option}
-                variant={filterOption === option ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilterOption(option)}
-                className="text-xs"
-              >
-                {option === "all" && "Wszystkie"}
-                {option === "following" && "Obserwowani"}
-                {option === "communities" && "Społeczności"}
-                {option === "liked" && "Polubione"}
-              </Button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Error State */}
       {error && (
-        <div className="flex items-center gap-2 p-3 border border-destructive/20 rounded-lg bg-destructive/10">
-          <AlertCircle className="h-4 w-4 text-destructive" />
-          <span className="text-sm text-destructive">{error}</span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            className="ml-auto"
-          >
+        <div className="flex items-center gap-3 p-4 border border-destructive/20 rounded-lg bg-destructive/10">
+          <AlertCircle className="h-5 w-5 text-destructive" />
+          <span className="text-sm text-destructive flex-1">{error}</span>
+          <Button variant="outline" size="sm" onClick={handleRefresh}>
             Spróbuj ponownie
           </Button>
         </div>
@@ -548,8 +462,8 @@ export function Feed({
 
       {/* Last Refresh Info */}
       {lastRefresh && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <CheckCircle className="h-3 w-3" />
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <CheckCircle className="h-4 w-4" />
           Ostatnio odświeżono: {lastRefresh.toLocaleTimeString()}
         </div>
       )}
@@ -557,7 +471,7 @@ export function Feed({
       {/* Feed Content */}
       <div
         ref={containerRef}
-        className="space-y-3"
+        className="space-y-6"
         onScroll={(e) => {
           const el = e.currentTarget
           if (
@@ -592,17 +506,17 @@ export function Feed({
       >
         {!hashtag &&
           (suggestedTags.length > 0 || authorSuggestions.length > 0) && (
-            <div className="rounded-lg border bg-card p-3 text-sm">
-              <div className="mb-2 font-medium">
+            <div className="rounded-lg border bg-card p-4">
+              <div className="mb-3 font-medium text-sm">
                 Proponowane do obserwowania
               </div>
               {suggestedTags.length > 0 && (
-                <div className="mb-2 flex flex-wrap gap-2">
+                <div className="mb-3 flex flex-wrap gap-2">
                   {suggestedTags.map((tag) => (
                     <a
                       key={tag}
                       href={`/d?hashtag=${encodeURIComponent(tag)}`}
-                      className="inline-flex items-center rounded-full border px-2 py-1 text-xs hover:bg-accent hover:text-accent-foreground"
+                      className="inline-flex items-center rounded-full border px-3 py-1 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
                     >
                       #{tag}
                     </a>
@@ -614,7 +528,7 @@ export function Feed({
                   {authorSuggestions.map((p) => (
                     <div
                       key={p.id}
-                      className="flex items-center gap-2 rounded-full border px-2 py-1 text-xs"
+                      className="flex items-center gap-2 rounded-full border px-3 py-1 text-sm"
                     >
                       <a
                         href={`/u/${encodeURIComponent(p.username)}`}
@@ -624,7 +538,7 @@ export function Feed({
                       </a>
                       {!followingMap[p.id] && (
                         <button
-                          className="rounded-full bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20"
+                          className="rounded-full bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20 transition-colors"
                           onClick={async () => {
                             const {
                               data: { user },
@@ -650,7 +564,7 @@ export function Feed({
             </div>
           )}
         {loading && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {Array.from({ length: 3 }).map((_, i) => (
               <SkeletonPost key={i} />
             ))}
@@ -660,9 +574,9 @@ export function Feed({
           <PostItem key={p.id} post={p} />
         ))}
         {hasMore && (
-          <div className="text-center pt-2">
+          <div className="text-center pt-4">
             <button
-              className="text-sm text-muted-foreground underline"
+              className="text-sm text-muted-foreground underline hover:text-foreground transition-colors"
               onClick={() => void loadMore()}
             >
               Załaduj więcej
@@ -672,7 +586,7 @@ export function Feed({
         {/* Sentinel used by IntersectionObserver */}
         <div ref={sentinelRef} aria-hidden="true" />
         {posts.length === 0 && !loading && (
-          <div className="text-center">
+          <div className="text-center py-8">
             <p className="text-sm text-muted-foreground">
               {hashtag
                 ? `Brak postów z tagiem #${hashtag}`

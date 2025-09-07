@@ -68,7 +68,7 @@ export function NotificationsPopover() {
         .from("notifications")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(20)
+        .limit(30)
 
       if (error) {
         console.error("Error fetching notifications:", error)
@@ -214,24 +214,42 @@ export function NotificationsPopover() {
 
   async function markRead(id: string) {
     if (!supabase) return
-    const { error } = await supabase.rpc("mark_notification_read", {
-      p_id: id,
-    })
-    if (!error)
-      setItems((prev) =>
-        prev.map((x) =>
-          x.id === id ? { ...x, read_at: new Date().toISOString() } : x,
-        ),
-      )
+    try {
+      const { error } = await supabase.rpc("mark_notification_read", {
+        p_id: id,
+      })
+      if (!error) {
+        setItems((prev) =>
+          prev.map((x) =>
+            x.id === id ? { ...x, read_at: new Date().toISOString() } : x,
+          ),
+        )
+      } else {
+        console.error("Error marking notification as read:", error)
+      }
+    } catch (error) {
+      console.error("Unexpected error marking notification as read:", error)
+    }
   }
 
   async function markAllRead() {
     if (!supabase) return
-    await supabase.rpc("mark_all_notifications_read")
-    const now = new Date().toISOString()
-    setItems((prev) =>
-      prev.map((x) => (x.read_at ? x : { ...x, read_at: now })),
-    )
+    try {
+      const { error } = await supabase.rpc("mark_all_notifications_read")
+      if (!error) {
+        const now = new Date().toISOString()
+        setItems((prev) =>
+          prev.map((x) => (x.read_at ? x : { ...x, read_at: now })),
+        )
+      } else {
+        console.error("Error marking all notifications as read:", error)
+      }
+    } catch (error) {
+      console.error(
+        "Unexpected error marking all notifications as read:",
+        error,
+      )
+    }
   }
 
   async function clearAll() {
@@ -239,16 +257,23 @@ export function NotificationsPopover() {
     const me = (await supabase.auth.getUser()).data.user
     if (!me) return
 
-    // Clear all notifications for the current user
-    const { error } = await supabase
-      .from("notifications")
-      .delete()
-      .eq("user_id", me.id)
+    try {
+      // Clear all notifications for the current user
+      const { error } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("user_id", me.id)
 
-    if (!error) {
-      setItems([])
-      // Also clear any cached notification data
-      lastFetchRef.current = 0
+      if (!error) {
+        setItems([])
+        setActors({})
+        // Reset fetch timestamp to allow immediate refetch if needed
+        lastFetchRef.current = 0
+      } else {
+        console.error("Error clearing notifications:", error)
+      }
+    } catch (error) {
+      console.error("Unexpected error clearing notifications:", error)
     }
   }
 
@@ -257,24 +282,36 @@ export function NotificationsPopover() {
     action: "accept" | "reject",
   ) {
     if (!supabase || !n.friend_request_id) return
-    if (action === "accept") {
-      await supabase
-        .from("friend_requests")
-        .update({
-          status: "accepted",
-          responded_at: new Date().toISOString(),
-        })
-        .eq("id", n.friend_request_id)
-    } else {
-      await supabase
-        .from("friend_requests")
-        .update({
-          status: "rejected",
-          responded_at: new Date().toISOString(),
-        })
-        .eq("id", n.friend_request_id)
+    try {
+      if (action === "accept") {
+        const { error } = await supabase
+          .from("friend_requests")
+          .update({
+            status: "accepted",
+            responded_at: new Date().toISOString(),
+          })
+          .eq("id", n.friend_request_id)
+        if (error) {
+          console.error("Error accepting friend request:", error)
+          return
+        }
+      } else {
+        const { error } = await supabase
+          .from("friend_requests")
+          .update({
+            status: "rejected",
+            responded_at: new Date().toISOString(),
+          })
+          .eq("id", n.friend_request_id)
+        if (error) {
+          console.error("Error rejecting friend request:", error)
+          return
+        }
+      }
+      await markRead(n.id)
+    } catch (error) {
+      console.error("Unexpected error handling friend request:", error)
     }
-    await markRead(n.id)
   }
 
   function renderText(n: NotificationRow) {
@@ -351,9 +388,9 @@ export function NotificationsPopover() {
         className="w-96 p-0"
         aria-label="Powiadomienia"
       >
-        <div className="p-3 flex items-center justify-between gap-2">
-          <div className="font-medium">Powiadomienia</div>
-          <div className="flex items-center gap-1">
+        <div className="p-4 flex items-center justify-between border-b">
+          <div className="font-semibold text-lg">Powiadomienia</div>
+          <div className="flex items-center gap-2">
             <Button
               size="icon"
               variant="ghost"
@@ -380,7 +417,7 @@ export function NotificationsPopover() {
             {items.some((i) => !i.read_at) && (
               <Button
                 size="sm"
-                variant="ghost"
+                variant="outline"
                 onClick={markAllRead}
                 aria-label="Oznacz wszystkie jako przeczytane"
               >
@@ -392,19 +429,21 @@ export function NotificationsPopover() {
         <ScrollArea className="max-h-96">
           <ul className="divide-y">
             {items.length === 0 && (
-              <li className="p-3 text-sm text-muted-foreground">
-                Brak powiadomień
+              <li className="p-6 text-center text-muted-foreground">
+                <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Brak powiadomień</p>
+                <p className="text-xs mt-1">
+                  Będziesz otrzymywać powiadomienia o nowych aktywnościach
+                </p>
               </li>
             )}
             {items.slice(0, 30).map((n) => (
               <li
                 key={n.id}
                 className={cn(
-                  "p-3 grid gap-2",
-                  !n.read_at ? "bg-accent/40" : "",
-                  n.type === "broadcast"
-                    ? "relative overflow-hidden rounded-md"
-                    : "",
+                  "p-4 grid gap-3 transition-colors hover:bg-accent/50",
+                  !n.read_at ? "bg-accent/30" : "",
+                  n.type === "broadcast" ? "relative overflow-hidden" : "",
                 )}
               >
                 {n.type === "broadcast" && (
@@ -417,34 +456,34 @@ export function NotificationsPopover() {
                     }}
                   />
                 )}
-                <div className="flex items-start justify-between gap-2">
-                  <div className={cn("text-sm leading-5")}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
                     <Link
                       href={linkFor(n)}
                       onClick={() => markRead(n.id)}
                       className={cn(
-                        "hover:underline",
-                        n.type === "broadcast" ? "font-medium" : "",
+                        "text-sm leading-5 hover:underline block",
+                        n.type === "broadcast" ? "font-semibold" : "",
                       )}
                     >
                       {renderText(n)}
                     </Link>
                     {n.type === "post_comment" && n.payload?.snippet && (
-                      <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      <div className="text-xs text-muted-foreground mt-2 line-clamp-2 bg-muted/50 p-2 rounded">
                         {n.payload.snippet as string}
                       </div>
                     )}
                     {n.type === "event_reminder" && n.payload?.title && (
-                      <div className="text-xs text-muted-foreground mt-1">
+                      <div className="text-xs text-muted-foreground mt-2 font-medium">
                         {n.payload.title as string}
                       </div>
                     )}
                     {n.type === "broadcast" && n.payload?.body && (
-                      <div className="text-xs text-muted-foreground mt-1">
+                      <div className="text-xs text-muted-foreground mt-2">
                         {n.payload.body as string}
                       </div>
                     )}
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-muted-foreground mt-2">
                       {new Date(n.created_at).toLocaleString()}
                     </div>
                   </div>
@@ -454,16 +493,18 @@ export function NotificationsPopover() {
                       variant="ghost"
                       aria-label="Oznacz jako przeczytane"
                       onClick={() => markRead(n.id)}
+                      className="flex-shrink-0"
                     >
                       <Check className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
                 {n.type === "friend_request" && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3 pt-2">
                     <Button
                       size="sm"
                       onClick={() => handleFriendRequest(n, "accept")}
+                      className="flex-1"
                     >
                       Akceptuj
                     </Button>
@@ -471,6 +512,7 @@ export function NotificationsPopover() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleFriendRequest(n, "reject")}
+                      className="flex-1"
                     >
                       <X className="h-4 w-4 mr-1" /> Odrzuć
                     </Button>

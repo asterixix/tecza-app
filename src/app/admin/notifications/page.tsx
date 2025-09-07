@@ -2,10 +2,13 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react"
 import { getSupabase } from "@/lib/supabase-browser"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
 import {
   Select,
   SelectContent,
@@ -13,7 +16,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast"
+import {
+  Bell,
+  Send,
+  Clock,
+  CheckCircle,
+  AlertTriangle,
+  Loader2,
+  Calendar,
+  MessageSquare,
+  Settings,
+  RefreshCw,
+  Eye,
+  EyeOff,
+} from "lucide-react"
+import { toast } from "sonner"
 
 // Simple rainbow bar style for preview
 function RainbowBar() {
@@ -53,9 +70,9 @@ type NotificationBroadcast = {
 
 export default function AdminNotificationsPage() {
   const supabase = getSupabase()
-  const { toast } = useToast()
 
   const [allowed, setAllowed] = useState<boolean | null>(null)
+  const [loading, setLoading] = useState(true)
   const [audience, setAudience] = useState<"all" | "role" | "user">("all")
   const [role, setRole] = useState<AppRole | "">("")
   const [username, setUsername] = useState("")
@@ -65,25 +82,58 @@ export default function AdminNotificationsPage() {
   const [sendAt, setSendAt] = useState<string>("")
   const [submitting, setSubmitting] = useState(false)
   const [recent, setRecent] = useState<NotificationBroadcast[]>([])
+  const [showPreview, setShowPreview] = useState(true)
+  const [stats, setStats] = useState({
+    totalSent: 0,
+    pendingCount: 0,
+    todaySent: 0,
+    lastWeekSent: 0,
+  })
 
   useEffect(() => {
     ;(async () => {
-      if (!supabase) return setAllowed(false)
-      const { data } = await supabase.auth.getUser()
-      const u = data.user
-      if (!u) return setAllowed(false)
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("roles")
-        .eq("id", u.id)
-        .maybeSingle()
-      const roles = (prof?.roles as string[] | undefined) || []
-      const ok = roles.some((r) =>
-        ["administrator", "super-administrator"].includes(r),
-      )
-      setAllowed(ok)
-      if (!ok) window.location.href = "/d"
+      if (!supabase) {
+        setAllowed(false)
+        setLoading(false)
+        return
+      }
+
+      try {
+        const { data } = await supabase.auth.getUser()
+        const u = data.user
+        if (!u) {
+          setAllowed(false)
+          setLoading(false)
+          return
+        }
+
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("roles")
+          .eq("id", u.id)
+          .maybeSingle()
+
+        const roles = (prof?.roles as string[] | undefined) || []
+        const ok = roles.some((r) =>
+          ["administrator", "super-administrator"].includes(r),
+        )
+        setAllowed(ok)
+
+        if (!ok) {
+          setLoading(false)
+          window.location.href = "/d"
+          return
+        }
+
+        await Promise.all([loadRecent(), loadStats()])
+      } catch (error) {
+        console.error("Error checking permissions:", error)
+        setAllowed(false)
+      } finally {
+        setLoading(false)
+      }
     })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase])
 
   const loadRecent = useCallback(async () => {
@@ -99,28 +149,52 @@ export default function AdminNotificationsPage() {
 
       if (error) {
         console.error("Error loading recent broadcasts:", error)
-        toast({
-          title: "Błąd",
-          description: "Nie udało się załadować historii powiadomień",
-          variant: "destructive",
-        })
+        toast.error("Nie udało się załadować historii powiadomień")
         return
       }
 
       setRecent(data || [])
     } catch (error) {
       console.error("Error in loadRecent:", error)
-      toast({
-        title: "Błąd",
-        description: "Nie udało się załadować historii powiadomień",
-        variant: "destructive",
-      })
+      toast.error("Nie udało się załadować historii powiadomień")
     }
-  }, [supabase, toast])
+  }, [supabase])
 
-  useEffect(() => {
-    loadRecent()
-  }, [loadRecent])
+  const loadStats = useCallback(async () => {
+    if (!supabase) return
+    try {
+      const [totalResult, pendingResult, todayResult, weekResult] =
+        await Promise.all([
+          supabase
+            .from("notification_broadcasts")
+            .select("id", { count: "exact" }),
+          supabase
+            .from("notification_broadcasts")
+            .select("id", { count: "exact" })
+            .eq("status", "pending"),
+          supabase
+            .from("notification_broadcasts")
+            .select("id", { count: "exact" })
+            .gte("created_at", new Date().toISOString().split("T")[0]),
+          supabase
+            .from("notification_broadcasts")
+            .select("id", { count: "exact" })
+            .gte(
+              "created_at",
+              new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+            ),
+        ])
+
+      setStats({
+        totalSent: totalResult.count || 0,
+        pendingCount: pendingResult.count || 0,
+        todaySent: todayResult.count || 0,
+        lastWeekSent: weekResult.count || 0,
+      })
+    } catch (error) {
+      console.error("Error loading stats:", error)
+    }
+  }, [supabase])
 
   const dueHint = useMemo(() => {
     if (!sendAt) return "Wysyłka natychmiast po zatwierdzeniu"
@@ -158,14 +232,14 @@ export default function AdminNotificationsPage() {
       })
       if (error) throw error
 
-      toast({ title: "Zapisano", description: "Wiadomość została utworzona" })
+      toast.success("Wiadomość została utworzona")
       setTitle("")
       setBody("")
       setActionUrl("")
       setUsername("")
       setRole("")
       setSendAt("")
-      await loadRecent()
+      await Promise.all([loadRecent(), loadStats()])
 
       // Trigger a refresh of the notification system for all users
       // This will be handled by the database triggers and realtime subscriptions
@@ -176,11 +250,7 @@ export default function AdminNotificationsPage() {
           : typeof e === "string"
             ? e
             : "Nie udało się zapisać"
-      toast({
-        title: "Błąd",
-        description: message,
-        variant: "destructive",
-      })
+      toast.error(message)
     } finally {
       setSubmitting(false)
     }
@@ -196,32 +266,24 @@ export default function AdminNotificationsPage() {
       if (error) throw error
 
       const recipientCount = (data as number) || 0
-      toast({
-        title: "Wysłano",
-        description: `Wysłano do ${recipientCount} odbiorców`,
-      })
+      toast.success(`Wysłano do ${recipientCount} odbiorców`)
 
-      await loadRecent()
+      await Promise.all([loadRecent(), loadStats()])
 
       // If notifications were sent, inform users to refresh their notification popover
       if (recipientCount > 0) {
-        toast({
-          title: "Powiadomienia wysłane",
-          description:
-            "Użytkownicy otrzymają powiadomienia w czasie rzeczywistym",
-        })
+        toast.success(
+          "Użytkownicy otrzymają powiadomienia w czasie rzeczywistym",
+        )
       }
     } catch (e: unknown) {
-      toast({
-        title: "Błąd",
-        description:
-          e instanceof Error
-            ? e.message
-            : typeof e === "string"
-              ? e
-              : "Nie udało się wysłać",
-        variant: "destructive",
-      })
+      toast.error(
+        e instanceof Error
+          ? e.message
+          : typeof e === "string"
+            ? e
+            : "Nie udało się wysłać",
+      )
     } finally {
       setSubmitting(false)
     }
@@ -236,190 +298,419 @@ export default function AdminNotificationsPage() {
       )
       if (error) throw error
       const count = (data as number) || 0
-      toast({
-        title: "Przypomnienia wysłane",
-        description: `Dodano ${count} przypomnień o wydarzeniach`,
-      })
+      toast.success(`Dodano ${count} przypomnień o wydarzeniach`)
     } catch (e: unknown) {
-      toast({
-        title: "Błąd",
-        description:
-          e instanceof Error
-            ? e.message
-            : typeof e === "string"
-              ? e
-              : "Nie udało się uruchomić przypomnień",
-        variant: "destructive",
-      })
+      toast.error(
+        e instanceof Error
+          ? e.message
+          : typeof e === "string"
+            ? e
+            : "Nie udało się uruchomić przypomnień",
+      )
     } finally {
       setSubmitting(false)
     }
   }
 
-  if (allowed === null) return null
-  if (!allowed) return null
-
-  return (
-    <div className="mx-auto max-w-3xl px-4 md:px-6 py-8">
-      <h1 className="text-xl font-semibold mb-4">Powiadomienia globalne</h1>
-
-      <div className="rounded-lg border p-4 space-y-4 bg-card">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label>Odbiorcy</Label>
-            <Select
-              value={audience}
-              onValueChange={(v) => setAudience(v as "all" | "role" | "user")}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Wybierz odbiorców" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Wszyscy</SelectItem>
-                <SelectItem value="role">Konkretną rolę</SelectItem>
-                <SelectItem value="user">Konkretnego użytkownika</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {audience === "role" && (
-            <div>
-              <Label>Rola</Label>
-              <Select value={role} onValueChange={(v) => setRole(v as AppRole)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Wybierz rolę" />
-                </SelectTrigger>
-                <SelectContent>
-                  {[
-                    "user",
-                    "company",
-                    "user-supporter",
-                    "company-supporter",
-                    "early-tester",
-                    "tester",
-                    "moderator",
-                    "administrator",
-                    "super-administrator",
-                  ].map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {r}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          {audience === "user" && (
-            <div>
-              <Label>Nazwa użytkownika</Label>
-              <Input
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="np. janek"
-              />
-            </div>
-          )}
-        </div>
-
-        <div>
-          <Label>Tytuł</Label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} />
-        </div>
-        <div>
-          <Label>Treść</Label>
-          <Textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={4}
-          />
-        </div>
-        <div>
-          <Label>Link (opcjonalnie)</Label>
-          <Input
-            type="url"
-            value={actionUrl}
-            onChange={(e) => setActionUrl(e.target.value)}
-            placeholder="https://..."
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label>Wyślij o (opcjonalnie)</Label>
-          <Input
-            type="datetime-local"
-            value={sendAt}
-            onChange={(e) => setSendAt(e.target.value)}
-          />
-          <div className="text-xs text-muted-foreground">{dueHint}</div>
-        </div>
-
-        <div className="rounded-md border p-3 space-y-2">
-          <div className="text-sm font-medium">Podgląd</div>
-          <RainbowBar />
-          <div className="text-sm font-medium">{title || "(Tytuł)"}</div>
-          <div className="text-sm text-muted-foreground">
-            {body || "(Treść powiadomienia)"}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button onClick={onSubmit} disabled={submitting || !title || !body}>
-            Zapisz
-          </Button>
-          <Button variant="outline" onClick={dispatchDue} disabled={submitting}>
-            Wyślij zaległe teraz
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={triggerEventReminders}
-            disabled={submitting}
-          >
-            Wyślij przypomnienia o wydarzeniach
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={loadRecent}
-            disabled={submitting}
-            size="sm"
-          >
-            Odśwież historię
-          </Button>
+  if (allowed === null || loading) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 md:px-6 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </div>
+    )
+  }
 
-      <div className="mt-8">
-        <h2 className="text-lg font-medium mb-2">Ostatnie wysyłki</h2>
-        <div className="rounded-lg border">
-          <div className="grid grid-cols-6 gap-2 p-2 text-xs text-muted-foreground border-b">
-            <div>ID</div>
-            <div>Odbiorcy</div>
-            <div>Tytuł</div>
-            <div>Data wysyłki</div>
-            <div>Status</div>
-            <div>Wysłano</div>
+  if (!allowed) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 md:px-6 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h2 className="text-lg font-semibold mb-2">Brak uprawnień</h2>
+            <p className="text-muted-foreground">
+              Tylko administratorzy mogą zarządzać powiadomieniami.
+            </p>
           </div>
-          {recent.map((r) => (
-            <div key={r.id} className="grid grid-cols-6 gap-2 p-2 text-xs">
-              <div className="truncate" title={r.id}>
-                {r.id}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 md:px-6 py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <Bell className="h-8 w-8 text-primary" />
+          <h1 className="text-3xl font-bold tracking-tight">
+            Powiadomienia globalne
+          </h1>
+        </div>
+        <p className="text-muted-foreground text-lg">
+          Zarządzaj powiadomieniami push i ogłoszeniami dla użytkowników
+        </p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Send className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                {r.audience}
-                {r.target_role ? `:${r.target_role}` : ""}
-              </div>
-              <div className="truncate" title={r.title}>
-                {r.title}
-              </div>
-              <div>{new Date(r.send_at).toLocaleString()}</div>
-              <div>{r.status}</div>
-              <div>
-                {r.dispatched_at
-                  ? new Date(r.dispatched_at).toLocaleString()
-                  : "-"}
+                <p className="text-sm font-medium text-muted-foreground">
+                  Wszystkie wysyłki
+                </p>
+                <p className="text-2xl font-bold">{stats.totalSent}</p>
               </div>
             </div>
-          ))}
-          {recent.length === 0 && (
-            <div className="p-3 text-sm text-muted-foreground">Brak danych</div>
-          )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Clock className="h-5 w-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Oczekujące
+                </p>
+                <p className="text-2xl font-bold">{stats.pendingCount}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Calendar className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Dzisiaj
+                </p>
+                <p className="text-2xl font-bold">{stats.todaySent}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <MessageSquare className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Ten tydzień
+                </p>
+                <p className="text-2xl font-bold">{stats.lastWeekSent}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Create Notification */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5" />
+              Utwórz powiadomienie
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label>Odbiorcy</Label>
+                <Select
+                  value={audience}
+                  onValueChange={(v) =>
+                    setAudience(v as "all" | "role" | "user")
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Wybierz odbiorców" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Wszyscy</SelectItem>
+                    <SelectItem value="role">Konkretną rolę</SelectItem>
+                    <SelectItem value="user">
+                      Konkretnego użytkownika
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {audience === "role" && (
+                <div>
+                  <Label>Rola</Label>
+                  <Select
+                    value={role}
+                    onValueChange={(v) => setRole(v as AppRole)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Wybierz rolę" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[
+                        "user",
+                        "company",
+                        "user-supporter",
+                        "company-supporter",
+                        "early-tester",
+                        "tester",
+                        "moderator",
+                        "administrator",
+                        "super-administrator",
+                      ].map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {r}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {audience === "user" && (
+                <div>
+                  <Label>Nazwa użytkownika</Label>
+                  <Input
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="np. janek"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label>Tytuł</Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+            </div>
+
+            <div>
+              <Label>Treść</Label>
+              <Textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                rows={4}
+              />
+            </div>
+
+            <div>
+              <Label>Link (opcjonalnie)</Label>
+              <Input
+                type="url"
+                value={actionUrl}
+                onChange={(e) => setActionUrl(e.target.value)}
+                placeholder="https://..."
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Wyślij o (opcjonalnie)</Label>
+              <Input
+                type="datetime-local"
+                value={sendAt}
+                onChange={(e) => setSendAt(e.target.value)}
+              />
+              <div className="text-xs text-muted-foreground">{dueHint}</div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label>Podgląd powiadomienia</Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPreview(!showPreview)}
+                >
+                  {showPreview ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                  {showPreview ? "Ukryj" : "Pokaż"}
+                </Button>
+              </div>
+
+              {showPreview && (
+                <div className="rounded-md border p-4 space-y-3 bg-muted/30">
+                  <RainbowBar />
+                  <div className="text-sm font-medium">
+                    {title || "(Tytuł)"}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {body || "(Treść powiadomienia)"}
+                  </div>
+                  {actionUrl && (
+                    <div className="text-xs text-blue-600 underline">
+                      {actionUrl}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Button
+                onClick={onSubmit}
+                disabled={submitting || !title || !body}
+                className="w-full"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Zapisywanie...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Utwórz powiadomienie
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Actions & Recent */}
+        <div className="space-y-6">
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Szybkie akcje
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                variant="outline"
+                onClick={dispatchDue}
+                disabled={submitting}
+                className="w-full"
+              >
+                {submitting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4 mr-2" />
+                )}
+                Wyślij zaległe teraz
+              </Button>
+
+              <Button
+                variant="secondary"
+                onClick={triggerEventReminders}
+                disabled={submitting}
+                className="w-full"
+              >
+                {submitting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Calendar className="h-4 w-4 mr-2" />
+                )}
+                Wyślij przypomnienia o wydarzeniach
+              </Button>
+
+              <Button
+                variant="ghost"
+                onClick={() => Promise.all([loadRecent(), loadStats()])}
+                disabled={submitting}
+                className="w-full"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Odśwież dane
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Recent Notifications */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" />
+                Ostatnie wysyłki
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {recent.length === 0 ? (
+                <div className="text-center py-8">
+                  <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Brak wysyłek</h3>
+                  <p className="text-muted-foreground">
+                    Nie ma jeszcze żadnych wysłanych powiadomień.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recent.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant={
+                              notification.status === "dispatched"
+                                ? "default"
+                                : "secondary"
+                            }
+                          >
+                            {notification.status}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">
+                            {notification.audience}
+                            {notification.target_role
+                              ? `: ${notification.target_role}`
+                              : ""}
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(
+                            notification.created_at,
+                          ).toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      <h4 className="font-medium mb-1">{notification.title}</h4>
+
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-3 w-3" />
+                          Zaplanowano:{" "}
+                          {new Date(notification.send_at).toLocaleString()}
+                        </div>
+                        {notification.dispatched_at && (
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-3 w-3" />
+                            Wysłano:{" "}
+                            {new Date(
+                              notification.dispatched_at,
+                            ).toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
