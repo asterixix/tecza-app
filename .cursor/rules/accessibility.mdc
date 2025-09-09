@@ -1,0 +1,12 @@
+---
+description: Accessibility & i18n
+globs: **/*.{ts,tsx,js,jsx}
+alwaysApply: true
+---
+Default UI in Polish, but all code-level naming in English.
+
+Use semantic HTML, ARIA labels, focus rings, and preserve landmark structure.
+
+Ensure color contrast, alt text on images, and keyboard navigation.
+
+Internationalization (i18n) must follow Next.js conventions and handle date/number formatting.

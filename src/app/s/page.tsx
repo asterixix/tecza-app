@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -45,6 +45,12 @@ import {
   Globe,
   Heart,
   Mail,
+  Type,
+  Keyboard,
+  Monitor,
+  Sun,
+  Moon,
+  Loader2,
 } from "lucide-react"
 // E2EE messaging removed; crypto key manager not used
 
@@ -112,8 +118,37 @@ export default function SettingsPage() {
     if (typeof window === "undefined") return "100"
     return localStorage.getItem("pref-font-scale") || "100"
   })
+  const [highContrast, setHighContrast] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false
+    return localStorage.getItem("pref-high-contrast") === "1"
+  })
+  const [screenReader, setScreenReader] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false
+    return localStorage.getItem("pref-screen-reader") === "1"
+  })
+  const [keyboardNavigation, setKeyboardNavigation] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false
+    return localStorage.getItem("pref-keyboard-nav") === "1"
+  })
+  const [soundEffects, setSoundEffects] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true
+    return localStorage.getItem("pref-sound-effects") !== "0"
+  })
+  const [focusVisible, setFocusVisible] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false
+    return localStorage.getItem("pref-focus-visible") === "1"
+  })
+  const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
+    if (typeof window === "undefined") return "system"
+    return (
+      (localStorage.getItem("pref-theme") as "light" | "dark" | "system") ||
+      "system"
+    )
+  })
   // Private account email
   const [accountEmail, setAccountEmail] = useState<string>("")
+  // 2FA verification state
+  const [verifying2FA, setVerifying2FA] = useState(false)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -332,6 +367,126 @@ export default function SettingsPage() {
     }
     load()
   }, [supabase, form])
+
+  // Enhanced 2FA verification using Edge Function
+  const verify2FA = useCallback(
+    async (factorId: string, code: string, challengeId: string) => {
+      if (!supabase) {
+        toast.error("Brak konfiguracji Supabase")
+        return false
+      }
+
+      setVerifying2FA(true)
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        if (!session?.access_token) {
+          throw new Error("Brak sesji użytkownika")
+        }
+
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/verify-2fa`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              factorId,
+              code,
+              challengeId,
+            }),
+          },
+        )
+
+        const result = await response.json()
+
+        if (result.success) {
+          toast.success("2FA zostało pomyślnie zweryfikowane", {
+            description: "Twoje konto jest teraz bezpieczne",
+            icon: <CheckCircle className="h-4 w-4" />,
+          })
+          return true
+        } else {
+          toast.error("Błąd weryfikacji 2FA", {
+            description: result.message || "Nieprawidłowy kod",
+            icon: <AlertCircle className="h-4 w-4" />,
+          })
+          return false
+        }
+      } catch (error) {
+        console.error("2FA verification error:", error)
+        toast.error("Błąd podczas weryfikacji 2FA", {
+          description: error instanceof Error ? error.message : "Nieznany błąd",
+          icon: <AlertCircle className="h-4 w-4" />,
+        })
+        return false
+      } finally {
+        setVerifying2FA(false)
+      }
+    },
+    [supabase],
+  )
+
+  // Apply accessibility preferences
+  const applyAccessibilityPreferences = useCallback(() => {
+    if (typeof window === "undefined") return
+
+    // Apply motion reduction
+    document.documentElement.classList.toggle("reduce-motion", reduceMotion)
+
+    // Apply font scale
+    document.documentElement.style.setProperty(
+      "--app-font-scale",
+      `${fontScale}%`,
+    )
+
+    // Apply high contrast
+    document.documentElement.classList.toggle("high-contrast", highContrast)
+
+    // Apply screen reader optimizations
+    document.documentElement.classList.toggle("screen-reader", screenReader)
+
+    // Apply keyboard navigation
+    document.documentElement.classList.toggle(
+      "keyboard-nav",
+      keyboardNavigation,
+    )
+
+    // Apply focus visible
+    document.documentElement.classList.toggle("focus-visible", focusVisible)
+
+    // Apply theme
+    if (theme === "light") {
+      document.documentElement.classList.remove("dark")
+      document.documentElement.classList.add("light")
+    } else if (theme === "dark") {
+      document.documentElement.classList.remove("light")
+      document.documentElement.classList.add("dark")
+    } else {
+      // System theme
+      const prefersDark = window.matchMedia(
+        "(prefers-color-scheme: dark)",
+      ).matches
+      document.documentElement.classList.toggle("dark", prefersDark)
+      document.documentElement.classList.toggle("light", !prefersDark)
+    }
+  }, [
+    reduceMotion,
+    fontScale,
+    highContrast,
+    screenReader,
+    keyboardNavigation,
+    focusVisible,
+    theme,
+  ])
+
+  // Apply accessibility preferences on mount and when they change
+  useEffect(() => {
+    applyAccessibilityPreferences()
+  }, [applyAccessibilityPreferences])
 
   async function onSubmit(values: FormValues) {
     if (!supabase) return toast.error("Brak konfiguracji Supabase")
@@ -901,6 +1056,38 @@ export default function SettingsPage() {
 
         <TabsContent value="notifications" className="space-y-6">
           <div className="grid gap-6">
+            {/* Push Notifications */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5" />
+                  Powiadomienia push
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Zarządzaj powiadomieniami push w przeglądarce
+                </p>
+              </CardHeader>
+              <CardContent>
+                <PushControls />
+              </CardContent>
+            </Card>
+
+            {/* Email Notifications */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  Powiadomienia email
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Zarządzaj powiadomieniami email i preferencjami
+                </p>
+              </CardHeader>
+              <CardContent>
+                <EmailControls />
+              </CardContent>
+            </Card>
+
             {/* Notification Categories */}
             <Card>
               <CardHeader>
@@ -935,22 +1122,6 @@ export default function SettingsPage() {
                     description="Powiadomienia o nowych postach od osób, które obserwujesz"
                   />
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Push Notifications */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Smartphone className="h-5 w-5" />
-                  Powiadomienia push
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Zarządzaj powiadomieniami push w przeglądarce
-                </p>
-              </CardHeader>
-              <CardContent>
-                <PushControls />
               </CardContent>
             </Card>
           </div>
@@ -1106,6 +1277,7 @@ export default function SettingsPage() {
                                 />
                                 <Button
                                   size="sm"
+                                  disabled={verifying2FA}
                                   onClick={async () => {
                                     try {
                                       if (!supabase) {
@@ -1115,6 +1287,7 @@ export default function SettingsPage() {
                                         return
                                       }
                                       if (!mfaFactorId || !otpCode) return
+
                                       const ch =
                                         await supabase.auth.mfa.challenge({
                                           factorId: mfaFactorId,
@@ -1126,28 +1299,34 @@ export default function SettingsPage() {
                                         throw new Error(
                                           "Brak identyfikatora wyzwania 2FA",
                                         )
-                                      const { error: verr } =
-                                        await supabase.auth.mfa.verify({
-                                          factorId: mfaFactorId,
-                                          code: otpCode,
-                                          challengeId,
-                                        })
-                                      if (verr) throw verr
-                                      setMfaEnrolled(true)
-                                      setMfaQR("")
-                                      setMfaSecret("")
-                                      setOtpCode("")
-                                      toast.success(
-                                        "2FA zostało pomyślnie włączone!",
+
+                                      const success = await verify2FA(
+                                        mfaFactorId,
+                                        otpCode,
+                                        challengeId,
                                       )
-                                    } catch {
+                                      if (success) {
+                                        setMfaEnrolled(true)
+                                        setMfaQR("")
+                                        setMfaSecret("")
+                                        setOtpCode("")
+                                      }
+                                    } catch (error) {
+                                      console.error("2FA setup error:", error)
                                       toast.error(
                                         "Nie udało się zweryfikować kodu 2FA",
                                       )
                                     }
                                   }}
                                 >
-                                  Zatwierdź
+                                  {verifying2FA ? (
+                                    <>
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      Weryfikacja...
+                                    </>
+                                  ) : (
+                                    "Zatwierdź"
+                                  )}
                                 </Button>
                               </div>
                             </div>
@@ -1363,18 +1542,19 @@ export default function SettingsPage() {
 
         <TabsContent value="accessibility" className="space-y-6">
           <div className="grid gap-6">
+            {/* Visual Preferences */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Palette className="h-5 w-5" />
-                  Preferencje wyświetlania
+                  Preferencje wizualne
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Preferencje wyświetlania zapisywane lokalnie w przeglądarce
+                  Dostosuj wygląd aplikacji do swoich potrzeb
                 </p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6 max-w-xl">
+                <div className="space-y-6 max-w-2xl">
                   <div className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
                     <div className="space-y-1">
                       <div className="font-medium">Ogranicz animacje</div>
@@ -1393,13 +1573,31 @@ export default function SettingsPage() {
                             v ? "1" : "0",
                           )
                         } catch {}
-                        document.documentElement.classList.toggle(
-                          "reduce-motion",
-                          v,
-                        )
                       }}
                     />
                   </div>
+
+                  <div className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                    <div className="space-y-1">
+                      <div className="font-medium">Wysoki kontrast</div>
+                      <div className="text-sm text-muted-foreground">
+                        Zwiększa kontrast kolorów dla lepszej czytelności
+                      </div>
+                    </div>
+                    <Switch
+                      checked={highContrast}
+                      onCheckedChange={(v) => {
+                        setHighContrast(v)
+                        try {
+                          localStorage.setItem(
+                            "pref-high-contrast",
+                            v ? "1" : "0",
+                          )
+                        } catch {}
+                      }}
+                    />
+                  </div>
+
                   <div className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
                     <div className="space-y-1">
                       <div className="font-medium">Skala czcionki</div>
@@ -1410,8 +1608,8 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-3">
                       <Input
                         type="range"
-                        min={90}
-                        max={130}
+                        min={80}
+                        max={150}
                         step={5}
                         value={fontScale}
                         onChange={(e) => {
@@ -1420,21 +1618,212 @@ export default function SettingsPage() {
                           try {
                             localStorage.setItem("pref-font-scale", v)
                           } catch {}
-                          document.documentElement.style.setProperty(
-                            "--app-font-scale",
-                            `${v}%`,
-                          )
                         }}
                         className="w-24"
+                        aria-label="Skala czcionki"
                       />
                       <div className="w-12 text-right text-sm font-medium">
                         {fontScale}%
                       </div>
                     </div>
                   </div>
+
+                  <div className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                    <div className="space-y-1">
+                      <div className="font-medium">Motyw</div>
+                      <div className="text-sm text-muted-foreground">
+                        Wybierz preferowany motyw kolorystyczny
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant={theme === "light" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTheme("light")}
+                        className="flex items-center gap-2"
+                      >
+                        <Sun className="h-4 w-4" />
+                        Jasny
+                      </Button>
+                      <Button
+                        variant={theme === "dark" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTheme("dark")}
+                        className="flex items-center gap-2"
+                      >
+                        <Moon className="h-4 w-4" />
+                        Ciemny
+                      </Button>
+                      <Button
+                        variant={theme === "system" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTheme("system")}
+                        className="flex items-center gap-2"
+                      >
+                        <Monitor className="h-4 w-4" />
+                        System
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Navigation & Interaction */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Keyboard className="h-5 w-5" />
+                  Nawigacja i interakcja
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Dostosuj sposób nawigacji i interakcji z aplikacją
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6 max-w-2xl">
+                  <div className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                    <div className="space-y-1">
+                      <div className="font-medium">Nawigacja klawiaturą</div>
+                      <div className="text-sm text-muted-foreground">
+                        Optymalizuje interfejs dla nawigacji klawiaturą
+                      </div>
+                    </div>
+                    <Switch
+                      checked={keyboardNavigation}
+                      onCheckedChange={(v) => {
+                        setKeyboardNavigation(v)
+                        try {
+                          localStorage.setItem(
+                            "pref-keyboard-nav",
+                            v ? "1" : "0",
+                          )
+                        } catch {}
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                    <div className="space-y-1">
+                      <div className="font-medium">Widoczne fokusy</div>
+                      <div className="text-sm text-muted-foreground">
+                        Zawsze pokazuj wskaźniki fokusa dla lepszej nawigacji
+                      </div>
+                    </div>
+                    <Switch
+                      checked={focusVisible}
+                      onCheckedChange={(v) => {
+                        setFocusVisible(v)
+                        try {
+                          localStorage.setItem(
+                            "pref-focus-visible",
+                            v ? "1" : "0",
+                          )
+                        } catch {}
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                    <div className="space-y-1">
+                      <div className="font-medium">Efekty dźwiękowe</div>
+                      <div className="text-sm text-muted-foreground">
+                        Włącz lub wyłącz dźwięki powiadomień i interakcji
+                      </div>
+                    </div>
+                    <Switch
+                      checked={soundEffects}
+                      onCheckedChange={(v) => {
+                        setSoundEffects(v)
+                        try {
+                          localStorage.setItem(
+                            "pref-sound-effects",
+                            v ? "1" : "0",
+                          )
+                        } catch {}
+                      }}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Screen Reader Support */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Type className="h-5 w-5" />
+                  Wsparcie dla czytników ekranu
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Optymalizacje dla użytkowników czytników ekranu
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6 max-w-2xl">
+                  <div className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                    <div className="space-y-1">
+                      <div className="font-medium">Tryb czytnika ekranu</div>
+                      <div className="text-sm text-muted-foreground">
+                        Włącza dodatkowe etykiety i opisy dla czytników ekranu
+                      </div>
+                    </div>
+                    <Switch
+                      checked={screenReader}
+                      onCheckedChange={(v) => {
+                        setScreenReader(v)
+                        try {
+                          localStorage.setItem(
+                            "pref-screen-reader",
+                            v ? "1" : "0",
+                          )
+                        } catch {}
+                      }}
+                    />
+                  </div>
+
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <div className="p-1 bg-blue-100 rounded">
+                        <Type className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-blue-800">
+                          Wskazówki dla czytników ekranu
+                        </p>
+                        <ul className="text-xs text-blue-700 space-y-1">
+                          <li>
+                            • Użyj klawisza Tab do nawigacji między elementami
+                          </li>
+                          <li>
+                            • Naciśnij Enter lub Spację, aby aktywować przyciski
+                          </li>
+                          <li>• Użyj strzałek do nawigacji w menu i listach</li>
+                          <li>• Naciśnij Escape, aby zamknąć okna dialogowe</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Save Accessibility Preferences */}
+            <div className="flex justify-end">
+              <Button
+                onClick={() => {
+                  applyAccessibilityPreferences()
+                  toast.success("Preferencje dostępności zostały zapisane", {
+                    description: "Zmiany zostały zastosowane natychmiast",
+                    icon: <CheckCircle className="h-4 w-4" />,
+                  })
+                }}
+                className="min-w-[200px]"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Zapisz preferencje dostępności
+              </Button>
+            </div>
           </div>
         </TabsContent>
 
@@ -1615,6 +2004,282 @@ import {
   setupClientAudioBridge,
   ensureServiceWorkerReady,
 } from "@/lib/push"
+
+function EmailControls() {
+  const supabase = getSupabase()
+  const [emailEnabled, setEmailEnabled] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [testing, setTesting] = useState(false)
+  const [emailPreferences, setEmailPreferences] = useState({
+    enable_friend_requests: true,
+    enable_mentions: true,
+    enable_community_posts: true,
+    enable_following_posts: true,
+    enable_security_alerts: true,
+    enable_weekly_digest: false,
+  })
+
+  useEffect(() => {
+    ;(async () => {
+      if (!supabase) return
+      const me = (await supabase.auth.getUser()).data.user
+      if (!me) return
+
+      const { data } = await supabase
+        .from("notification_settings")
+        .select(
+          "email_enabled, email_friend_requests, email_mentions, email_community_posts, email_following_posts, email_security_alerts, email_weekly_digest",
+        )
+        .eq("user_id", me.id)
+        .maybeSingle()
+
+      if (data) {
+        setEmailEnabled(!!data.email_enabled)
+        setEmailPreferences({
+          enable_friend_requests: data.email_friend_requests ?? true,
+          enable_mentions: data.email_mentions ?? true,
+          enable_community_posts: data.email_community_posts ?? true,
+          enable_following_posts: data.email_following_posts ?? true,
+          enable_security_alerts: data.email_security_alerts ?? true,
+          enable_weekly_digest: data.email_weekly_digest ?? false,
+        })
+      }
+      setLoading(false)
+    })()
+  }, [supabase])
+
+  const updateEmailPreference = async (key: string, value: boolean) => {
+    if (!supabase) return
+    const me = (await supabase.auth.getUser()).data.user
+    if (!me) return
+
+    try {
+      await supabase.from("notification_settings").upsert({
+        user_id: me.id,
+        email_enabled: emailEnabled,
+        [key]: value,
+      })
+
+      setEmailPreferences((prev) => ({ ...prev, [key]: value }))
+      toast.success("Preferencje email zostały zaktualizowane")
+    } catch (error) {
+      console.error("Failed to update email preference:", error)
+      toast.error("Nie udało się zaktualizować preferencji email")
+    }
+  }
+
+  const toggleEmailEnabled = async () => {
+    if (!supabase) return
+    const me = (await supabase.auth.getUser()).data.user
+    if (!me) return
+
+    try {
+      await supabase.from("notification_settings").upsert({
+        user_id: me.id,
+        email_enabled: !emailEnabled,
+      })
+
+      setEmailEnabled(!emailEnabled)
+      toast.success(
+        `Powiadomienia email ${!emailEnabled ? "włączone" : "wyłączone"}`,
+      )
+    } catch (error) {
+      console.error("Failed to toggle email notifications:", error)
+      toast.error("Nie udało się zmienić ustawień email")
+    }
+  }
+
+  const sendTestEmail = async () => {
+    if (!supabase) return
+    setTesting(true)
+
+    try {
+      const session = (await supabase.auth.getSession())?.data.session
+      if (!session?.access_token) {
+        throw new Error("Brak sesji użytkownika")
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            payload: {
+              subject: "Test powiadomienia email - Tęcza.app",
+              html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #667eea;">🌈 Test powiadomienia email</h2>
+                <p>To jest test powiadomienia email z Tęcza.app. Jeśli otrzymałeś tę wiadomość, oznacza to, że powiadomienia email działają poprawnie.</p>
+                <p>Możesz zarządzać preferencjami powiadomień w ustawieniach swojego konta.</p>
+                <p style="color: #666; font-size: 14px; margin-top: 30px;">
+                  Z poważaniem,<br>
+                  Zespół Tęcza.app
+                </p>
+              </div>
+            `,
+              text: "Test powiadomienia email - Tęcza.app\n\nTo jest test powiadomienia email. Jeśli otrzymałeś tę wiadomość, oznacza to, że powiadomienia email działają poprawnie.",
+            },
+            audience: "user",
+          }),
+        },
+      )
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success("Test email został wysłany", {
+          description: "Sprawdź swoją skrzynkę pocztową",
+          icon: <CheckCircle className="h-4 w-4" />,
+        })
+      } else {
+        toast.error("Nie udało się wysłać testu email", {
+          description: result.message || "Nieznany błąd",
+          icon: <AlertCircle className="h-4 w-4" />,
+        })
+      }
+    } catch (error) {
+      console.error("Email test error:", error)
+      toast.error("Błąd podczas wysyłania testu email", {
+        description: error instanceof Error ? error.message : "Nieznany błąd",
+        icon: <AlertCircle className="h-4 w-4" />,
+      })
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Email Toggle */}
+      <div className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+        <div className="space-y-1">
+          <div className="font-medium">Powiadomienia email</div>
+          <div className="text-sm text-muted-foreground">
+            Otrzymuj powiadomienia na swój adres email
+          </div>
+        </div>
+        <Switch
+          checked={emailEnabled}
+          disabled={loading}
+          onCheckedChange={toggleEmailEnabled}
+        />
+      </div>
+
+      {/* Email Preferences */}
+      {emailEnabled && (
+        <div className="space-y-4">
+          <h4 className="font-medium text-sm">Preferencje powiadomień email</h4>
+          <div className="grid gap-3">
+            <div className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors">
+              <div className="space-y-1">
+                <div className="text-sm font-medium">Prośby o połączenie</div>
+                <div className="text-xs text-muted-foreground">
+                  Email o nowych prośbach o dodanie do znajomych
+                </div>
+              </div>
+              <Switch
+                checked={emailPreferences.enable_friend_requests}
+                onCheckedChange={(v) =>
+                  updateEmailPreference("email_friend_requests", v)
+                }
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors">
+              <div className="space-y-1">
+                <div className="text-sm font-medium">Wzmianki (@)</div>
+                <div className="text-xs text-muted-foreground">
+                  Email gdy ktoś Cię wspomni w poście
+                </div>
+              </div>
+              <Switch
+                checked={emailPreferences.enable_mentions}
+                onCheckedChange={(v) =>
+                  updateEmailPreference("email_mentions", v)
+                }
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors">
+              <div className="space-y-1">
+                <div className="text-sm font-medium">
+                  Posty w społecznościach
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Email o nowych postach w społecznościach
+                </div>
+              </div>
+              <Switch
+                checked={emailPreferences.enable_community_posts}
+                onCheckedChange={(v) =>
+                  updateEmailPreference("email_community_posts", v)
+                }
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors">
+              <div className="space-y-1">
+                <div className="text-sm font-medium">Alerty bezpieczeństwa</div>
+                <div className="text-xs text-muted-foreground">
+                  Email o ważnych zmianach bezpieczeństwa
+                </div>
+              </div>
+              <Switch
+                checked={emailPreferences.enable_security_alerts}
+                onCheckedChange={(v) =>
+                  updateEmailPreference("email_security_alerts", v)
+                }
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors">
+              <div className="space-y-1">
+                <div className="text-sm font-medium">
+                  Tygodniowe podsumowanie
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Cotygodniowy email z podsumowaniem aktywności
+                </div>
+              </div>
+              <Switch
+                checked={emailPreferences.enable_weekly_digest}
+                onCheckedChange={(v) =>
+                  updateEmailPreference("email_weekly_digest", v)
+                }
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Test Email Button */}
+      <div className="flex justify-end">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={testing || !emailEnabled}
+          onClick={sendTestEmail}
+        >
+          {testing ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Wysyłanie...
+            </>
+          ) : (
+            <>
+              <Mail className="h-4 w-4 mr-2" />
+              Wyślij test email
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 function PushControls() {
   const supabase = getSupabase()

@@ -1,0 +1,10 @@
+---
+description: PWA & Offline
+globs: **/*.{ts,tsx,js,jsx}
+alwaysApply: true
+---
+Use next-pwa for PWA features.
+
+Always unregister and clean up SW cache in dev if UI/CSS is stale.
+
+Ensure install prompt and offline page are functional in production builds.

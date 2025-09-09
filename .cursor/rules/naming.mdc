@@ -1,0 +1,12 @@
+---
+description: Naming Conventions
+globs: **/*.{ts,tsx,js,jsx,css}
+alwaysApply: true
+---
+Directories/files: kebab-case (e.g., user-profile, feed-page.tsx).
+
+Variables/functions: camelCase, use verbs for booleans (e.g., isLoading, handleSubmit).
+
+Components/types/interfaces: PascalCase.
+
+Event handlers: handleX (e.g., handleLogin).

@@ -1,0 +1,10 @@
+---
+description: TypeScript Practices
+globs: **/*.{ts,tsx}
+alwaysApply: true
+---
+Enable strict mode in tsconfig.
+
+Avoid any and type assertions; create types/interfaces as needed.
+
+Document all public interfaces, props, and exported functions with JSDoc.

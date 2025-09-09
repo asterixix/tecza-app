@@ -60,6 +60,21 @@ export function NotificationsPopover() {
     if (!supabase) return
     const now = Date.now()
     if (now - lastFetchRef.current < 60_000) return
+
+    // Check if notifications were recently cleared
+    if (typeof window !== "undefined") {
+      try {
+        const clearedAt = localStorage.getItem("notifications_cleared")
+        if (clearedAt && now - parseInt(clearedAt) < 30000) {
+          // 30 seconds
+          console.log("Notifications recently cleared, skipping fetch")
+          return
+        }
+      } catch {
+        // Ignore localStorage errors
+      }
+    }
+
     const me = (await supabase.auth.getUser()).data.user
     if (!me) return
 
@@ -298,16 +313,20 @@ export function NotificationsPopover() {
 
       if (!error) {
         console.log(`Cleared ${count || 0} notifications`)
+        // Clear local state immediately
         setItems([])
         setActors({})
         // Reset fetch timestamp to allow immediate refetch if needed
         lastFetchRef.current = 0
 
-        // Also clear any cached notification data in localStorage if it exists
+        // Clear any cached notification data in localStorage
         if (typeof window !== "undefined") {
           try {
             localStorage.removeItem("notifications_cache")
             localStorage.removeItem("notifications_last_fetch")
+            localStorage.removeItem("notifications_cleared")
+            // Set a flag to prevent refetching immediately
+            localStorage.setItem("notifications_cleared", Date.now().toString())
           } catch {
             // Ignore localStorage errors
           }
@@ -398,6 +417,24 @@ export function NotificationsPopover() {
     }
   }
 
+  function renderBroadcastContent(n: NotificationRow) {
+    if (n.type !== "broadcast") return null
+
+    const title = n.payload?.title || "Powiadomienie globalne"
+    const body = n.payload?.body || ""
+
+    return (
+      <div className="space-y-2">
+        <div className="font-semibold text-sm break-words">📢 {title}</div>
+        {body && (
+          <div className="text-xs text-muted-foreground break-words line-clamp-4">
+            {body}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   function linkFor(n: NotificationRow) {
     if (n.type === "broadcast" && n.action_url) return n.action_url
     if (n.type === "event_reminder" && n.action_url) return n.action_url
@@ -436,8 +473,9 @@ export function NotificationsPopover() {
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-96 p-0"
+        className="w-96 max-w-[calc(100vw-2rem)] p-0 z-50"
         aria-label="Powiadomienia"
+        sideOffset={8}
       >
         <div className="p-4 flex items-center justify-between border-b">
           <div className="font-semibold text-lg">Powiadomienia</div>
@@ -477,7 +515,7 @@ export function NotificationsPopover() {
             )}
           </div>
         </div>
-        <ScrollArea className="max-h-96">
+        <ScrollArea className="max-h-96 min-h-0">
           <ul className="divide-y">
             {items.length === 0 && (
               <li className="p-6 text-center text-muted-foreground">
@@ -492,7 +530,7 @@ export function NotificationsPopover() {
               <li
                 key={n.id}
                 className={cn(
-                  "p-4 grid gap-3 transition-colors hover:bg-accent/50",
+                  "p-4 transition-colors hover:bg-accent/50",
                   !n.read_at ? "bg-accent/30" : "",
                   n.type === "broadcast" ? "relative overflow-hidden" : "",
                 )}
@@ -507,48 +545,55 @@ export function NotificationsPopover() {
                     }}
                   />
                 )}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <Link
-                      href={linkFor(n)}
-                      onClick={() => markRead(n.id)}
-                      className={cn(
-                        "text-sm leading-5 hover:underline block",
-                        n.type === "broadcast" ? "font-semibold" : "",
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      {n.type === "broadcast" ? (
+                        <Link
+                          href={linkFor(n)}
+                          onClick={() => markRead(n.id)}
+                          className="flex-1 min-w-0 block hover:bg-accent/30 rounded p-1 -m-1"
+                        >
+                          {renderBroadcastContent(n)}
+                        </Link>
+                      ) : (
+                        <Link
+                          href={linkFor(n)}
+                          onClick={() => markRead(n.id)}
+                          className="text-sm leading-5 hover:underline block flex-1 min-w-0"
+                        >
+                          <span className="break-words">{renderText(n)}</span>
+                        </Link>
                       )}
-                    >
-                      {renderText(n)}
-                    </Link>
+                      {!n.read_at && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label="Oznacz jako przeczytane"
+                          onClick={() => markRead(n.id)}
+                          className="flex-shrink-0 h-6 w-6"
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+
                     {n.type === "post_comment" && n.payload?.snippet && (
-                      <div className="text-xs text-muted-foreground mt-2 line-clamp-2 bg-muted/50 p-2 rounded">
+                      <div className="text-xs text-muted-foreground line-clamp-2 bg-muted/50 p-2 rounded break-words">
                         {n.payload.snippet as string}
                       </div>
                     )}
+
                     {n.type === "event_reminder" && n.payload?.title && (
-                      <div className="text-xs text-muted-foreground mt-2 font-medium">
+                      <div className="text-xs text-muted-foreground font-medium break-words">
                         {n.payload.title as string}
                       </div>
                     )}
-                    {n.type === "broadcast" && n.payload?.body && (
-                      <div className="text-xs text-muted-foreground mt-2">
-                        {n.payload.body as string}
-                      </div>
-                    )}
-                    <div className="text-xs text-muted-foreground mt-2">
+
+                    <div className="text-xs text-muted-foreground">
                       {new Date(n.created_at).toLocaleString()}
                     </div>
                   </div>
-                  {!n.read_at && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label="Oznacz jako przeczytane"
-                      onClick={() => markRead(n.id)}
-                      className="flex-shrink-0"
-                    >
-                      <Check className="h-4 w-4" />
-                    </Button>
-                  )}
                 </div>
                 {n.type === "friend_request" && (
                   <div className="flex items-center gap-3 pt-2">

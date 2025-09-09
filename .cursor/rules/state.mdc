@@ -1,0 +1,10 @@
+---
+description: State & Logic
+globs: **/*.{ts,tsx,js,jsx}
+alwaysApply: true
+---
+Use React Hook Form + Zod for forms and validation.
+
+Prefer React context/useReducer for shared or feature state.
+
+Use Supabase's RLS (row level security) for client visibility checks, never rely on frontend logic alone for sensitive data.

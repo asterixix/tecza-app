@@ -1,0 +1,14 @@
+---
+description: General Principles
+globs: **/*.{ts,tsx,js,jsx,css}
+alwaysApply: true
+---
+Write clean, modular, maintainable TypeScript/JavaScript.
+
+Use functional and declarative programming patterns.
+
+Follow strict type safety; prefer interfaces over types.
+
+All code and docs in English for maintainability.
+
+Adhere to SOLID and DRY principles.

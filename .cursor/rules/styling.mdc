@@ -1,0 +1,14 @@
+---
+description: Styling & UI
+globs: **/*.{ts,tsx,js,jsx,css}
+alwaysApply: true
+---
+Style only with Tailwind CSS v4 utility classes.
+
+Use Shadcn/UI and Radix primitives for accessible components.
+
+No separate CSS files; avoid inline styles.
+
+Design for mobile-first and WCAG 2.1 accessibility.
+
+Implement dark/light/system themes using next-themes.

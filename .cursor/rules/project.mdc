@@ -1,0 +1,15 @@
+---
+description: Project Architecture
+globs: **/*.{ts,tsx,js,jsx}
+alwaysApply: true
+---
+Next.js 15 App Router structure (Server/Client Components).
+
+Use feature-first file organization; group by domain/feature.
+
+Logical separation for auth, profile, post, feed, storage, etc.
+
+Decouple UI (components), logic (hooks/services), and data (Supabase models).
+
+One export per file; prefer named exports.
+

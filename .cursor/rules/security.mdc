@@ -1,0 +1,12 @@
+---
+description: Security
+globs: **/*.{ts,tsx,js,jsx}
+alwaysApply: true
+---
+Follow CSP and prevent XSS in all markdown/user-generated content.
+
+Never commit sensitive data.
+
+OAuth logins and 2FA must use secure browser flows.
+
+All upload URLs from Supabase must be validated before display.

@@ -1,0 +1,14 @@
+---
+description: Cursor Output/AI Prompts
+globs: *
+alwaysApply: true
+---
+Begin answers with pseudocode or step-by-step plan if implementing features.
+
+Confirm reasoning before writing code.
+
+All code must be complete (no TODOs/placeholders).
+
+Use error boundaries and proper error logging.
+
+Give code examples matching above patterns.

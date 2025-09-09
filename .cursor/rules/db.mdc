@@ -1,0 +1,11 @@
+---
+description: Data & API
+globs: **/*.{ts,tsx,js,jsx}
+alwaysApply: true
+---
+Use Supabase for backend, with client library only in API/server, never expose admin keys.
+
+Validate all API input with Zod schemas.
+
+Structure DB calls in /lib or /services folder; never duplicate logic.
+

@@ -1,0 +1,12 @@
+---
+description: Testing & QA
+globs: **/*.{ts,tsx,js,jsx,css}
+alwaysApply: true
+---
+Unit tests: Use Jest/React Testing Library where possible.
+
+Use mock service worker (MSW) for API mocks if applicable.
+
+Manual smoke test for login, post feed, profile edit on every deploy.
+
+After completed tests, remove test files.

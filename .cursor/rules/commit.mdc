@@ -1,0 +1,14 @@
+---
+description: Commit & PR Standards
+globs:
+alwaysApply: true
+---
+Use concise, imperative commit messages (e.g., fix: update login validation).
+
+Write commit messages in Polish language.
+
+Before commit message attach next version of application (ex. wersja 0.1.5.12).
+
+All PRs must pass linter, formatter, and required checks.
+
+Review according to above architecture and style guide.
