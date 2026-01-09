@@ -83,8 +83,23 @@ const pwaOptions: unknown = {
 const withPWAFn = withPWA(pwaOptions as any)
 
 const nextConfig: NextConfig = {
+  // Silence Turbopack warning about webpack config (from next-pwa)
+  turbopack: {},
   images: {
-    domains: [supabaseHost, "images.unsplash.com"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: supabaseHost,
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        port: "",
+        pathname: "/**",
+      },
+    ],
   },
   async headers() {
     return [
